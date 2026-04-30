@@ -748,13 +748,15 @@ function populateFormWithData(data) {
     if (label)   label.style.display = "none";
   }
 
-  // ── Section B — Services ──
+  // ── Section B — Services (index-based checkboxes) ──
   const svcs = b.services || {};
-  Object.entries(svcs).forEach(([key, val]) => {
-    const curEl  = document.querySelector(`input[data-service-key="${key}"][data-service-type="current"]`);
-    const joinEl = document.querySelector(`input[data-service-key="${key}"][data-service-type="join"]`);
-    if (curEl  && val.current) curEl.checked  = true;
-    if (joinEl && val.join)    joinEl.checked  = true;
+  SERVICES.forEach((_, i) => {
+    const num    = i + 1;
+    const key    = `svc_${num}`;
+    const haveEl = document.getElementById(`svc-have-${num}`);
+    const wantEl = document.getElementById(`svc-want-${num}`);
+    if (haveEl && svcs[key]?.current) haveEl.checked = true;
+    if (wantEl && svcs[key]?.join)    wantEl.checked = true;
   });
 
   // ── Section C — Children ──
@@ -819,40 +821,66 @@ const EDIT_FIELD_LABELS = {
 };
 
 function collectCurrentFormData() {
-  const draft = JSON.parse(localStorage.getItem("bem_otr_draft_sectionA") || "{}");
-  const draftB = JSON.parse(localStorage.getItem("bem_otr_draft_sectionB") || "{}");
-  const draftC = JSON.parse(localStorage.getItem("bem_otr_draft_sectionC") || "{}");
-  return {
-    a: {
-      fullName:       draft.fullName || "",
-      icNo:           (draft.icNo||"").replace(/-/g,""),
-      gender:         draft.gender || "",
-      dob:            draft.dob || "",
-      race:           draft.race || "",
-      phoneNumber:    draft.phoneNumber || "",
-      occupation:     draft.occupation || "",
-      maritalStatus:  draft.maritalStatus || "",
-      partnerName:    draft.partnerName || "",
-      latePartnerName:draft.latePartnerName || "",
-      baptismStatus:  draft.baptismStatus || "",
-      baptismYear:    draft.baptismYear || "",
-      citizenship:    draft.citizenship || "",
-      countryOfOrigin:draft.countryOfOrigin || "",
-      foreignID:      draft.foreignID || "",
-      originalChurch: draft.originalChurch || "",
-      yearJoining:    draft.yearJoining || "",
-      memberRole:     draft.memberRole || "",
-      komselCode:     draft.komselCode || "",
-      currentAddress: draft.currentAddress || "",
-    },
-    b: draftB,
-    c: draftC,
+  // In edit mode, saveDraft() is disabled so localStorage is always empty.
+  // Read directly from the live DOM instead.
+  const oldA = editOriginalData?.sectionA || {};
+
+  const getVal = (id) => document.getElementById(id)?.value?.trim() || "";
+  const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value || "";
+
+  const newA = {
+    fullName:       (getVal("fullName") || oldA.fullName || "").toUpperCase(),
+    icNo:           (document.getElementById("icNo")?.value || "").replace(/-/g,"") || oldA.icNo || "",
+    gender:         getRadio("gender")          || oldA.gender          || "",
+    dob:            getVal("dob")               || oldA.dob             || "",
+    race:           getVal("race")              || oldA.race            || "",
+    phoneNumber:    getVal("phoneNumber")        || oldA.phoneNumber     || "",
+    occupation:     getVal("occupation")         || oldA.occupation      || "",
+    maritalStatus:  getVal("maritalStatus")      || oldA.maritalStatus   || "",
+    partnerName:    (getVal("partnerName")       || oldA.partnerName     || "").toUpperCase(),
+    latePartnerName:(getVal("latePartnerName")   || oldA.latePartnerName || "").toUpperCase(),
+    baptismStatus:  getRadio("baptismStatus")   || oldA.baptismStatus   || "",
+    baptismYear:    getVal("baptismYear")        || oldA.baptismYear     || "",
+    citizenship:    getRadio("citizenship")     || oldA.citizenship     || "",
+    countryOfOrigin:getVal("countryOfOrigin")   || oldA.countryOfOrigin || "",
+    foreignID:      getVal("foreignID")          || oldA.foreignID       || "",
+    originalChurch: getVal("originalChurch")     || oldA.originalChurch  || "",
+    yearJoining:    getVal("yearJoining")        || oldA.yearJoining     || "",
+    memberRole:     getRadio("memberRole")       || oldA.memberRole      || "",
+    komselCode:     (getVal("komselCode")        || oldA.komselCode      || "").toUpperCase(),
+    currentAddress: document.getElementById("currentAddress")?.value?.trim() || oldA.currentAddress || "",
   };
+
+  // Section B — read from live checkboxes using index-based IDs
+  const newServices = JSON.parse(JSON.stringify((editOriginalData?.sectionB || {}).services || {}));
+  SERVICES.forEach((_, i) => {
+    const num     = i + 1;
+    const haveEl  = document.getElementById(`svc-have-${num}`);
+    const wantEl  = document.getElementById(`svc-want-${num}`);
+    if (!haveEl && !wantEl) return;
+    const key = `svc_${num}`;
+    if (!newServices[key]) newServices[key] = {};
+    if (haveEl) newServices[key].current = haveEl.checked;
+    if (wantEl) newServices[key].join    = wantEl.checked;
+  });
+
+  // Section C — read from live child cards
+  const newChildren = [];
+  document.querySelectorAll(".child-card").forEach(card => {
+    const num    = card.dataset.childNum;
+    const name   = card.querySelector(`[id^="childName-"]`)?.value?.trim() || "";
+    const gender = card.querySelector(`input[name="childGender-${num}"]:checked`)?.value || "";
+    const myKid  = card.querySelector(`[id^="childMyKid-"]`)?.value || "";
+    const ageEl  = card.querySelector(`[id^="childAge-"]`);
+    const age    = ageEl ? parseInt(ageEl.value) || "" : "";
+    if (name && gender) newChildren.push({ name, gender, myKid, age });
+  });
+
+  return { newA, newServices, newChildren };
 }
 
 async function submitEditMode() {
-  // Collect current data
-  const { a: newA, b: newB, c: newC } = collectCurrentFormData();
+  const { newA, newServices, newChildren } = collectCurrentFormData();
   const oldA = editOriginalData?.sectionA || {};
   const oldB = editOriginalData?.sectionB || {};
   const oldC = editOriginalData?.sectionC || {};
@@ -870,7 +898,7 @@ async function submitEditMode() {
     "evangelism","transport","music","ushering","sound","cleaning","finance","pastoral",
     "security","photography","decoration","it","catering","counselling","administration","drama","others"];
   const oldSvcs = oldB.services || {};
-  const newSvcs = newB.services || {};
+  const newSvcs = newServices;
   SERVICE_NAMES_EDIT.forEach(key => {
     const oc = !!(oldSvcs[key]?.current), nc = !!(newSvcs[key]?.current);
     const oj = !!(oldSvcs[key]?.join),    nj = !!(newSvcs[key]?.join);
@@ -881,7 +909,7 @@ async function submitEditMode() {
   // Children diff
   const gMap = { male:"Lelaki", female:"Perempuan" };
   const oldKids = (oldC.children||[]).filter(k=>k.name?.trim()&&k.gender);
-  const newKids = (newC.children||[]).filter(k=>k.name?.trim()&&k.gender);
+  const newKids = newChildren;
   if (JSON.stringify(oldKids.map(k=>({n:k.name,g:k.gender}))) !== JSON.stringify(newKids.map(k=>({n:k.name,g:k.gender})))) {
     const fmt = kids => kids.length ? kids.map(k=>`${k.name} (${gMap[k.gender]||"—"})`).join(", ") : "Tiada";
     changes.push({ section:"C — Kanak-kanak", field:"Senarai Anak", before:fmt(oldKids), after:fmt(newKids) });
@@ -905,11 +933,11 @@ function showEditDiffModal(changes, newA, newSvcs, newKids) {
     modal.className = "modal-overlay";
     modal.style.display = "flex";
     modal.innerHTML = `
-      <div class="modal-card modal-card--lg">
+      <div class="modal-card modal-card--lg" style="max-height:90vh;display:flex;flex-direction:column;">
         <div class="modal-header">
           <h3 class="modal-title">🔍 Semak Perubahan / Review Changes</h3>
         </div>
-        <div class="modal-body" style="padding:1.2rem 1.5rem;">
+        <div class="modal-body" style="padding:1.2rem 1.5rem;overflow-y:auto;max-height:55vh;">
           <p style="font-size:0.88rem;color:var(--text-muted);font-style:italic;margin-bottom:1rem;line-height:1.6;">
             Berikut merupakan semua perubahan yang anda telah kemas kini, sila semak sebelum tekan butang 'Simpan' /
             The following are the changes you've made, please analyse carefully before pressing 'Save'.

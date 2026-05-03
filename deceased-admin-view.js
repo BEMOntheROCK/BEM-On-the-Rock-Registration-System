@@ -34,11 +34,12 @@ document.getElementById("deceasedSearch").addEventListener("input", function() {
 
 function formatDate(v) {
   if (!v) return "—";
-  // Try Firestore Timestamp
-  if (v?.toDate) return v.toDate().toLocaleDateString("ms-MY", {day:"2-digit",month:"short",year:"numeric"});
-  // Try date string
+  if (v?.toDate) return v.toDate().toLocaleDateString("en-GB");
+  if (typeof v === "string" && v.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [y,m,d] = v.split("-"); return `${d}/${m}/${y}`;
+  }
   const d = new Date(v);
-  return isNaN(d) ? v : d.toLocaleDateString("ms-MY", {day:"2-digit",month:"short",year:"numeric"});
+  return isNaN(d) ? v : d.toLocaleDateString("en-GB");
 }
 
 function renderTable(data) {

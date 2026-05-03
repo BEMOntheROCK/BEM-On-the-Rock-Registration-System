@@ -10,7 +10,7 @@ function formatDateFull(dateVal) {
   if (!dateVal) return "—";
   const d = dateVal?.toDate ? dateVal.toDate() : new Date(dateVal);
   if (isNaN(d)) return "—";
-  return d.toLocaleDateString("ms-MY", { day:"2-digit", month:"long", year:"numeric" });
+  return d.toLocaleDateString("en-GB"); // DD/MM/YYYY
 }
 
 function addYears(dateVal, n) {

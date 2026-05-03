@@ -44,6 +44,17 @@ const maritalMap = {
 };
 const baptismMap = { baptised:"Sudah Dibaptis / Baptised", notBaptised:"Belum Dibaptis / Not Yet Baptised" };
 
+// ── Normalise komsel code (auto-prepend Z if missing) ──
+function normaliseAdminKomsel(val) {
+  if (!val || !val.trim()) return "—";
+  const clean = val.toUpperCase().replace(/[\s\-]/g, "");
+  const match = clean.match(/^([A-Z]+)(\d+)$/);
+  if (!match) return clean;
+  let prefix = match[1];
+  if (!prefix.startsWith("Z")) prefix = "Z" + prefix;
+  return prefix + parseInt(match[2], 10);
+}
+
 let registrations   = [];
 let pendingDeleteId = null;
 let pendingActivateId = null;
@@ -121,7 +132,7 @@ function getSortedFiltered() {
       case "name":   vA=(a.name||"").toLowerCase();   vB=(b.name||"").toLowerCase(); break;
       case "id":     vA=(a.uniqueID||"").toLowerCase();vB=(b.uniqueID||"").toLowerCase(); break;
       case "ic":     vA=(a.icNo||"");                 vB=(b.icNo||""); break;
-      case "komsel": vA=(a.sectionA?.komselCode||""); vB=(b.sectionA?.komselCode||""); break;
+      case "komsel": vA=normaliseAdminKomsel(a.sectionA?.komselCode||""); vB=normaliseAdminKomsel(b.sectionA?.komselCode||""); break;
       default:
         vA = a.submittedAt?.toDate ? a.submittedAt.toDate().toISOString() : (a.dateApplied||"");
         vB = b.submittedAt?.toDate ? b.submittedAt.toDate().toISOString() : (b.dateApplied||"");
@@ -137,7 +148,15 @@ function formatDate(d) {
   if (!d) return "—";
   const date = d?.toDate ? d.toDate() : new Date(d);
   if (isNaN(date)) return "—";
-  return date.toLocaleDateString("ms-MY", { day:"2-digit", month:"short", year:"numeric" });
+  return date.toLocaleDateString("en-GB"); // DD/MM/YYYY
+}
+
+// For plain YYYY-MM-DD strings stored as DOB
+function formatDOB(dob) {
+  if (!dob) return "—";
+  const parts = dob.split("-");
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return dob;
 }
 
 // ── Render Table ──
@@ -189,7 +208,7 @@ function renderTable() {
       <td>${reg.sectionA?.citizenship === "nonCitizen"
         ? (reg.sectionA?.foreignID || "—")
         : (reg.icNo || "—")}</td>
-      <td>${reg.sectionA?.komselCode||"—"}</td>
+      <td>${normaliseAdminKomsel(reg.sectionA?.komselCode)}</td>
       <td>${formatDate(reg.submittedAt || reg.dateApplied)}</td>
       <td class="col-memberstatus">${statusHTML}</td>
       <td class="action-cell">
@@ -303,7 +322,7 @@ document.getElementById("btnDownloadXLSX")?.addEventListener("click", () => {
       "No. KP / IC No.":          a.icNo||reg.icNo||"",
       "No. Telefon / Phone":      a.phoneNumber||"",
       "Jantina / Gender":         a.gender||"",
-      "Tarikh Lahir / DOB":       a.dob||"",
+      "Tarikh Lahir / DOB":       formatDOB(a.dob||""),
       "Bangsa / Race":             a.race||"",
       "Pekerjaan / Occupation":   a.occupation||"",
       "Status Perkahwinan / Marital": a.maritalStatus||"",
@@ -662,7 +681,7 @@ function buildViewHTML(reg) {
         ? "<em style='color:var(--text-muted);font-size:0.85rem;'>Tiada kaitan kerana anggota bukan warga Malaysia / Irrelevant since member is not Malaysian</em>"
         : (a.icNo || reg.icNo || "—"))}
       ${vRow("Jantina / Gender", genderMap[a.gender])}
-      ${vRow("Tarikh Lahir / Date of Birth", a.dob)}
+      ${vRow("Tarikh Lahir / Date of Birth", formatDOB(a.dob))}
       ${vRow("Bangsa / Race", a.race)}
       ${vRow("Status Perkahwinan / Marital Status", maritalMap[a.maritalStatus])}
       ${a.partnerName     ? vRow("Nama Pasangan / Partner's Name", a.partnerName) : ""}
@@ -823,7 +842,7 @@ function printRecord(id) {
   <div class="row"><span class="lbl">Nama Penuh / Full Name:</span><span style="font-weight:bold;text-transform:uppercase">${a.fullName||"—"}</span></div>
   <div class="row"><span class="lbl">No. KP / IC No.:</span><span>${reg.sectionA?.citizenship === "nonCitizen" ? (reg.sectionA?.foreignID || "—") : (reg.icNo||"—")}</span></div>
   <div class="row"><span class="lbl">Jantina / Gender:</span><span>${genderMap[a.gender]||"—"}</span></div>
-  <div class="row"><span class="lbl">Tarikh Lahir / Date of Birth:</span><span>${a.dob||"—"}</span></div>
+  <div class="row"><span class="lbl">Tarikh Lahir / Date of Birth:</span><span>${formatDOB(a.dob)||"—"}</span></div>
   <div class="row"><span class="lbl">Bangsa / Race:</span><span>${a.race||"—"}</span></div>
   <div class="row"><span class="lbl">Status Perkahwinan / Marital Status:</span><span>${maritalMap[a.maritalStatus]||"—"}${a.partnerName?" — "+a.partnerName:""}${a.latePartnerName?" — "+a.latePartnerName:""}</span></div>
   <div class="row"><span class="lbl">Status Pembaptisan / Baptism:</span><span>${baptismMap[a.baptismStatus]||"—"}${a.baptismYear?" ("+a.baptismYear+")":""}</span></div>

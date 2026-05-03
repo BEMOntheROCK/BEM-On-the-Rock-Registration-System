@@ -24,7 +24,16 @@ function escHtml(s) {
   return String(s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
-// ── Screen switching using style.display only ──
+// ── Format ISO date (YYYY-MM-DD) or Timestamp to DD/MM/YYYY for display ──
+function formatDisplayDate(val) {
+  if (!val) return "—";
+  // Firestore Timestamp
+  if (val?.toDate) return val.toDate().toLocaleDateString("en-GB"); // DD/MM/YYYY
+  // ISO string or YYYY-MM-DD
+  const d = new Date(val);
+  if (isNaN(d)) return val; // return as-is if unparseable
+  return d.toLocaleDateString("en-GB"); // DD/MM/YYYY
+}
 function showScreen(id) {
   document.getElementById("screen-verify").style.display = id==="screen-verify" ? "block" : "none";
   document.getElementById("screen-edit").style.display   = id==="screen-edit"   ? "block" : "none";
@@ -150,8 +159,30 @@ function showPreviewModal() {
     married:"Berkahwin / Married", divorced:"Bercerai / Divorced", widowed:"Balu/Duda / Widowed" };
   const bMap  = { baptised:"Sudah Dibaptis / Baptised", notBaptised:"Belum Dibaptis / Not Baptised" };
   const kids  = (c.children||[]).filter(k=>k.name?.trim()&&k.gender);
-  const svcs  = b.services || {};
-  const active= Object.entries(svcs).filter(([,v])=>v?.current).map(([k])=>k).join(", ")||"—";
+  const svcs = b.services || {};
+  const SERVICE_DISPLAY = {
+    worship:"Pujian & Penyembahan", prayer:"Tim Doa", multimedia:"Multimedia",
+    hospitality:"Hospitaliti", children:"Pelayan Kanak-kanak", youth:"Pelayanan Remaja",
+    evangelism:"Penjangkauan", transport:"Pengangkutan", music:"Muzik",
+    ushering:"Penyambut Tetamu", sound:"Jurusuara", cleaning:"Kebersihan",
+    finance:"Kewangan", pastoral:"Pembantu Peribadi Pastor", security:"Keselamatan",
+    photography:"Fotografi", decoration:"Hiasan", it:"IT & Teknologi",
+    catering:"Katering", counselling:"Kaunseling", administration:"Pentadbiran",
+    drama:"Drama & Seni", others:"Lain-lain",
+    // index-based keys (svc_1..svc_23)
+    svc_1:"Pujian & Penyembahan", svc_2:"Tim Doa", svc_3:"Multimedia",
+    svc_4:"Hospitaliti", svc_5:"Pelayan Kanak-kanak", svc_6:"Pelayanan Remaja",
+    svc_7:"Penjangkauan", svc_8:"Pengangkutan", svc_9:"Muzik",
+    svc_10:"Penyambut Tetamu", svc_11:"Jurusuara", svc_12:"Kebersihan",
+    svc_13:"Kewangan", svc_14:"Pembantu Peribadi Pastor", svc_15:"Keselamatan",
+    svc_16:"Fotografi", svc_17:"Hiasan", svc_18:"IT & Teknologi",
+    svc_19:"Katering", svc_20:"Kaunseling", svc_21:"Pentadbiran",
+    svc_22:"Drama & Seni", svc_23:"Lain-lain",
+  };
+  const pernah = Object.entries(svcs).filter(([,v])=>v?.current)
+    .map(([k])=>SERVICE_DISPLAY[k]||k).filter(Boolean).join(", ") || "—";
+  const ingin  = Object.entries(svcs).filter(([,v])=>v?.join)
+    .map(([k])=>SERVICE_DISPLAY[k]||k).filter(Boolean).join(", ") || "—";
   const uid   = memberData.uniqueID || "—";
 
   document.getElementById("previewModalName").innerHTML =
@@ -169,7 +200,7 @@ function showPreviewModal() {
       ${vRow("Nama Penuh / Full Name", (a.fullName||"—").toUpperCase())}
       ${vRow("No. KP / IC No.", a.citizenship==="nonCitizen"?(a.foreignID||"—"):(a.icNo||"—"))}
       ${vRow("Jantina / Gender", gMap[a.gender]||"—")}
-      ${vRow("Tarikh Lahir / Date of Birth", a.dob||"—")}
+      ${vRow("Tarikh Lahir / Date of Birth", formatDisplayDate(a.dob))}
       ${vRow("Bangsa / Race", a.race||"—")}
       ${vRow("Status Perkahwinan / Marital Status", msMap[a.maritalStatus]||"—")}
       ${a.partnerName ? vRow("Nama Pasangan / Partner's Name", a.partnerName) : ""}
@@ -190,7 +221,10 @@ function showPreviewModal() {
     </div>
 
     ${sectionTitle("B. Pelayanan / Services")}
-    ${vGrid(`${vRow("Pelayanan Semasa / Current Services", active)}`)}
+    ${vGrid(`
+      ${vRow("Pernah Terlibat / Have Been Involved", pernah)}
+      ${vRow("Ingin Sertai / Would Like to Be Involved", ingin)}
+    `)}
 
     ${sectionTitle("C. Kanak-kanak / Children")}
     ${vGrid(kids.length

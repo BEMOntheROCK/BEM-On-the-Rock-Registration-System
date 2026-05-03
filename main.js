@@ -315,8 +315,10 @@ function normaliseKomsel(val) {
   // 2. Split into letter prefix and numeric suffix
   const match = clean.match(/^([A-Z]+)(\d+)$/);
   if (!match) return clean; // can't parse — return as-is
-  const prefix = match[1];
-  const num    = parseInt(match[2], 10); // parseInt strips leading zeros
+  let prefix = match[1];
+  const num  = parseInt(match[2], 10); // parseInt strips leading zeros
+  // 3. Auto-prepend Z if missing (e.g. SA1 → ZSA1, T6 → ZT6)
+  if (!prefix.startsWith("Z")) prefix = "Z" + prefix;
   return prefix + num; // e.g. "ZT" + 6 = "ZT6"
 }
 
@@ -625,6 +627,7 @@ function showAffiliatedSuccessPage() {
 // Activated via ?mode=edit&docId=XXX
 // ═══════════════════════════════════════════════
 let editOriginalData = null; // snapshot of data before edits
+let editModeChildren = [];  // children pre-loaded from Firestore for edit mode
 
 async function initEditMode() {
   if (!EDIT_DOC_ID) { console.warn("Edit mode: no docId"); return; }
@@ -760,11 +763,10 @@ function populateFormWithData(data) {
   });
 
   // ── Section C — Children ──
+  // Store in a module-level variable; Section C will read this when it renders
+  // (can't use localStorage in edit mode since it gets cleared)
   const children = (c.children || []).filter(ch => ch.name?.trim() && ch.gender);
-  if (children.length > 0) {
-    // Store in draft so Section C loads them when navigated to
-    localStorage.setItem("bem_otr_draft_sectionC", JSON.stringify({ children }));
-  }
+  editModeChildren = children;
 
   // ── Sections D & E — make read-only (these are never editable) ──
   makeReadOnly("section-d");
@@ -1947,6 +1949,14 @@ function saveSectionCDraft() {
 }
 
 function loadSectionCDraft() {
+  // In edit mode, use the pre-loaded children from Firestore
+  if (IS_EDIT_MODE) {
+    if (editModeChildren && editModeChildren.length > 0) {
+      editModeChildren.forEach(child => addChild(child));
+    }
+    return;
+  }
+  // Normal registration: load from localStorage
   const raw = localStorage.getItem(DRAFT_KEY_C);
   if (!raw) return;
   try {

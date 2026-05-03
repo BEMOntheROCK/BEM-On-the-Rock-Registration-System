@@ -345,13 +345,25 @@ function buildMemberListTable(members) {
   </table>`;
 }
 
+// ── Normalise komsel code for stats grouping (mirrors main.js logic) ──
+function normaliseKomselCode(val) {
+  if (!val) return "—";
+  const clean = val.toUpperCase().replace(/[\s\-]/g, "");
+  const match = clean.match(/^([A-Z]+)(\d+)$/);
+  if (!match) return clean;
+  let prefix = match[1];
+  if (!prefix.startsWith("Z")) prefix = "Z" + prefix;
+  return prefix + parseInt(match[2], 10);
+}
+
 // ══════════════════════════════════════════════
 // KOMSEL TABLE — 3 columns with modal
 // ══════════════════════════════════════════════
 function renderKomselTable() {
   const map = {};
   allData.forEach(r => {
-    const code = (r.sectionA?.komselCode||"").trim().toUpperCase() || "—";
+    const raw  = (r.sectionA?.komselCode || "").trim();
+    const code = raw ? normaliseKomselCode(raw) : "—";
     if (!map[code]) map[code] = [];
     map[code].push({ name:(r.name||r.sectionA?.fullName||"—"), uid:r.uniqueID||"—" });
   });

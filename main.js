@@ -1207,13 +1207,84 @@ function bindEvents() {
 }
 
 // ═══════════════════════════════════════════════
-// 3b. CHECK IF REQUIRED FIELDS ARE FILLED — TEMPORARILY BYPASSED
-// TODO: Re-enable once all sections A–E are complete
+// 3b. CHECK IF REQUIRED FIELDS ARE FILLED
+// Dims the Next button until all Section A required fields are met.
+// Section B has no restrictions.
 // ═══════════════════════════════════════════════
 function checkNextButton() {
-  // Temporarily disabled for cross-section testing
   const btn = document.getElementById("btnNext");
-  if (btn) btn.disabled = false;
+  if (!btn) return;
+
+  // Edit mode: allow free navigation — user already has saved data
+  if (IS_EDIT_MODE) { btn.disabled = false; return; }
+
+  const allMet = isSectionAComplete();
+  btn.disabled = !allMet;
+  btn.style.opacity = allMet ? "" : "0.45";
+  btn.style.cursor  = allMet ? "" : "not-allowed";
+}
+
+function isSectionAComplete() {
+  const getVal    = id => (document.getElementById(id)?.value || "").trim();
+  const getRadio  = name => document.querySelector(`input[name="${name}"]:checked`)?.value || "";
+  const isChecked = name => !!document.querySelector(`input[name="${name}"]:checked`);
+
+  const isNonCitizen = getRadio("citizenship") === "nonCitizen";
+  const isBaptised   = getRadio("baptismStatus") === "baptised";
+
+  // 1. Position within Cell Group (skip in affiliated mode — field is hidden)
+  if (!IS_AFFILIATED_MODE && !isChecked("memberRole")) return false;
+
+  // 2. Full Name
+  if (!getVal("fullName")) return false;
+
+  // 3. IC No. (Malaysian) OR Foreign ID (non-citizen)
+  if (isNonCitizen) {
+    if (!getVal("foreignID")) return false;
+  } else {
+    const icClean = getVal("icNo").replace(/-/g, "");
+    if (icClean.length !== 12 || isNaN(icClean)) return false;
+  }
+
+  // 4. Gender
+  if (!isChecked("gender")) return false;
+
+  // 5. Telephone Number — must have digits entered
+  if (!getVal("phoneNumber")) return false;
+
+  // 6. Date of Birth
+  if (!getVal("dob")) return false;
+
+  // 7. Race
+  if (!getVal("race")) return false;
+
+  // 8. Marital Status
+  if (!getVal("maritalStatus")) return false;
+
+  // 9. Baptism Status (+ year if baptised)
+  if (!isChecked("baptismStatus")) return false;
+  if (isBaptised && !getVal("baptismYear")) return false;
+
+  // 10. Citizenship (+ country + foreign ID if non-citizen)
+  if (!isChecked("citizenship")) return false;
+  if (isNonCitizen) {
+    if (!getVal("countryOfOrigin")) return false;
+    if (!getVal("foreignID")) return false;
+  }
+
+  // 11. Year Joining On The Rock
+  if (!getVal("yearJoining")) return false;
+
+  // 12. Cell Group Code — must be a valid komsel (skip in affiliated mode)
+  if (!IS_AFFILIATED_MODE) {
+    const komsel = getVal("komselCode");
+    if (!komsel || !isValidKomsel(komsel)) return false;
+  }
+
+  // 13. Current Address
+  if (!getVal("currentAddress")) return false;
+
+  return true;
 }
 
 // ═══════════════════════════════════════════════

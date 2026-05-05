@@ -2063,11 +2063,21 @@ function bindSectionDEvents() {
   // Back button
   document.getElementById("btnBackD")?.addEventListener("click", () => navigateTo("c"));
 
-  // Next button — unrestricted for now (TODO: enforce pledge tick when re-enabling)
-  document.getElementById("btnNextD")?.addEventListener("click", () => {
-    saveSectionDDraft();
-    navigateTo("e");
-  });
+  // Next button — requires pledge tick
+document.getElementById("btnNextD")?.addEventListener("click", () => {
+  const pledgeAgree = document.getElementById("pledgeAgree");
+  if (!pledgeAgree?.checked) {
+    const label = document.getElementById("pledgeAgreeLabel");
+    if (label) {
+      label.style.borderColor = "#E05555";
+      label.style.boxShadow = "0 0 0 2px rgba(224,85,85,0.25)";
+      label.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    return; // Block navigation
+  }
+  saveSectionDDraft();
+  navigateTo("e");
+});
 }
 
 function saveSectionDDraft() {
@@ -2096,6 +2106,18 @@ function loadSectionDDraft() {
 document.addEventListener("DOMContentLoaded", () => {
   loadSectionDDraft();
   bindSectionDEvents();
+});
+
+pledgeAgree.addEventListener("change", () => {
+  saveSectionDDraft();
+  const label = document.getElementById("pledgeAgreeLabel");
+  if (pledgeAgree.checked) {
+    label.style.borderColor = "var(--marigold)";
+    label.style.boxShadow = "";
+  } else {
+    label.style.borderColor = "";
+    label.style.boxShadow = "";
+  }
 });
 
 // ── Init Section C ──

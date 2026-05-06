@@ -729,7 +729,7 @@ function populateFormWithData(data) {
   const idType = inferIdType(a);
   setVal("idType", idType);
 
-  // IC / Foreign identifier — format for UI
+  // IC / Identifier — format for UI based on type
   if (idType === "IC") {
     if (a.icNo) {
       const ic = a.icNo.replace(/(\d{6})(\d{2})(\d{4})/, "$1-$2-$3");
@@ -737,11 +737,13 @@ function populateFormWithData(data) {
     } else {
       setVal("icNo", "");
     }
-    setVal("foreignID", "");
     setVal("countryOfOrigin", "");
+  } else if (idType === "MyTentera") {
+    setVal("icNo", a.foreignID ? formatMyTentera(a.foreignID) : "");
+    setVal("countryOfOrigin", a.countryOfOrigin || "");
   } else {
-    setVal("icNo", "");
-    setVal("foreignID", a.foreignID || "");
+    // Passport
+    setVal("icNo", a.foreignID ? formatPassport(a.foreignID) : "");
     setVal("countryOfOrigin", a.countryOfOrigin || "");
   }
   setVal("dob",            a.dob || "");
@@ -884,7 +886,9 @@ function collectCurrentFormData() {
   const newA = {
     fullName:       (getVal("fullName") || oldA.fullName || "").toUpperCase(),
     idType,
-    icNo:           idType === "IC" ? (getVal("icNo") || "").replace(/-/g,"") || oldA.icNo || "" : "",
+    icNo:           idType === "IC"
+                      ? (getVal("icNo") || "").replace(/-/g,"") || oldA.icNo || ""
+                      : "",
     gender:         getRadio("gender")          || oldA.gender          || "",
     dob:            getVal("dob")               || oldA.dob             || "",
     race:           getVal("race")              || oldA.race            || "",
@@ -897,7 +901,11 @@ function collectCurrentFormData() {
     baptismYear:    getVal("baptismYear")        || oldA.baptismYear     || "",
     citizenship:    idType === "IC" ? "citizen" : "nonCitizen",
     countryOfOrigin:idType === "IC" ? "" : (getVal("countryOfOrigin")   || oldA.countryOfOrigin || ""),
-    foreignID:      idType === "IC" ? "" : (getVal("foreignID")          || oldA.foreignID       || ""),
+    foreignID:      idType === "IC"
+                      ? ""
+                      : (idType === "MyTentera"
+                          ? (getVal("icNo") ? formatMyTentera(getVal("icNo")) : oldA.foreignID || "")
+                          : (getVal("icNo") ? formatPassport(getVal("icNo")) : oldA.foreignID || "")),
     originalChurch: getVal("originalChurch")     || oldA.originalChurch  || "",
     yearJoining:    getVal("yearJoining")        || oldA.yearJoining     || "",
     memberRole:     getRadio("memberRole")       || oldA.memberRole      || "",
@@ -1134,11 +1142,25 @@ function formatPassport(value) {
 // ═══════════════════════════════════════════════
 function bindEvents() {
 
-  // ── IC Input: auto-format + DOB + gender auto-detect + affiliated check ──
+  const idTypeSelect = document.getElementById("idType");
+
+  // ── Main identifier input: behaviour depends on Identifier Type (IC / Passport / MyTentera) ──
   const icInput = document.getElementById("icNo");
   if (icInput) {
     icInput.addEventListener("input", function () {
-      const formatted = formatIC(this.value);
+      const currentType = idTypeSelect?.value || "IC";
+
+      // Passport: free-form alphanumeric, no DOB/gender inference
+      if (currentType === "Passport") {
+        const formattedPassport = formatPassport(this.value);
+        this.value = formattedPassport;
+        saveDraft();
+        checkNextButton();
+        return;
+      }
+
+      // IC & MyTentera: numeric ddmmyy-##-#### formatting + DOB/gender inference
+      const formatted = formatMyTentera(this.value);
       this.value = formatted;
 
       // Auto-fill DOB
@@ -1156,7 +1178,7 @@ function bindEvents() {
           if (lastDigit % 2 !== 0) genderMale.checked   = true;
           else                      genderFemale.checked = true;
         }
-        // Check affiliated members DB
+        // Check affiliated members DB for IC-style identifiers
         checkAffiliatedMatch("ic", clean);
       }
       saveDraft();
@@ -1176,13 +1198,9 @@ function bindEvents() {
     });
   }
 
-  const idTypeSelect = document.getElementById("idType");
-  const foreignInput = document.getElementById("foreignID");
-
   function applyIdTypeUI(selectedIdType) {
     const idType = selectedIdType || "IC";
     const icInput    = document.getElementById("icNo");
-    const icHint     = document.getElementById("icNoNonCitizenHint");
     const icRequired = document.getElementById("icNoRequired");
     const countryField = document.getElementById("countryField");
 
@@ -1193,17 +1211,22 @@ function bindEvents() {
 
     const isNonCitizen = idType !== "IC";
 
-    // Enable/disable IC input
+    // IC / ID input stays enabled; just adjust placeholder and length
     if (icInput) {
-      if (isNonCitizen) {
-        icInput.disabled = true;
-        icInput.value = "";
-        icInput.style.opacity = "0.4";
-        icInput.style.cursor  = "not-allowed";
+      icInput.disabled = false;
+      icInput.style.opacity = "";
+      icInput.style.cursor  = "";
+
+      if (idType === "IC") {
+        icInput.maxLength   = 14;
+        icInput.placeholder = "cth/e.g. 901231-14-5678";
+      } else if (idType === "MyTentera") {
+        icInput.maxLength   = 14;
+        icInput.placeholder = "Masukkan nombor MyTentera anda (ddmmyy-##-####)";
       } else {
-        icInput.disabled = false;
-        icInput.style.opacity = "";
-        icInput.style.cursor  = "";
+        // Passport
+        icInput.maxLength   = 20;
+        icInput.placeholder = "Masukkan nombor Passport anda (alphanumeric)";
       }
     }
 
@@ -1213,25 +1236,8 @@ function bindEvents() {
       else countryField.classList.remove("visible");
     }
 
-    // Required/hint for IC
-    if (icHint) icHint.style.display = isNonCitizen ? "" : "none";
-    if (icRequired) icRequired.style.display = isNonCitizen ? "none" : "";
-
-    // Enable/disable foreign input
-    if (foreignInput) foreignInput.disabled = !isNonCitizen;
-
-    // Foreign input placeholder by type
-    if (foreignInput) {
-      if (idType === "MyTentera") {
-        foreignInput.placeholder = "Masukkan nombor MyTentera anda (ddmmyy-##-####)";
-        // Keep ddmmyy dash pattern while typing
-        foreignInput.value = formatMyTentera(foreignInput.value);
-      } else if (idType === "Passport") {
-        foreignInput.placeholder = "Masukkan nombor Passport anda (alphanumeric)";
-        foreignInput.value = formatPassport(foreignInput.value);
-      }
-      if (!isNonCitizen) foreignInput.value = "";
-    }
+    // Required marker for main ID input: always visible
+    if (icRequired) icRequired.style.display = "";
 
     // Clear country field when switching to IC
     const countryOfOrigin = document.getElementById("countryOfOrigin");
@@ -1239,15 +1245,6 @@ function bindEvents() {
       if (!isNonCitizen) countryOfOrigin.value = "";
     }
   }
-
-  // Format foreign ID while typing based on dropdown
-  foreignInput?.addEventListener("input", function() {
-    const dt = idTypeSelect?.value || "IC";
-    if (dt === "MyTentera") this.value = formatMyTentera(this.value);
-    if (dt === "Passport")  this.value = formatPassport(this.value);
-    saveDraft();
-    checkNextButton();
-  });
 
   // ID type dropdown change
   idTypeSelect?.addEventListener("change", function() {
@@ -1262,11 +1259,8 @@ function bindEvents() {
       if (this.value === "citizen") {
         if (idTypeSelect) { idTypeSelect.value = "IC"; idTypeSelect.dispatchEvent(new Event("change")); }
       } else {
-        // nonCitizen selected — infer default ID type from current foreignID
-        const raw = (foreignInput?.value || "").trim();
-        const hasLetters = /[A-Za-z]/.test(raw);
-        const inferred = hasLetters ? "Passport" : "MyTentera";
-        if (idTypeSelect) { idTypeSelect.value = inferred; idTypeSelect.dispatchEvent(new Event("change")); }
+        // nonCitizen selected — default to MyTentera (user can switch to Passport)
+        if (idTypeSelect) { idTypeSelect.value = "MyTentera"; idTypeSelect.dispatchEvent(new Event("change")); }
       }
       saveDraft();
       checkNextButton();
@@ -1370,20 +1364,15 @@ function isSectionAComplete() {
   // 2. Full Name
   if (!getVal("fullName")) return false;
 
-  // 3. IC No. (Malaysian) OR Foreign ID (non-citizen)
-  if (idType === "IC") {
-    const icClean = getVal("icNo").replace(/-/g, "");
-    if (icClean.length !== 12 || isNaN(icClean)) return false;
-  } else if (idType === "MyTentera") {
-    const fidRaw  = getVal("foreignID");
-    const fidClean = fidRaw.replace(/-/g, "");
-    if (!fidRaw) return false;
-    if (fidClean.length !== 12 || isNaN(fidClean)) return false;
+  // 3. Identifier — IC / Passport / MyTentera (always from main ID field)
+  const idRaw = getVal("icNo");
+  if (!idRaw) return false;
+  if (idType === "IC" || idType === "MyTentera") {
+    const digitsOnly = idRaw.replace(/-/g, "");
+    if (digitsOnly.length !== 12 || isNaN(digitsOnly)) return false;
   } else if (idType === "Passport") {
-    const raw = getVal("foreignID");
-    const passNorm = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    if (!raw) return false;
-    if (passNorm.length < 4) return false; // needs first 4 chars
+    const passNorm = idRaw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (passNorm.length < 4) return false;
   }
 
   // 4. Gender
@@ -1405,11 +1394,10 @@ function isSectionAComplete() {
   if (!isChecked("baptismStatus")) return false;
   if (isBaptised && !getVal("baptismYear")) return false;
 
-  // 10. Citizenship (+ country + foreign ID if non-citizen)
+  // 10. Citizenship (+ country if non-citizen)
   if (!isChecked("citizenship")) return false;
   if (isNonCitizen) {
     if (!getVal("countryOfOrigin")) return false;
-    if (!getVal("foreignID")) return false;
   }
 
   // 11. Year Joining On The Rock
@@ -1434,11 +1422,13 @@ const DRAFT_KEY = "bem_otr_draft_sectionA";
 
 function collectSectionAData() {
   const idType = document.getElementById("idType")?.value || "IC";
-  const foreignRaw = document.getElementById("foreignID")?.value || "";
-  const foreignID =
-    idType === "MyTentera" ? formatMyTentera(foreignRaw) :
-    idType === "Passport"  ? formatPassport(foreignRaw) :
-    "";
+  const mainIdRaw = document.getElementById("icNo")?.value || "";
+  let foreignID = "";
+  if (idType === "MyTentera") {
+    foreignID = formatMyTentera(mainIdRaw);
+  } else if (idType === "Passport") {
+    foreignID = formatPassport(mainIdRaw);
+  }
   const countryOfOrigin = idType !== "IC" ? (document.getElementById("countryOfOrigin")?.value || "") : "";
   return {
     fullName:        document.getElementById("fullName")?.value || "",
@@ -1484,7 +1474,7 @@ function loadDraft() {
     // Simple text/select fields
     const fieldMap = [
       "fullName", "icNo", "dob", "race",
-      "maritalStatus", "baptismDate", "countryOfOrigin", "foreignID",
+      "maritalStatus", "baptismDate", "countryOfOrigin",
       "idType",
       "originalChurch", "yearJoining", "komselCode",
       "occupation", "phoneNumber", "currentAddress"
@@ -1576,15 +1566,25 @@ function validateSectionA() {
     isValid = false;
   }
 
-  // IC No — basic format check
+  // Identifier — validate according to selected type
   const icNo = document.getElementById("icNo");
-  const icClean = icNo.value.replace(/-/g, "");
-  if (!icNo.value.trim()) {
+  const idTypeForValidate = document.getElementById("idType")?.value || "IC";
+  const rawId = icNo.value.trim();
+  if (!rawId) {
     showError("icNo", STRINGS.requiredField);
     isValid = false;
-  } else if (icClean.length !== 12 || isNaN(icClean)) {
-    showError("icNo", STRINGS.invalidIC);
-    isValid = false;
+  } else if (idTypeForValidate === "IC" || idTypeForValidate === "MyTentera") {
+    const digitsOnly = rawId.replace(/-/g, "");
+    if (digitsOnly.length !== 12 || isNaN(digitsOnly)) {
+      showError("icNo", STRINGS.invalidIC);
+      isValid = false;
+    }
+  } else if (idTypeForValidate === "Passport") {
+    const passNorm = rawId.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (passNorm.length < 4) {
+      showError("icNo", STRINGS.invalidPassport || STRINGS.invalidIC);
+      isValid = false;
+    }
   }
 
   // Gender
@@ -1634,11 +1634,6 @@ function validateSectionA() {
     const country = document.getElementById("countryOfOrigin");
     if (!country.value.trim()) {
       showError("countryOfOrigin", STRINGS.requiredField);
-      isValid = false;
-    }
-    const fid = document.getElementById("foreignID");
-    if (fid && !fid.value.trim()) {
-      showError("foreignID", STRINGS.requiredField);
       isValid = false;
     }
   }

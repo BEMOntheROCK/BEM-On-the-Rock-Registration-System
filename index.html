@@ -241,7 +241,7 @@
             <span class="error-msg" id="err-fullName"></span>
           </div>
 
-          <!-- 2. IC No -->
+          <!-- 2. IC / Identifier -->
           <div class="form-group" id="icNoGroup">
             <label class="form-label" for="icNo">
               No. KP <span class="label-en">/ IC No.</span>
@@ -260,9 +260,6 @@
                 <option value="MyTentera">MyTentera</option>
               </select>
             </div>
-            <span class="field-hint" id="icNoNonCitizenHint" style="display:none;color:var(--text-muted);font-style:italic;">
-              Tidak berkaitan — anggota bukan warganegara Malaysia / Not applicable — member is not a Malaysian citizen
-            </span>
             <span class="error-msg" id="err-icNo"></span>
           </div>
 
@@ -427,29 +424,16 @@
             </div>
             <span class="error-msg" id="err-citizenship"></span>
 
-            <!-- Conditional: Country of Origin + Foreign ID -->
+            <!-- Conditional: Country of Origin (non-citizen only) -->
             <div class="conditional-field" id="countryField">
-              <div class="form-grid" style="margin-bottom:0;">
-                <div class="form-group">
-                  <label class="form-label" for="countryOfOrigin">
-                    Negara Asal <span class="label-en">/ Country of Origin</span>
-                    <span class="required">*</span>
-                  </label>
-                  <input type="text" id="countryOfOrigin" name="countryOfOrigin"
-                    class="form-input" placeholder="Masukkan negara asal / Enter country of origin"/>
-                  <span class="error-msg" id="err-countryOfOrigin"></span>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="foreignID">
-                    Nombor ID <span class="label-en">/ ID Number</span>
-                    <span class="required">*</span>
-                  </label>
-                  <input type="text" id="foreignID" name="foreignID"
-                    class="form-input"
-                    placeholder="Masukkan nombor MyTentera anda / Enter your MyTentera number (ddmmyy-##-####)"
-                    autocomplete="off"/>
-                  <span class="error-msg" id="err-foreignID"></span>
-                </div>
+              <div class="form-group">
+                <label class="form-label" for="countryOfOrigin">
+                  Negara Asal <span class="label-en">/ Country of Origin</span>
+                  <span class="required">*</span>
+                </label>
+                <input type="text" id="countryOfOrigin" name="countryOfOrigin"
+                  class="form-input" placeholder="Masukkan negara asal / Enter country of origin"/>
+                <span class="error-msg" id="err-countryOfOrigin"></span>
               </div>
             </div>
           </div>

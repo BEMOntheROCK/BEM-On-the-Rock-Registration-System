@@ -20,4 +20,6 @@ firebase.initializeApp(firebaseConfig);
 // Export globals for use in main.js and admin.js
 const db      = firebase.firestore();
 const auth    = firebase.auth();
-const storage = firebase.storage();
+// Some pages do not load firebase-storage-compat.js.
+// Guard this so Firestore/Auth pages still work without Storage SDK.
+const storage = typeof firebase.storage === "function" ? firebase.storage() : null;

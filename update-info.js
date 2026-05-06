@@ -137,6 +137,7 @@ document.getElementById("btnVerifyIC").addEventListener("click", async () => {
     } catch (previewErr) {
       console.error("Preview render error:", previewErr);
       errEl.textContent = "Rekod dijumpai, tetapi pratonton gagal dipaparkan / Record found, but preview failed to render.";
+      showPreviewDebugFallback(previewErr);
     }
   } catch(e) {
     console.error("IC verification error:", e);
@@ -166,6 +167,30 @@ function sectionTitle(text) {
 function vGrid(content) {
   return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 1.5rem;
     margin-bottom:0.5rem;">${content}</div>`;
+}
+
+function showPreviewDebugFallback(err) {
+  const msg = err?.message || String(err || "Unknown preview error");
+  const stack = err?.stack ? String(err.stack) : "";
+  const body = document.getElementById("previewModalBody");
+  const title = document.getElementById("previewModalName");
+  if (title) title.innerHTML = "⚠️ Preview Debug / Ralat Pratonton";
+  if (body) {
+    body.innerHTML = `
+      <div style="background:rgba(224,85,85,0.08);border:1px solid rgba(224,85,85,0.35);
+        border-radius:var(--radius);padding:1rem 1.1rem;line-height:1.55;">
+        <div style="font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.05em;color:#ff9a9a;margin-bottom:0.4rem;">
+          Preview render error (temporary debug)
+        </div>
+        <div style="font-size:0.92rem;color:var(--text-primary);word-break:break-word;">
+          <strong>Message:</strong> ${escHtml(msg)}
+        </div>
+        ${stack ? `<pre style="margin-top:0.7rem;white-space:pre-wrap;word-break:break-word;
+          font-size:0.78rem;background:rgba(0,0,0,0.25);border:1px solid var(--border-card);
+          border-radius:8px;padding:0.7rem;color:var(--text-muted);">${escHtml(stack)}</pre>` : ""}
+      </div>`;
+  }
+  document.getElementById("previewModal").style.display = "flex";
 }
 
 function showPreviewModal() {

@@ -160,29 +160,16 @@ function showPreviewModal() {
   const bMap  = { baptised:"Sudah Dibaptis / Baptised", notBaptised:"Belum Dibaptis / Not Baptised" };
   const kids  = (c.children||[]).filter(k=>k.name?.trim()&&k.gender);
   const svcs = b.services || {};
-  const SERVICE_DISPLAY = {
-    worship:"Pujian & Penyembahan", prayer:"Tim Doa", multimedia:"Multimedia",
-    hospitality:"Hospitaliti", children:"Pelayan Kanak-kanak", youth:"Pelayanan Remaja",
-    evangelism:"Penjangkauan", transport:"Pengangkutan", music:"Muzik",
-    ushering:"Penyambut Tetamu", sound:"Jurusuara", cleaning:"Kebersihan",
-    finance:"Kewangan", pastoral:"Pembantu Peribadi Pastor", security:"Keselamatan",
-    photography:"Fotografi", decoration:"Hiasan", it:"IT & Teknologi",
-    catering:"Katering", counselling:"Kaunseling", administration:"Pentadbiran",
-    drama:"Drama & Seni", others:"Lain-lain",
-    // index-based keys (svc_1..svc_23)
-    svc_1:"Pujian & Penyembahan", svc_2:"Tim Doa", svc_3:"Multimedia",
-    svc_4:"Hospitaliti", svc_5:"Pelayan Kanak-kanak", svc_6:"Pelayanan Remaja",
-    svc_7:"Penjangkauan", svc_8:"Pengangkutan", svc_9:"Muzik",
-    svc_10:"Penyambut Tetamu", svc_11:"Jurusuara", svc_12:"Kebersihan",
-    svc_13:"Kewangan", svc_14:"Pembantu Peribadi Pastor", svc_15:"Keselamatan",
-    svc_16:"Fotografi", svc_17:"Hiasan", svc_18:"IT & Teknologi",
-    svc_19:"Katering", svc_20:"Kaunseling", svc_21:"Pentadbiran",
-    svc_22:"Drama & Seni", svc_23:"Lain-lain",
-  };
-  const pernah = Object.entries(svcs).filter(([,v])=>v?.current)
-    .map(([k])=>SERVICE_DISPLAY[k]||k).filter(Boolean).join(", ") || "—";
-  const ingin  = Object.entries(svcs).filter(([,v])=>v?.join)
-    .map(([k])=>SERVICE_DISPLAY[k]||k).filter(Boolean).join(", ") || "—";
+  const pernah = SERVICE_LIST
+    .map((label, i) => ({ label, data: getServiceRowData(svcs, i + 1) }))
+    .filter(({ data }) => data.have)
+    .map(({ label }) => label)
+    .join(", ") || "—";
+  const ingin  = SERVICE_LIST
+    .map((label, i) => ({ label, data: getServiceRowData(svcs, i + 1) }))
+    .filter(({ data }) => data.want)
+    .map(({ label }) => label)
+    .join(", ") || "—";
   const uid   = memberData.uniqueID || "—";
 
   document.getElementById("previewModalName").innerHTML =
@@ -487,31 +474,41 @@ function wireSectionAEvents() {
 // ══════════════════════════════════════════════
 // SECTION B — Services
 // ══════════════════════════════════════════════
-const SERVICE_LIST=[
-  ["worship","Pujian & Penyembahan / Worship & Praise"],
-  ["prayer","Tim Doa / Prayer Team"],
-  ["multimedia","Multimedia"],
-  ["hospitality","Hospitaliti / Hospitality"],
-  ["children","Pelayan Kanak-kanak / Children's Ministry"],
-  ["youth","Pelayanan Remaja / Youth Ministry"],
-  ["evangelism","Penjangkauan / Evangelism"],
-  ["transport","Pengangkutan / Transport"],
-  ["music","Muzik / Music"],
-  ["ushering","Penyambut Tetamu / Ushering"],
-  ["sound","Jurusuara / Sound System"],
-  ["cleaning","Kebersihan / Cleaning"],
-  ["finance","Kewangan / Finance"],
-  ["pastoral","Pembantu Peribadi Pastor & Penceramah"],
-  ["security","Keselamatan / Security"],
-  ["photography","Fotografi / Photography"],
-  ["decoration","Hiasan / Decoration"],
-  ["it","IT & Teknologi"],
-  ["catering","Katering / Catering"],
-  ["counselling","Kaunseling / Counselling"],
-  ["administration","Pentadbiran / Administration"],
-  ["drama","Drama & Seni / Drama & Arts"],
-  ["others","Lain-lain / Others"],
+const SERVICE_LIST = [
+  "Pastoral / Pastoral",
+  "Pekerja Sepenuh Masa (Gereja) / Full Time Staff (Church)",
+  "[Rock Wave] Penyanyi / Singer",
+  "[Rock Wave] Pemain Muzik / Musician",
+  "[Rock Wave] Penari Kreatif / Creative Dancer",
+  "Multimedia / Multimedia",
+  "Pengendali Sistem Bunyi / Sound System Handler",
+  "Pengendali Pencahayaan / Lighting Handler",
+  "Usher / Usher",
+  "Keselamatan & Parkir / Security & Parking",
+  "Krew Pentas / Stage Crew",
+  "Hospitaliti untuk Jemaat Baru / Hospitality for Newcomers",
+  "Hospitaliti untuk VIP / Hospitality for VIP",
+  "Rock Essence / Rock Essence",
+  "Rock Resource / Rock Resource",
+  "Kaunter Maklumat / Information Counter",
+  "Pengangkutan / Transportation",
+  "Pendoa Syafaat / Intercessor",
+  "Kebajikan & Sosial / Welfare & Social",
+  "Adiwira / Adiwira",
+  "Pembantu Peribadi Pastor & Penceramah / Pastoral Personal Assistant & Speaker",
+  "Penginjilan / Evangelism",
+  "Tim Persembahan / Offering Team",
 ];
+
+function getServiceRowData(services, index) {
+  const numKey = String(index);
+  const svcKey = `svc_${index}`;
+  const row = services[numKey] || services[svcKey] || {};
+  return {
+    have: !!(row.have ?? row.current),
+    want: !!(row.want ?? row.join),
+  };
+}
 
 function buildSectionB(b) {
   const svcs = b.services||{};
@@ -524,12 +521,13 @@ function buildSectionB(b) {
         <th style="padding:0.6rem;text-align:center;font-family:var(--font-display);font-size:0.7rem;color:var(--marigold-bright);">Terlibat<br/><em>Involved</em></th>
         <th style="padding:0.6rem;text-align:center;font-family:var(--font-display);font-size:0.7rem;color:var(--marigold-bright);">Ingin Sertai<br/><em>Want to Join</em></th>
       </tr></thead>
-      <tbody>${SERVICE_LIST.map(([key,label])=>{
-        const sv=svcs[key]||{};
+      <tbody>${SERVICE_LIST.map((label, idx)=>{
+        const num = idx + 1;
+        const sv = getServiceRowData(svcs, num);
         return `<tr style="border-bottom:1px solid var(--border-card);">
           <td style="padding:0.5rem 0.8rem;font-size:0.9rem;color:var(--text-primary);">${label}</td>
-          <td style="text-align:center;"><input type="checkbox" class="svc-current" data-key="${key}" ${sv.current?"checked":""}/></td>
-          <td style="text-align:center;"><input type="checkbox" class="svc-join" data-key="${key}" ${sv.join?"checked":""}/></td>
+          <td style="text-align:center;"><input type="checkbox" class="svc-have" data-key="${num}" ${sv.have?"checked":""}/></td>
+          <td style="text-align:center;"><input type="checkbox" class="svc-want" data-key="${num}" ${sv.want?"checked":""}/></td>
         </tr>`;
       }).join("")}</tbody>
     </table>
@@ -654,13 +652,13 @@ function collectEdits() {
   };
 
   const newServices = JSON.parse(JSON.stringify((memberData.sectionB||{}).services||{}));
-  document.querySelectorAll(".svc-current").forEach(cb => {
+  document.querySelectorAll(".svc-have").forEach(cb => {
     const k=cb.dataset.key; if(!newServices[k]) newServices[k]={};
-    newServices[k].current=cb.checked;
+    newServices[k].have=cb.checked;
   });
-  document.querySelectorAll(".svc-join").forEach(cb => {
+  document.querySelectorAll(".svc-want").forEach(cb => {
     const k=cb.dataset.key; if(!newServices[k]) newServices[k]={};
-    newServices[k].join=cb.checked;
+    newServices[k].want=cb.checked;
   });
 
   const newChildren=[];
@@ -689,9 +687,11 @@ function showChangesModal() {
   });
 
   const oldSvcs=(memberData.sectionB||{}).services||{};
-  SERVICE_LIST.forEach(([key,label])=>{
-    const oc=!!(oldSvcs[key]?.current), nc=!!(newServices[key]?.current);
-    const oj=!!(oldSvcs[key]?.join),    nj=!!(newServices[key]?.join);
+  SERVICE_LIST.forEach((label, idx) => {
+    const oldRow = getServiceRowData(oldSvcs, idx + 1);
+    const newRow = getServiceRowData(newServices, idx + 1);
+    const oc = oldRow.have, nc = newRow.have;
+    const oj = oldRow.want, nj = newRow.want;
     if(oc!==nc) rows.push({section:"B — Pelayanan",field:`${label} (Terlibat)`,before:oc?"Ya":"Tidak",after:nc?"Ya":"Tidak"});
     if(oj!==nj) rows.push({section:"B — Pelayanan",field:`${label} (Ingin Sertai)`,before:oj?"Ya":"Tidak",after:nj?"Ya":"Tidak"});
   });

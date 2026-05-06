@@ -20,12 +20,25 @@ document.getElementById("togglePassword")?.addEventListener("click", function() 
   }
 });
 
-function generateAdminUniqueID(fullName, icNo, yearJoining) {
+function generateAdminUniqueID(fullName, idType, icNo, yearJoining, foreignID) {
   const names    = (fullName || "").trim().split(/\s+/).filter(Boolean);
   const initials = names.map(n => n[0].toUpperCase()).join("");
-  const ic       = (icNo || "").replace(/-/g,"");
-  const last4    = ic.length >= 4 ? ic.slice(-4) : ic.padStart(4,"0");
   const yr       = String(yearJoining || "").slice(-2);
+
+  if (idType === "Passport") {
+    const passportNorm = String(foreignID || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    const first4 = passportNorm.slice(0, 4).padEnd(4, "0");
+    return `${initials}-${first4}-${yr}`;
+  }
+
+  // IC & MyTentera: preserve existing last-4 approach
+  const idSource = idType === "IC" ? icNo : foreignID;
+  const idClean  = String(idSource || "")
+    .replace(/-/g,"")
+    .replace(/\s+/g,"");
+  const last4    = idClean.length >= 4 ? idClean.slice(-4) : idClean.padStart(4,"0");
   return `${initials}-${last4}-${yr}`;
 }
 
@@ -120,18 +133,32 @@ document.getElementById("sortOrder").addEventListener("change", function() { cur
 function getSortedFiltered() {
   let data = [...registrations];
   if (searchQuery) {
-    data = data.filter(r =>
-      (r.name||"").toLowerCase().includes(searchQuery) ||
-      (r.icNo||"").replace(/-/g,"").includes(searchQuery.replace(/-/g,"")) ||
-      (r.uniqueID||"").toLowerCase().includes(searchQuery)
-    );
+    const q = searchQuery;
+    const qDigits = q.replace(/[^0-9]/g, "");
+    data = data.filter(r => {
+      const nameMatch    = (r.name||"").toLowerCase().includes(q);
+      const icDigits     = String(r.icNo || "").replace(/-/g,"").toLowerCase();
+      const foreignRaw   = String(r.sectionA?.foreignID || "");
+      const foreignNorm  = foreignRaw.replace(/-/g,"").toLowerCase();
+      const foreignMatch = foreignNorm.includes(q) || foreignRaw.toLowerCase().includes(q);
+      const uniqueMatch  = (r.uniqueID||"").toLowerCase().includes(q);
+      const numericMatch = qDigits ? (icDigits.includes(qDigits) || foreignNorm.includes(qDigits)) : false;
+      return nameMatch || uniqueMatch || foreignMatch || numericMatch;
+    });
   }
   data.sort((a,b) => {
     let vA, vB;
     switch(currentSort.by) {
       case "name":   vA=(a.name||"").toLowerCase();   vB=(b.name||"").toLowerCase(); break;
       case "id":     vA=(a.uniqueID||"").toLowerCase();vB=(b.uniqueID||"").toLowerCase(); break;
-      case "ic":     vA=(a.icNo||"");                 vB=(b.icNo||""); break;
+      case "ic": {
+        const pick = (reg) => (reg.sectionA?.citizenship === "nonCitizen"
+          ? (reg.sectionA?.foreignID || "")
+          : (reg.icNo || ""));
+        vA = pick(a);
+        vB = pick(b);
+        break;
+      }
       case "komsel": vA=normaliseAdminKomsel(a.sectionA?.komselCode||""); vB=normaliseAdminKomsel(b.sectionA?.komselCode||""); break;
       default:
         vA = a.submittedAt?.toDate ? a.submittedAt.toDate().toISOString() : (a.dateApplied||"");
@@ -170,7 +197,12 @@ function renderTable() {
 
   data.forEach((reg, i) => {
     const tr  = document.createElement("tr");
-    const uid = reg.uniqueID || generateAdminUniqueID(reg.name, reg.icNo, reg.sectionA?.yearJoining);
+    const a = reg.sectionA || {};
+    const inferredIdType =
+      a.idType || (a.citizenship === "nonCitizen"
+        ? (/[A-Za-z]/.test(String(a.foreignID || "")) ? "Passport" : "MyTentera")
+        : "IC");
+    const uid = reg.uniqueID || generateAdminUniqueID(reg.name, inferredIdType, reg.icNo, a.yearJoining, a.foreignID);
     const photoHTML = reg.photoURL
       ? `<img src="${reg.photoURL}" class="admin-photo-thumb" alt="Photo"/>`
       : `<div class="admin-photo-placeholder">👤</div>`;
@@ -740,7 +772,11 @@ function buildViewHTML(reg) {
     if (val.want) wantList.push(n);
   });
   const children = reg.sectionC?.children || [];
-  const uid = reg.uniqueID || generateAdminUniqueID(reg.name, reg.icNo, a.yearJoining);
+  const inferredIdType =
+    a.idType || (a.citizenship === "nonCitizen"
+      ? (/[A-Za-z]/.test(String(a.foreignID || "")) ? "Passport" : "MyTentera")
+      : "IC");
+  const uid = reg.uniqueID || generateAdminUniqueID(reg.name, inferredIdType, reg.icNo, a.yearJoining, a.foreignID);
   const e   = reg.sectionE || {};
   const photoSection = reg.photoURL
     ? `<div style="text-align:center;margin-bottom:1rem;"><img src="${reg.photoURL}" style="width:100px;height:125px;object-fit:cover;border-radius:8px;border:2px solid var(--marigold-dim);"/></div>`
@@ -874,7 +910,11 @@ function printRecord(id) {
     ? children.map((c,i) => `<p>${i+1}. ${c.name||"—"} (${genderMap[c.gender]||"—"}) — MyKid: ${c.myKid||"—"}</p>`).join("")
     : "<p>Tiada Anak berumur 12 tahun dan ke bawah / No Children aged 12 and below</p>";
   const e   = reg.sectionE || {};
-  const uid = reg.uniqueID || generateAdminUniqueID(reg.name, reg.icNo, a.yearJoining);
+  const inferredIdType =
+    a.idType || (a.citizenship === "nonCitizen"
+      ? (/[A-Za-z]/.test(String(a.foreignID || "")) ? "Passport" : "MyTentera")
+      : "IC");
+  const uid = reg.uniqueID || generateAdminUniqueID(reg.name, inferredIdType, reg.icNo, a.yearJoining, a.foreignID);
   const photoSection = reg.photoURL
     ? `<img src="${reg.photoURL}" style="float:right;width:90px;height:115px;object-fit:cover;border:1px solid #000;margin-left:12px;" alt="Photo"/>`
     : "";

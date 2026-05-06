@@ -19,6 +19,19 @@ function formatIC(v) {
   return f.substring(0,14);
 }
 
+function formatMyTentera(v) {
+  // MyTentera uses ddmmyy-##-#### formatting (same dash pattern as IC)
+  return formatIC(v);
+}
+
+function formatPassport(v) {
+  // Passport: alphanumeric only, uppercase; no IC-style formatting
+  return String(v || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0,20);
+}
+
 function formatPhone(v) {
   const d = v.replace(/\D/g,"");
   return d.length > 3 ? d.substring(0,3)+"-"+d.substring(3,10) : d;
@@ -48,12 +61,16 @@ document.querySelectorAll('input[name="heirStatus"]').forEach(radio => {
   });
 });
 
-// IC auto-format
+// Identifier auto-format (depends on dropdown selection)
 document.getElementById("heirIC")?.addEventListener("input", function() {
-  this.value = formatIC(this.value);
+  const idType = document.getElementById("heirIdType")?.value || "IC";
+  if (idType === "Passport") this.value = formatPassport(this.value);
+  else this.value = formatMyTentera(this.value); // IC & MyTentera share dash formatting
 });
 document.getElementById("heirManualIC")?.addEventListener("input", function() {
-  this.value = formatIC(this.value);
+  const idType = document.getElementById("heirManualIdType")?.value || "IC";
+  if (idType === "Passport") this.value = formatPassport(this.value);
+  else this.value = formatMyTentera(this.value);
 });
 
 // Phone auto-format
@@ -69,13 +86,36 @@ document.getElementById("witnessPhone")?.addEventListener("input", function() {
 
 // Registered member IC lookup — search regardless of approval status
 document.getElementById("heirIC")?.addEventListener("blur", async function() {
-  const ic = this.value.replace(/-/g,"");
-  if (ic.length !== 12) return;
+  const idType = document.getElementById("heirIdType")?.value || "IC";
+  const raw    = this.value || "";
   const notice = document.getElementById("heirLookupNotice");
   notice.textContent = "Menyemak... / Checking...";
   try {
-    const snap = await db.collection("registrations").where("icNo","==",ic).limit(1).get();
-    if (snap.empty) {
+    let snap;
+    if (idType === "IC") {
+      const ic = raw.replace(/-/g,"");
+      if (ic.length !== 12 || isNaN(ic)) return;
+      snap = await db.collection("registrations").where("icNo","==",ic).limit(1).get();
+    } else if (idType === "MyTentera") {
+      const foreignVal = formatMyTentera(raw);
+      const digitsOnly = foreignVal.replace(/-/g,"");
+      if (digitsOnly.length !== 12 || isNaN(digitsOnly)) return;
+      snap = await db.collection("registrations")
+        .where("sectionA.foreignID","==",foreignVal).limit(1).get();
+      if (snap.empty) {
+        // backward compat: try digits-only match
+        snap = await db.collection("registrations")
+          .where("sectionA.foreignID","==",digitsOnly).limit(1).get();
+      }
+    } else {
+      // Passport
+      const passportNorm = formatPassport(raw);
+      if (passportNorm.length < 4) return;
+      snap = await db.collection("registrations")
+        .where("sectionA.foreignID","==",passportNorm).limit(1).get();
+    }
+
+    if (!snap || snap.empty) {
       notice.textContent = "Tiada rekod dijumpai. / No record found.";
       heirMemberData = null;
       document.getElementById("heirMemberBanner").style.display = "none";
@@ -106,19 +146,54 @@ document.getElementById("btnNextA").addEventListener("click", () => {
   }
 
   if (status === "registered") {
-    const ic = document.getElementById("heirIC").value.replace(/-/g,"");
-    if (ic.length !== 12) {
-      document.getElementById("err-heirIC").textContent = "Sila masukkan No. KP yang sah / Enter valid IC No.";
-      valid = false;
+    const idType = document.getElementById("heirIdType")?.value || "IC";
+    const raw = document.getElementById("heirIC").value || "";
+    if (idType === "IC") {
+      const ic = raw.replace(/-/g,"");
+      if (ic.length !== 12 || isNaN(ic)) {
+        document.getElementById("err-heirIC").textContent = "Sila masukkan No. KP yang sah / Enter valid IC No.";
+        valid = false;
+      }
+    } else if (idType === "MyTentera") {
+      const foreignVal = formatMyTentera(raw);
+      const digitsOnly = foreignVal.replace(/-/g,"");
+      if (digitsOnly.length !== 12 || isNaN(digitsOnly)) {
+        document.getElementById("err-heirIC").textContent = "Sila masukkan MyTentera yang sah / Please enter a valid MyTentera number.";
+        valid = false;
+      }
+    } else {
+      const passportNorm = formatPassport(raw);
+      if (passportNorm.length < 4) {
+        document.getElementById("err-heirIC").textContent = "Sila masukkan nombor Passport yang sah / Please enter a valid Passport number.";
+        valid = false;
+      }
     }
   } else if (status === "unregistered" || status === "outsider") {
     if (!document.getElementById("heirFullName").value.trim()) {
       document.getElementById("err-heirFullName").textContent = "Diperlukan / Required";
       valid = false;
     }
-    if (document.getElementById("heirManualIC").value.replace(/-/g,"").length !== 12) {
-      document.getElementById("err-heirManualIC").textContent = "No. KP tidak sah / Invalid IC";
-      valid = false;
+    const idType = document.getElementById("heirManualIdType")?.value || "IC";
+    const raw = document.getElementById("heirManualIC").value || "";
+    if (idType === "IC") {
+      const ic = raw.replace(/-/g,"");
+      if (ic.length !== 12 || isNaN(ic)) {
+        document.getElementById("err-heirManualIC").textContent = "No. KP tidak sah / Invalid IC";
+        valid = false;
+      }
+    } else if (idType === "MyTentera") {
+      const foreignVal = formatMyTentera(raw);
+      const digitsOnly = foreignVal.replace(/-/g,"");
+      if (digitsOnly.length !== 12 || isNaN(digitsOnly)) {
+        document.getElementById("err-heirManualIC").textContent = "MyTentera tidak sah / Invalid MyTentera";
+        valid = false;
+      }
+    } else {
+      const passportNorm = formatPassport(raw);
+      if (passportNorm.length < 4) {
+        document.getElementById("err-heirManualIC").textContent = "Passport tidak sah / Invalid Passport";
+        valid = false;
+      }
     }
     if (!document.getElementById("heirPhone").value.trim()) {
       document.getElementById("err-heirPhone").textContent = "Diperlukan / Required";
@@ -144,13 +219,31 @@ document.getElementById("btnNextA").addEventListener("click", () => {
 document.getElementById("btnBackB").addEventListener("click", () => showSection("section-a"));
 
 // Check deceased name/IC against DB
-async function checkDeceasedInDB(nameOrIC, isIC) {
+async function checkDeceasedInDB(nameOrIC, isIC, idType = "IC") {
   try {
     let snap;
     if (isIC) {
-      const clean = nameOrIC.replace(/-/g,"");
-      if (clean.length !== 12) return;
-      snap = await db.collection("registrations").where("icNo","==",clean).limit(1).get();
+      if (idType === "IC") {
+        const clean = String(nameOrIC).replace(/-/g,"");
+        if (clean.length !== 12 || isNaN(clean)) return;
+        snap = await db.collection("registrations").where("icNo","==",clean).limit(1).get();
+      } else if (idType === "MyTentera") {
+        const foreignVal = formatMyTentera(nameOrIC);
+        const digitsOnly = foreignVal.replace(/-/g,"");
+        if (digitsOnly.length !== 12 || isNaN(digitsOnly)) return;
+        snap = await db.collection("registrations")
+          .where("sectionA.foreignID","==",foreignVal).limit(1).get();
+        if (snap.empty) {
+          snap = await db.collection("registrations")
+            .where("sectionA.foreignID","==",digitsOnly).limit(1).get();
+        }
+      } else {
+        // Passport
+        const passportNorm = formatPassport(nameOrIC);
+        if (passportNorm.length < 4) return;
+        snap = await db.collection("registrations")
+          .where("sectionA.foreignID","==",passportNorm).limit(1).get();
+      }
     } else {
       const upper = nameOrIC.toUpperCase();
       snap = await db.collection("registrations").where("name","==",upper).limit(1).get();
@@ -167,19 +260,42 @@ document.getElementById("deceasedFullName").addEventListener("blur", function() 
 });
 
 document.getElementById("deceasedIC").addEventListener("input", function() {
-  this.value = formatIC(this.value);
+  const idType = document.getElementById("deceasedIdType")?.value || "IC";
+  if (idType === "Passport") this.value = formatPassport(this.value);
+  else this.value = formatMyTentera(this.value);
 });
 
 document.getElementById("deceasedIC").addEventListener("blur", function() {
-  const clean = this.value.replace(/-/g,"");
-  if (clean.length === 12) checkDeceasedInDB(clean, true);
+  const idType = document.getElementById("deceasedIdType")?.value || "IC";
+  const raw = this.value || "";
+  if (!raw.trim()) return;
+  checkDeceasedInDB(raw, true, idType);
 });
 
 document.getElementById("btnAutoFillYes").addEventListener("click", () => {
   if (!deceasedMemberData) return;
   const a = deceasedMemberData.sectionA || {};
   document.getElementById("deceasedFullName").value  = a.fullName  || deceasedMemberData.name || "";
-  document.getElementById("deceasedIC").value        = a.icNo      || deceasedMemberData.icNo || "";
+
+  const inferIdType = (sectionA) => {
+    if (sectionA?.idType) return sectionA.idType;
+    if (sectionA?.citizenship === "citizen") return "IC";
+    const fid = String(sectionA?.foreignID || "");
+    if (/[A-Za-z]/.test(fid)) return "Passport";
+    return "MyTentera";
+  };
+  const idType = inferIdType(a);
+  const idTypeEl = document.getElementById("deceasedIdType");
+  if (idTypeEl) idTypeEl.value = idType;
+
+  if (idType === "IC") {
+    const rawIc = a.icNo || deceasedMemberData.icNo || "";
+    document.getElementById("deceasedIC").value = formatIC(rawIc);
+  } else if (idType === "MyTentera") {
+    document.getElementById("deceasedIC").value = formatMyTentera(a.foreignID || "");
+  } else {
+    document.getElementById("deceasedIC").value = formatPassport(a.foreignID || "");
+  }
   document.getElementById("deceasedRace").value      = a.race      || "";
   document.getElementById("deceasedAddress").value   = a.currentAddress || "";
   // Gender
@@ -205,8 +321,24 @@ document.getElementById("btnNextB").addEventListener("click", () => {
   if (!document.getElementById("deceasedFullName").value.trim()) {
     document.getElementById("err-deceasedFullName").textContent = "Diperlukan / Required"; valid = false;
   }
-  if (document.getElementById("deceasedIC").value.replace(/-/g,"").length !== 12) {
-    document.getElementById("err-deceasedIC").textContent = "No. KP tidak sah / Invalid IC"; valid = false;
+  const deceasedIdType = document.getElementById("deceasedIdType")?.value || "IC";
+  const rawDeceasedID  = document.getElementById("deceasedIC").value || "";
+  if (deceasedIdType === "IC") {
+    const clean = rawDeceasedID.replace(/-/g,"");
+    if (clean.length !== 12 || isNaN(clean)) {
+      document.getElementById("err-deceasedIC").textContent = "No. KP tidak sah / Invalid IC"; valid = false;
+    }
+  } else if (deceasedIdType === "MyTentera") {
+    const foreignVal = formatMyTentera(rawDeceasedID);
+    const digitsOnly = foreignVal.replace(/-/g,"");
+    if (digitsOnly.length !== 12 || isNaN(digitsOnly)) {
+      document.getElementById("err-deceasedIC").textContent = "MyTentera tidak sah / Invalid MyTentera"; valid = false;
+    }
+  } else {
+    const passportNorm = formatPassport(rawDeceasedID);
+    if (passportNorm.length < 4) {
+      document.getElementById("err-deceasedIC").textContent = "Passport tidak sah / Invalid Passport"; valid = false;
+    }
   }
   if (!document.querySelector('input[name="deceasedGender"]:checked')) {
     document.getElementById("err-deceasedGender").textContent = "Sila pilih jantina / Select gender"; valid = false;
@@ -238,25 +370,47 @@ document.getElementById("btnSubmitDeceased").addEventListener("click", async () 
     // Build heir info
     let heirInfo = { type: heirStatus, relationship: document.getElementById("heirRelationship").value.trim() };
     if (heirStatus === "registered" && heirMemberData) {
+      const heirIdType = document.getElementById("heirIdType")?.value || "IC";
+      const heirIdentifier =
+        heirIdType === "IC"
+          ? (heirMemberData.icNo || heirMemberData.sectionA?.icNo || "")
+          : (heirMemberData.sectionA?.foreignID || "");
       heirInfo = {
         ...heirInfo,
         name:     (heirMemberData.sectionA?.fullName || heirMemberData.name || "").toUpperCase(),
-        ic:       heirMemberData.icNo || "",
+        ic:       heirIdentifier,
+        idType:   heirIdType,
         phone:    heirMemberData.sectionA?.phoneNumber || "",
         uniqueID: heirMemberData.uniqueID || "",
         approved: heirMemberData.approved || false,
       };
     } else {
+      const heirManualIdType = document.getElementById("heirManualIdType")?.value || "IC";
+      const rawHeirManualIC  = document.getElementById("heirManualIC").value || "";
+      const heirIdentifier =
+        heirManualIdType === "IC"
+          ? rawHeirManualIC.replace(/-/g,"")
+          : heirManualIdType === "MyTentera"
+            ? formatMyTentera(rawHeirManualIC)
+            : formatPassport(rawHeirManualIC);
       heirInfo = {
         ...heirInfo,
         name:    document.getElementById("heirFullName").value.trim().toUpperCase(),
-        ic:      document.getElementById("heirManualIC").value.replace(/-/g,""),
+        ic:      heirIdentifier,
+        idType:  heirManualIdType,
         phone:   document.getElementById("heirPhone").value.trim(),
         address: document.getElementById("heirAddress").value.trim(),
       };
     }
 
-    const deceasedIC = document.getElementById("deceasedIC").value.replace(/-/g,"");
+    const deceasedIdType = document.getElementById("deceasedIdType")?.value || "IC";
+    const rawDeceasedID  = document.getElementById("deceasedIC").value || "";
+    const deceasedIC =
+      deceasedIdType === "IC"
+        ? rawDeceasedID.replace(/-/g,"")
+        : deceasedIdType === "MyTentera"
+          ? formatMyTentera(rawDeceasedID)
+          : formatPassport(rawDeceasedID);
     const deceasedRecord = {
       // Section A — Heir
       heirInfo,

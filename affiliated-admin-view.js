@@ -26,10 +26,13 @@ function renderTable(data) {
   data.forEach((m, i) => {
     const tr = document.createElement("tr");
     const phone = m.sectionA?.phoneNumber || "—";
+    const idDisplay = m.sectionA?.citizenship === "nonCitizen"
+      ? (m.sectionA?.foreignID || "—")
+      : (m.icNo || "—");
     tr.innerHTML = `
       <td class="col-num">${i+1}</td>
       <td style="font-weight:700;text-transform:uppercase;">${m.name||"—"}</td>
-      <td>${m.icNo||"—"}</td>
+      <td>${idDisplay}</td>
       <td>${phone}</td>
       <td class="col-action">
         <button class="btn-action-dots aff-action-btn" data-id="${m.id}">•••</button>
@@ -54,7 +57,8 @@ function applyFilters() {
   const order = document.getElementById("affOrder").value;
   let data = allAff.filter(m =>
     (m.name||"").toLowerCase().includes(q) ||
-    (m.icNo||"").includes(q) ||
+    (String(m.icNo||"")||"").toLowerCase().includes(q) ||
+    (String(m.sectionA?.foreignID||"")||"").toLowerCase().includes(q) ||
     (m.sectionA?.phoneNumber||"").includes(q)
   );
   data.sort((a,b) => {
@@ -77,11 +81,14 @@ function vRow(label, value) {
 document.getElementById("affBtnView").addEventListener("click", () => {
   if (!currentAff) return;
   const a = currentAff.sectionA || {};
+  const idDisplay = a.citizenship === "nonCitizen"
+    ? (a.foreignID || "—")
+    : (a.icNo || "—");
   const html = `
     <div class="vf-section-title">A. Maklumat Peribadi / Personal Information</div>
     <div class="vf-grid">
       ${vRow("Nama Penuh / Full Name", (a.fullName||currentAff.name||"").toUpperCase())}
-      ${vRow("No. KP / IC No.", a.icNo)}
+      ${vRow("No. KP / IC No.", idDisplay)}
       ${vRow("ID Unik / Unique ID", currentAff.uniqueID)}
       ${vRow("Jantina / Gender", a.gender==="male"?"Lelaki":"Perempuan")}
       ${vRow("Tarikh Lahir / DOB", a.dob)}

@@ -250,6 +250,16 @@
             <input type="text" id="icNo" name="icNo"
               class="form-input" placeholder="cth/e.g. 901231-14-5678"
               maxlength="14" autocomplete="off" />
+            <div class="form-group" style="margin-top:0.8rem;">
+              <label class="form-label" for="idType" style="margin-bottom:0.3rem;">
+                Jenis ID <span class="label-en">/ Identifier Type</span>
+              </label>
+              <select id="idType" name="idType" class="form-input form-select">
+                <option value="IC" selected>IC (No. KP)</option>
+                <option value="Passport">Passport</option>
+                <option value="MyTentera">MyTentera</option>
+              </select>
+            </div>
             <span class="field-hint" id="icNoNonCitizenHint" style="display:none;color:var(--text-muted);font-style:italic;">
               Tidak berkaitan — anggota bukan warganegara Malaysia / Not applicable — member is not a Malaysian citizen
             </span>
@@ -405,7 +415,7 @@
             </label>
             <div class="checkbox-group">
               <label class="checkbox-label">
-                <input type="radio" name="citizenship" value="citizen" id="isCitizen" />
+                <input type="radio" name="citizenship" value="citizen" id="isCitizen" checked />
                 <span class="custom-radio"></span>
                 Warganegara Malaysia <em>/ Malaysian Citizen</em>
               </label>
@@ -436,7 +446,7 @@
                   </label>
                   <input type="text" id="foreignID" name="foreignID"
                     class="form-input"
-                    placeholder="Masukkan nombor identiti negara anda / Enter your identity number from your country"
+                    placeholder="Masukkan nombor MyTentera anda / Enter your MyTentera number (ddmmyy-##-####)"
                     autocomplete="off"/>
                   <span class="error-msg" id="err-foreignID"></span>
                 </div>
@@ -929,8 +939,8 @@
       </div>
       <div class="modal-body" style="text-align:center;">
         <p style="color:var(--text-light); font-size:1rem; margin-bottom:0.8rem; line-height:1.6;">
-          Nombor KP ini sudah berdaftar di dalam sistem pendaftaran.<br/>
-          <em style="color:var(--text-muted); font-size:0.9rem;">This IC number has already existed in the registration system database.</em>
+          ID/Identifier ini sudah berdaftar di dalam sistem pendaftaran.<br/>
+          <em style="color:var(--text-muted); font-size:0.9rem;">This identifier has already existed in the registration system database.</em>
         </p>
         <p style="color:var(--silver-dim); font-size:0.88rem; font-style:italic; line-height:1.6;">
           Sebarang pertanyaan, sila berhubung dengan kakitangan gereja.<br/>

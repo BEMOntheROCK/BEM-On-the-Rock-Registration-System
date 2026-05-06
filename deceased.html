@@ -66,8 +66,17 @@
       <!-- Registered member: IC lookup -->
       <div class="conditional-field" id="heirRegisteredFields">
         <div class="form-group full-width">
-          <label class="form-label" for="heirIC">No. KP / IC No. <span class="required">*</span></label>
-          <input type="text" id="heirIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14"/>
+          <label class="form-label" for="heirIC">No. ID / IC No. <span class="required">*</span></label>
+          <div style="display:flex;gap:0.8rem;align-items:flex-end;">
+            <input type="text" id="heirIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14" style="flex:1;"/>
+            <div style="width:190px;">
+              <select id="heirIdType" class="form-input form-select">
+                <option value="IC" selected>IC (No. KP)</option>
+                <option value="Passport">Passport</option>
+                <option value="MyTentera">MyTentera</option>
+              </select>
+            </div>
+          </div>
           <span class="error-msg" id="err-heirIC"></span>
           <div class="draft-notice" id="heirLookupNotice"></div>
         </div>
@@ -87,8 +96,17 @@
             <span class="error-msg" id="err-heirFullName"></span>
           </div>
           <div class="form-group">
-            <label class="form-label" for="heirManualIC">No. KP / IC No. <span class="required">*</span></label>
-            <input type="text" id="heirManualIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14"/>
+            <label class="form-label" for="heirManualIC">No. ID / IC No. <span class="required">*</span></label>
+            <div style="display:flex;gap:0.8rem;align-items:flex-end;">
+              <input type="text" id="heirManualIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14" style="flex:1;"/>
+              <div style="width:190px;">
+                <select id="heirManualIdType" class="form-input form-select">
+                  <option value="IC" selected>IC (No. KP)</option>
+                  <option value="Passport">Passport</option>
+                  <option value="MyTentera">MyTentera</option>
+                </select>
+              </div>
+            </div>
             <span class="error-msg" id="err-heirManualIC"></span>
           </div>
           <div class="form-group">
@@ -157,8 +175,17 @@
           <span class="error-msg" id="err-deceasedFullName"></span>
         </div>
         <div class="form-group">
-          <label class="form-label" for="deceasedIC">No. KP / IC No. <span class="required">*</span></label>
-          <input type="text" id="deceasedIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14"/>
+          <label class="form-label" for="deceasedIC">No. ID / IC No. <span class="required">*</span></label>
+          <div style="display:flex;gap:0.8rem;align-items:flex-end;">
+            <input type="text" id="deceasedIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14" style="flex:1;"/>
+            <div style="width:190px;">
+              <select id="deceasedIdType" class="form-input form-select">
+                <option value="IC" selected>IC (No. KP)</option>
+                <option value="Passport">Passport</option>
+                <option value="MyTentera">MyTentera</option>
+              </select>
+            </div>
+          </div>
           <span class="error-msg" id="err-deceasedIC"></span>
         </div>
         <div class="form-group">

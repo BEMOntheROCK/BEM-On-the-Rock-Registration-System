@@ -122,58 +122,129 @@ document.addEventListener("DOMContentLoaded", () => {
     return f.substring(0,14);
   }
 
-  document.getElementById("mcVerifyIC").addEventListener("input", function() {
-    this.value = formatIC(this.value);
+  function formatMyTentera(v) {
+    return formatIC(v);
+  }
+
+  function formatPassport(v) {
+    return String(v || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 20);
+  }
+
+  const verifyIdTypeEl = document.getElementById("mcVerifyIdType");
+  const verifyICEl     = document.getElementById("mcVerifyIC");
+
+  function applyVerifyInputRules() {
+    const idType = verifyIdTypeEl?.value || "IC";
+    // Keep label text (contains required asterisk) stable; only update placeholder.
+    if (!verifyICEl) return;
+    // Placeholder (keep simple; input formatting handles actual normalization)
+    verifyICEl.placeholder = idType === "Passport"
+      ? "Masukkan Passport (alphanumeric)"
+      : idType === "MyTentera"
+        ? "Masukkan MyTentera (ddmmyy-##-####)"
+        : "cth/e.g. 901231-14-5678";
+  }
+
+  verifyIdTypeEl?.addEventListener("change", () => {
+    applyVerifyInputRules();
+    verifyICEl?.dispatchEvent(new Event("input"));
+    document.getElementById("err-mcVerifyIC").textContent = "";
+  });
+
+  verifyICEl?.addEventListener("input", function() {
+    const idType = verifyIdTypeEl?.value || "IC";
+    if (idType === "MyTentera") this.value = formatMyTentera(this.value);
+    else if (idType === "Passport") this.value = formatPassport(this.value);
+    else this.value = formatIC(this.value);
   });
 
   document.getElementById("btnVerifyMC").addEventListener("click", async () => {
-    const ic     = document.getElementById("mcVerifyIC").value.replace(/-/g,"");
+    const idType = verifyIdTypeEl?.value || "IC";
+    const raw    = verifyICEl?.value || "";
     const errEl  = document.getElementById("err-mcVerifyIC");
     const notice = document.getElementById("mcVerifyNotice");
     errEl.textContent = "";
 
-    if (ic.length !== 12) {
-      errEl.textContent = "Sila masukkan No. KP yang sah / Please enter a valid IC No.";
-      return;
-    }
-
+    let snap;
     notice.textContent = "Menyemak... / Checking...";
+
     try {
-      const snap = await db.collection("registrations")
-        .where("icNo","==",ic)
-        .where("approved","==",true)
-        .get();
-
-      if (snap.empty) {
-        errEl.textContent = "Tiada rekod ahli aktif dengan No. KP ini / No active member found.";
-        notice.textContent = "";
-        return;
+      if (idType === "IC") {
+        const ic = raw.replace(/-/g,"");
+        if (ic.length !== 12 || isNaN(ic)) {
+          errEl.textContent = "Sila masukkan No. KP yang sah / Please enter a valid IC No.";
+          notice.textContent = "";
+          return;
+        }
+        snap = await db.collection("registrations")
+          .where("icNo","==",ic)
+          .where("approved","==",true)
+          .get();
+      } else if (idType === "MyTentera") {
+        const foreignVal = formatMyTentera(raw);
+        const digitsOnly = foreignVal.replace(/-/g,"");
+        if (digitsOnly.length !== 12 || isNaN(digitsOnly)) {
+          errEl.textContent = "Sila masukkan MyTentera yang sah / Please enter a valid MyTentera number.";
+          notice.textContent = "";
+          return;
+        }
+        snap = await db.collection("registrations")
+          .where("sectionA.foreignID","==",foreignVal)
+          .where("approved","==",true)
+          .get();
+      } else {
+        // Passport
+        const passportNorm = formatPassport(raw);
+        if (passportNorm.length < 4) {
+          errEl.textContent = "Sila masukkan nombor Passport yang sah / Please enter a valid Passport number.";
+          notice.textContent = "";
+          return;
+        }
+        snap = await db.collection("registrations")
+          .where("sectionA.foreignID","==",passportNorm)
+          .where("approved","==",true)
+          .get();
       }
-
-      const reg = snap.docs[0].data();
-      notice.textContent = "";
-      const cardEl = document.getElementById("membershipCard");
-      populateMembershipCard(cardEl, reg);
-
-      // Show card, hide verify
-      document.getElementById("screenVerify").style.display      = "none";
-      document.getElementById("membershipCardWrap").style.display = "flex";
-      window.scrollTo({ top:0, behavior:"smooth" });
-
-      // Wire download buttons
-      const safeName = (reg.sectionA?.fullName || "member").replace(/\s+/g,"-").toLowerCase();
-      document.getElementById("btnDLPNG").onclick = () => downloadCardPNG(cardEl, `kad-keanggotaan-${safeName}`);
-      document.getElementById("btnDLPDF").onclick = () => downloadCardPDF(cardEl, `kad-keanggotaan-${safeName}`);
-
     } catch(e) {
       errEl.textContent = "Ralat sistem / System error. Please try again.";
       notice.textContent = "";
+      return;
     }
+
+    if (snap.empty) {
+      errEl.textContent = idType === "IC"
+        ? "Tiada rekod ahli aktif dengan No. KP ini / No active member found."
+        : "Tiada rekod ahli aktif dengan ID ini / No active member found.";
+      notice.textContent = "";
+      return;
+    }
+
+    const reg = snap.docs[0].data();
+    notice.textContent = "";
+    const cardEl = document.getElementById("membershipCard");
+    populateMembershipCard(cardEl, reg);
+
+    // Show card, hide verify
+    document.getElementById("screenVerify").style.display      = "none";
+    document.getElementById("membershipCardWrap").style.display = "flex";
+    window.scrollTo({ top:0, behavior:"smooth" });
+
+    // Wire download buttons
+    const safeName = (reg.sectionA?.fullName || "member").replace(/\s+/g,"-").toLowerCase();
+    document.getElementById("btnDLPNG").onclick = () => downloadCardPNG(cardEl, `kad-keanggotaan-${safeName}`);
+    document.getElementById("btnDLPDF").onclick = () => downloadCardPDF(cardEl, `kad-keanggotaan-${safeName}`);
   });
 
   document.getElementById("btnBackToVerify").addEventListener("click", () => {
     document.getElementById("membershipCardWrap").style.display = "none";
     document.getElementById("screenVerify").style.display      = "block";
     document.getElementById("mcVerifyIC").value = "";
+    if (verifyIdTypeEl) verifyIdTypeEl.value = "IC";
+    applyVerifyInputRules();
   });
+
+  applyVerifyInputRules();
 });

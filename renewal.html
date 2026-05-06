@@ -36,8 +36,17 @@
       </div>
       <div class="form-grid">
         <div class="form-group full-width">
-          <label class="form-label" for="renewIC">No. KP / IC No. <span class="required">*</span></label>
-          <input type="text" id="renewIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14"/>
+          <label class="form-label" for="renewIC" id="renewLabel">No. ID / IC No. <span class="required">*</span></label>
+          <div style="display:flex;gap:0.8rem;align-items:flex-end;">
+            <input type="text" id="renewIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14" style="flex:1;"/>
+            <div style="width:190px;">
+              <select id="renewIdType" class="form-input form-select">
+                <option value="IC" selected>IC (No. KP)</option>
+                <option value="Passport">Passport</option>
+                <option value="MyTentera">MyTentera</option>
+              </select>
+            </div>
+          </div>
           <span class="error-msg" id="err-renewIC"></span>
         </div>
       </div>
@@ -132,8 +141,41 @@
       return f.substring(0,14);
     }
 
-    document.getElementById("renewIC").addEventListener("input", function() {
-      this.value = formatIC(this.value);
+    function formatMyTentera(v) {
+      return formatIC(v);
+    }
+
+    function formatPassport(v) {
+      return String(v || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0,20);
+    }
+
+    function applyRenewInputRules() {
+      const idType = document.getElementById("renewIdType")?.value || "IC";
+      const icEl = document.getElementById("renewIC");
+      if (!icEl) return;
+      icEl.placeholder = idType === "Passport"
+        ? "Masukkan Passport (alphanumeric)"
+        : idType === "MyTentera"
+          ? "Masukkan MyTentera (ddmmyy-##-####)"
+          : "cth/e.g. 901231-14-5678";
+    }
+
+    const renewICEl = document.getElementById("renewIC");
+    const renewIdTypeEl = document.getElementById("renewIdType");
+    renewIdTypeEl?.addEventListener("change", () => {
+      applyRenewInputRules();
+      renewICEl?.dispatchEvent(new Event("input"));
+      document.getElementById("err-renewIC").textContent = "";
+    });
+
+    renewICEl?.addEventListener("input", function() {
+      const idType = renewIdTypeEl?.value || "IC";
+      if (idType === "MyTentera") this.value = formatMyTentera(this.value);
+      else if (idType === "Passport") this.value = formatPassport(this.value);
+      else this.value = formatIC(this.value);
     });
 
     function getMembershipState(reg) {
@@ -159,17 +201,53 @@
     }
 
     document.getElementById("btnCheckMember").addEventListener("click", async () => {
-      const ic  = document.getElementById("renewIC").value.replace(/-/g,"");
+      const idType = renewIdTypeEl?.value || "IC";
+      const raw = document.getElementById("renewIC").value;
       const err = document.getElementById("err-renewIC");
       const notice = document.getElementById("renewNotice");
       err.textContent = "";
-      if (ic.length !== 12) { err.textContent = "Sila masukkan No. KP yang sah / Enter a valid IC No."; return; }
+      let snap = null;
+      let queryErr = null;
+
+      // ── Lookup by identifier type ──
+      try {
+        if (idType === "IC") {
+          const ic = String(raw || "").replace(/-/g,"");
+          if (ic.length !== 12 || isNaN(ic)) { err.textContent = "Sila masukkan No. KP yang sah / Enter a valid IC No."; return; }
+          snap = await db.collection("registrations").where("icNo","==",ic).get();
+        } else if (idType === "MyTentera") {
+          const foreignVal = formatMyTentera(raw || "");
+          const digitsOnly = foreignVal.replace(/-/g,"");
+          if (digitsOnly.length !== 12 || isNaN(digitsOnly)) {
+            err.textContent = "Sila masukkan MyTentera yang sah / Please enter a valid MyTentera number.";
+            return;
+          }
+          // Backward compat: try formatted first, then digits-only variant
+          snap = await db.collection("registrations")
+            .where("sectionA.foreignID","==",foreignVal)
+            .get();
+          if (snap.empty) {
+            snap = await db.collection("registrations")
+              .where("sectionA.foreignID","==",digitsOnly)
+              .get();
+          }
+        } else {
+          const passportNorm = formatPassport(raw || "");
+          if (passportNorm.length < 4) { err.textContent = "Sila masukkan nombor Passport yang sah / Please enter a valid Passport number."; return; }
+          snap = await db.collection("registrations")
+            .where("sectionA.foreignID","==",passportNorm)
+            .get();
+        }
+      } catch (e) {
+        queryErr = e;
+      }
 
       notice.textContent = "Menyemak... / Checking...";
       try {
-        const snap = await db.collection("registrations").where("icNo","==",ic).get();
         if (snap.empty) {
-          err.textContent = "Tiada rekod dijumpai dengan No. KP ini / No record found with this IC No.";
+          err.textContent = idType === "IC"
+            ? "Tiada rekod dijumpai dengan No. KP ini / No record found with this IC No."
+            : "Tiada rekod dijumpai dengan ID ini / No record found with this identifier.";
           notice.textContent = "";
           return;
         }
@@ -199,12 +277,15 @@
 
     function showStatusPage(state) {
       const a = memberData.sectionA || {};
+        const idDisplay = a.citizenship === "nonCitizen"
+          ? (a.foreignID || "—")
+          : (memberData.icNo || "—");
       const card = document.getElementById("memberInfoCard");
       card.innerHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem 1.2rem;">
           <div><span style="font-size:0.8rem;color:var(--text-muted);">Nama / Name</span><br/><strong style="text-transform:uppercase;">${a.fullName||"—"}</strong></div>
           <div><span style="font-size:0.8rem;color:var(--text-muted);">ID Unik / Unique ID</span><br/><strong style="color:var(--marigold);">${memberData.uniqueID||"—"}</strong></div>
-          <div><span style="font-size:0.8rem;color:var(--text-muted);">No. KP / IC No.</span><br/><strong>${memberData.icNo||"—"}</strong></div>
+          <div><span style="font-size:0.8rem;color:var(--text-muted);">No. KP / IC No. / ID</span><br/><strong>${idDisplay||"—"}</strong></div>
           <div><span style="font-size:0.8rem;color:var(--text-muted);">Kod Komsel / Cell Group</span><br/><strong>${a.komselCode||"—"}</strong></div>
           <div><span style="font-size:0.8rem;color:var(--text-muted);">Tarikh Diluluskan / Approved</span><br/><strong>${formatDate(memberData.approvedAt)}</strong></div>
           <div><span style="font-size:0.8rem;color:var(--text-muted);">Tarikh Tamat / Expires</span><br/><strong>${memberData.approvedAt ? formatExpiryDate(memberData.approvedAt) : "—"}</strong></div>
@@ -243,6 +324,8 @@
       document.getElementById("step-status").classList.remove("active");
       document.getElementById("step-verify").classList.add("active");
     });
+
+    applyRenewInputRules();
 
     document.getElementById("btnBackNoRenew")?.addEventListener("click", () => {
       document.getElementById("step-status").classList.remove("active");

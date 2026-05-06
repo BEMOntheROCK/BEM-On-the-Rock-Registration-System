@@ -351,14 +351,26 @@ function bindKomselValidation() {
 // 1g. UNIQUE ID GENERATION
 // Format: Initials-Last4IC-YearJoinedShort
 // ═══════════════════════════════════════════════
-function generateUniqueID(fullName, icNo, yearJoining, foreignID) {
+function generateUniqueID(fullName, idType, icNo, yearJoining, foreignID) {
   const names    = (fullName || "").trim().split(/\s+/).filter(Boolean);
   const initials = names.map(n => n[0].toUpperCase()).join("");
-  const ic       = (icNo || "").replace(/-/g, "");
-  // For non-citizens with no IC, use last 4 chars of foreignID instead
-  const idSource = ic.length >= 4 ? ic : (foreignID || "").replace(/\s+/g,"");
-  const last4    = idSource.length >= 4 ? idSource.slice(-4) : idSource.padStart(4, "0");
   const yr       = String(yearJoining || "").slice(-2);
+
+  if (idType === "Passport") {
+    // Unique ID format: AAA-XXXX-##
+    // XXXX = first 4 alphanumeric chars of the passport number
+    const passportNorm = String(foreignID || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    const first4 = passportNorm.slice(0, 4).padEnd(4, "0");
+    return `${initials}-${first4}-${yr}`;
+  }
+
+  // IC & MyTentera: preserve existing logic (last 4 chars approach)
+  const ic = (icNo || "").replace(/-/g, "");
+  // For non-citizens with no IC, use last 4 chars of foreignID instead
+  const idSource = ic.length >= 4 ? ic : (foreignID || "").replace(/\s+/g, "");
+  const last4    = idSource.length >= 4 ? idSource.slice(-4) : idSource.padStart(4, "0");
   return `${initials}-${last4}-${yr}`;
 }
 
@@ -533,20 +545,43 @@ async function submitAffiliatedForm() {
     const sectionADraft = JSON.parse(localStorage.getItem("bem_otr_draft_sectionA") || "{}");
     const sectionBDraft = JSON.parse(localStorage.getItem("bem_otr_draft_sectionB") || "{}");
     const sectionCDraft = JSON.parse(localStorage.getItem("bem_otr_draft_sectionC") || "{}");
-    const icVal = (sectionADraft.icNo || "").replace(/-/g,"");
-    const isNonCitizen = sectionADraft.citizenship === "nonCitizen";
+    const inferIdType = (s) => {
+      if (s.idType) return s.idType;
+      if (s.citizenship === "citizen") return "IC";
+      const fid = String(s.foreignID || "");
+      if (/[A-Za-z]/.test(fid)) return "Passport";
+      const digitsOnly = fid.replace(/\D/g, "");
+      if (digitsOnly.length === 12) return "MyTentera";
+      return "Passport";
+    };
+    const idType = inferIdType(sectionADraft);
+    const isNonCitizen = idType !== "IC";
+    const icVal = idType === "IC" ? (sectionADraft.icNo || "").replace(/-/g,"") : "";
 
-    // IC duplicate check — skip for non-citizens
-    if (!isNonCitizen && icVal) {
+    // Duplicate check by identifier type
+    if (idType === "IC" && icVal) {
       const snap = await db.collection("affiliatedMembers").where("icNo","==",icVal).get();
       if (!snap.empty) {
         alert("No. KP ini sudah berdaftar. / This IC is already registered.");
         if (btn) { btn.disabled=false; btn.textContent="Hantar / Submit →"; }
         return;
       }
+    } else if (isNonCitizen) {
+      const foreignVal = idType === "MyTentera" ? formatMyTentera(sectionADraft.foreignID) :
+                        idType === "Passport"  ? formatPassport(sectionADraft.foreignID) :
+                        sectionADraft.foreignID;
+      if (foreignVal) {
+        const snapForeign = await db.collection("affiliatedMembers")
+          .where("sectionA.foreignID","==",foreignVal).get();
+        if (!snapForeign.empty) {
+          alert("Identifier ini sudah wujud. / This identifier is already registered.");
+          if (btn) { btn.disabled=false; btn.textContent="Hantar / Submit →"; }
+          return;
+        }
+      }
     }
 
-    const uid = generateUniqueID(sectionADraft.fullName, icVal, sectionADraft.yearJoining, sectionADraft.foreignID);
+    const uid = generateUniqueID(sectionADraft.fullName, idType, icVal, sectionADraft.yearJoining, sectionADraft.foreignID);
 
     const data = {
       name:        (sectionADraft.fullName || "").toUpperCase(),
@@ -557,6 +592,7 @@ async function submitAffiliatedForm() {
       sectionA: {
         fullName:        (sectionADraft.fullName || "").toUpperCase(),
         icNo:            icVal,
+        idType:          idType,
         gender:          sectionADraft.gender || "",
         dob:             sectionADraft.dob || "",
         race:            sectionADraft.race || "",
@@ -681,10 +717,32 @@ function populateFormWithData(data) {
   const setCheck = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
 
   setVal("fullName", a.fullName || data.name || "");
-  // IC — format it
-  if (a.icNo) {
-    const ic = a.icNo.replace(/(\d{6})(\d{2})(\d{4})/, "$1-$2-$3");
-    setVal("icNo", ic);
+  const inferIdType = (sectionA) => {
+    if (sectionA?.idType) return sectionA.idType;
+    if (sectionA?.citizenship === "citizen") return "IC";
+    const fid = String(sectionA?.foreignID || "");
+    if (/[A-Za-z]/.test(fid)) return "Passport";
+    const digitsOnly = fid.replace(/\D/g, "");
+    if (digitsOnly.length === 12) return "MyTentera";
+    return "Passport";
+  };
+  const idType = inferIdType(a);
+  setVal("idType", idType);
+
+  // IC / Foreign identifier — format for UI
+  if (idType === "IC") {
+    if (a.icNo) {
+      const ic = a.icNo.replace(/(\d{6})(\d{2})(\d{4})/, "$1-$2-$3");
+      setVal("icNo", ic);
+    } else {
+      setVal("icNo", "");
+    }
+    setVal("foreignID", "");
+    setVal("countryOfOrigin", "");
+  } else {
+    setVal("icNo", "");
+    setVal("foreignID", a.foreignID || "");
+    setVal("countryOfOrigin", a.countryOfOrigin || "");
   }
   setVal("dob",            a.dob || "");
   setVal("race",           a.race || "");
@@ -692,8 +750,6 @@ function populateFormWithData(data) {
   setVal("phoneNumber",    a.phoneNumber || "");
   setVal("originalChurch", a.originalChurch || "");
   setVal("currentAddress", a.currentAddress || "");
-  setVal("countryOfOrigin",a.countryOfOrigin || "");
-  setVal("foreignID",      a.foreignID || "");
   setVal("baptismYear",    a.baptismYear || "");
 
   // Year joining dropdown
@@ -715,16 +771,8 @@ function populateFormWithData(data) {
   }
 
   // Citizenship
-  if (a.citizenship) {
-    setRadio("citizenship", a.citizenship);
-    // Manually trigger IC disable for non-citizens
-    if (a.citizenship === "nonCitizen") {
-      const icInput = document.getElementById("icNo");
-      if (icInput) { icInput.disabled = true; icInput.style.opacity = "0.4"; icInput.style.cursor = "not-allowed"; }
-      document.getElementById("icNoNonCitizenHint")?.style && (document.getElementById("icNoNonCitizenHint").style.display = "");
-      document.getElementById("icNoRequired")?.style     && (document.getElementById("icNoRequired").style.display = "none");
-    }
-  }
+  // idType change handler will sync citizenship + enable/disable fields
+  document.getElementById("idType")?.dispatchEvent(new Event("change"));
 
   // Marital status
   if (a.maritalStatus) {
@@ -831,10 +879,12 @@ function collectCurrentFormData() {
 
   const getVal = (id) => document.getElementById(id)?.value?.trim() || "";
   const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value || "";
+  const idType = getVal("idType") || oldA.idType || "IC";
 
   const newA = {
     fullName:       (getVal("fullName") || oldA.fullName || "").toUpperCase(),
-    icNo:           (document.getElementById("icNo")?.value || "").replace(/-/g,"") || oldA.icNo || "",
+    idType,
+    icNo:           idType === "IC" ? (getVal("icNo") || "").replace(/-/g,"") || oldA.icNo || "" : "",
     gender:         getRadio("gender")          || oldA.gender          || "",
     dob:            getVal("dob")               || oldA.dob             || "",
     race:           getVal("race")              || oldA.race            || "",
@@ -845,9 +895,9 @@ function collectCurrentFormData() {
     latePartnerName:(getVal("latePartnerName")   || oldA.latePartnerName || "").toUpperCase(),
     baptismStatus:  getRadio("baptismStatus")   || oldA.baptismStatus   || "",
     baptismYear:    getVal("baptismYear")        || oldA.baptismYear     || "",
-    citizenship:    getRadio("citizenship")     || oldA.citizenship     || "",
-    countryOfOrigin:getVal("countryOfOrigin")   || oldA.countryOfOrigin || "",
-    foreignID:      getVal("foreignID")          || oldA.foreignID       || "",
+    citizenship:    idType === "IC" ? "citizen" : "nonCitizen",
+    countryOfOrigin:idType === "IC" ? "" : (getVal("countryOfOrigin")   || oldA.countryOfOrigin || ""),
+    foreignID:      idType === "IC" ? "" : (getVal("foreignID")          || oldA.foreignID       || ""),
     originalChurch: getVal("originalChurch")     || oldA.originalChurch  || "",
     yearJoining:    getVal("yearJoining")        || oldA.yearJoining     || "",
     memberRole:     getRadio("memberRole")       || oldA.memberRole      || "",
@@ -1066,6 +1116,19 @@ function formatIC(value) {
   return formatted.substring(0, 14); // max 14 chars with dashes
 }
 
+function formatMyTentera(value) {
+  // MyTentera uses the same ddmmyy-##-#### dash pattern as IC.
+  return formatIC(value);
+}
+
+function formatPassport(value) {
+  // Passport: alphanumeric only (no dashes/IC formatting)
+  return String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 20); // safety cap
+}
+
 // ═══════════════════════════════════════════════
 // 3. BIND ALL EVENTS
 // ═══════════════════════════════════════════════
@@ -1113,39 +1176,105 @@ function bindEvents() {
     });
   }
 
-  // ── Citizenship: grey out IC field for non-citizens ──
-  document.querySelectorAll('input[name="citizenship"]').forEach(radio => {
-    radio.addEventListener("change", function() {
-      const isNonCitizen = this.value === "nonCitizen";
-      const icInput      = document.getElementById("icNo");
-      const icHint       = document.getElementById("icNoNonCitizenHint");
-      const icRequired   = document.getElementById("icNoRequired");
-      const countryField = document.getElementById("countryField");
+  const idTypeSelect = document.getElementById("idType");
+  const foreignInput = document.getElementById("foreignID");
 
+  function applyIdTypeUI(selectedIdType) {
+    const idType = selectedIdType || "IC";
+    const icInput    = document.getElementById("icNo");
+    const icHint     = document.getElementById("icNoNonCitizenHint");
+    const icRequired = document.getElementById("icNoRequired");
+    const countryField = document.getElementById("countryField");
+
+    // Sync citizenship radio based on ID type
+    document.querySelectorAll('input[name="citizenship"]').forEach(r => {
+      if (r.value === (idType === "IC" ? "citizen" : "nonCitizen")) r.checked = true;
+    });
+
+    const isNonCitizen = idType !== "IC";
+
+    // Enable/disable IC input
+    if (icInput) {
       if (isNonCitizen) {
-        // Grey out and disable IC field
-        icInput.disabled    = true;
-        icInput.value       = "";
+        icInput.disabled = true;
+        icInput.value = "";
         icInput.style.opacity = "0.4";
         icInput.style.cursor  = "not-allowed";
-        if (icHint)     icHint.style.display     = "";
-        if (icRequired) icRequired.style.display = "none";
-        // Show country of origin
-        if (countryField) countryField.classList.add("visible");
       } else {
-        // Re-enable IC field
-        icInput.disabled      = false;
+        icInput.disabled = false;
         icInput.style.opacity = "";
         icInput.style.cursor  = "";
-        if (icHint)     icHint.style.display     = "none";
-        if (icRequired) icRequired.style.display = "";
-        // Hide country of origin
-        if (countryField) countryField.classList.remove("visible");
+      }
+    }
+
+    // Show/hide non-citizen section
+    if (countryField) {
+      if (isNonCitizen) countryField.classList.add("visible");
+      else countryField.classList.remove("visible");
+    }
+
+    // Required/hint for IC
+    if (icHint) icHint.style.display = isNonCitizen ? "" : "none";
+    if (icRequired) icRequired.style.display = isNonCitizen ? "none" : "";
+
+    // Enable/disable foreign input
+    if (foreignInput) foreignInput.disabled = !isNonCitizen;
+
+    // Foreign input placeholder by type
+    if (foreignInput) {
+      if (idType === "MyTentera") {
+        foreignInput.placeholder = "Masukkan nombor MyTentera anda (ddmmyy-##-####)";
+        // Keep ddmmyy dash pattern while typing
+        foreignInput.value = formatMyTentera(foreignInput.value);
+      } else if (idType === "Passport") {
+        foreignInput.placeholder = "Masukkan nombor Passport anda (alphanumeric)";
+        foreignInput.value = formatPassport(foreignInput.value);
+      }
+      if (!isNonCitizen) foreignInput.value = "";
+    }
+
+    // Clear country field when switching to IC
+    const countryOfOrigin = document.getElementById("countryOfOrigin");
+    if (countryOfOrigin) {
+      if (!isNonCitizen) countryOfOrigin.value = "";
+    }
+  }
+
+  // Format foreign ID while typing based on dropdown
+  foreignInput?.addEventListener("input", function() {
+    const dt = idTypeSelect?.value || "IC";
+    if (dt === "MyTentera") this.value = formatMyTentera(this.value);
+    if (dt === "Passport")  this.value = formatPassport(this.value);
+    saveDraft();
+    checkNextButton();
+  });
+
+  // ID type dropdown change
+  idTypeSelect?.addEventListener("change", function() {
+    applyIdTypeUI(this.value);
+    saveDraft();
+    checkNextButton();
+  });
+
+  // Citizenship radio change should keep dropdown in sync
+  document.querySelectorAll('input[name="citizenship"]').forEach(radio => {
+    radio.addEventListener("change", function() {
+      if (this.value === "citizen") {
+        if (idTypeSelect) { idTypeSelect.value = "IC"; idTypeSelect.dispatchEvent(new Event("change")); }
+      } else {
+        // nonCitizen selected — infer default ID type from current foreignID
+        const raw = (foreignInput?.value || "").trim();
+        const hasLetters = /[A-Za-z]/.test(raw);
+        const inferred = hasLetters ? "Passport" : "MyTentera";
+        if (idTypeSelect) { idTypeSelect.value = inferred; idTypeSelect.dispatchEvent(new Event("change")); }
       }
       saveDraft();
       checkNextButton();
     });
   });
+
+  // Initial application on page load
+  applyIdTypeUI(idTypeSelect?.value || "IC");
   const phoneInput = document.getElementById("phoneNumber");
   if (phoneInput) {
     phoneInput.addEventListener("input", function () {
@@ -1231,7 +1360,8 @@ function isSectionAComplete() {
   const getRadio  = name => document.querySelector(`input[name="${name}"]:checked`)?.value || "";
   const isChecked = name => !!document.querySelector(`input[name="${name}"]:checked`);
 
-  const isNonCitizen = getRadio("citizenship") === "nonCitizen";
+  const idType = getVal("idType") || "IC";
+  const isNonCitizen = idType !== "IC";
   const isBaptised   = getRadio("baptismStatus") === "baptised";
 
   // 1. Position within Cell Group (skip in affiliated mode — field is hidden)
@@ -1241,11 +1371,19 @@ function isSectionAComplete() {
   if (!getVal("fullName")) return false;
 
   // 3. IC No. (Malaysian) OR Foreign ID (non-citizen)
-  if (isNonCitizen) {
-    if (!getVal("foreignID")) return false;
-  } else {
+  if (idType === "IC") {
     const icClean = getVal("icNo").replace(/-/g, "");
     if (icClean.length !== 12 || isNaN(icClean)) return false;
+  } else if (idType === "MyTentera") {
+    const fidRaw  = getVal("foreignID");
+    const fidClean = fidRaw.replace(/-/g, "");
+    if (!fidRaw) return false;
+    if (fidClean.length !== 12 || isNaN(fidClean)) return false;
+  } else if (idType === "Passport") {
+    const raw = getVal("foreignID");
+    const passNorm = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (!raw) return false;
+    if (passNorm.length < 4) return false; // needs first 4 chars
   }
 
   // 4. Gender
@@ -1295,9 +1433,17 @@ function isSectionAComplete() {
 const DRAFT_KEY = "bem_otr_draft_sectionA";
 
 function collectSectionAData() {
+  const idType = document.getElementById("idType")?.value || "IC";
+  const foreignRaw = document.getElementById("foreignID")?.value || "";
+  const foreignID =
+    idType === "MyTentera" ? formatMyTentera(foreignRaw) :
+    idType === "Passport"  ? formatPassport(foreignRaw) :
+    "";
+  const countryOfOrigin = idType !== "IC" ? (document.getElementById("countryOfOrigin")?.value || "") : "";
   return {
     fullName:        document.getElementById("fullName")?.value || "",
-    icNo:            document.getElementById("icNo")?.value || "",
+    idType,
+    icNo:            idType === "IC" ? (document.getElementById("icNo")?.value || "") : "",
     gender:          document.querySelector('input[name="gender"]:checked')?.value || "",
     dob:             document.getElementById("dob")?.value || "",
     race:            document.getElementById("race")?.value || "",
@@ -1306,9 +1452,9 @@ function collectSectionAData() {
     latePartnerName: (document.getElementById("latePartnerName")?.value || "").toUpperCase(),
     baptismStatus:   document.querySelector('input[name="baptismStatus"]:checked')?.value || "",
     baptismYear:     document.getElementById("baptismYear")?.value || "",
-    citizenship:     document.querySelector('input[name="citizenship"]:checked')?.value || "",
-    countryOfOrigin: document.getElementById("countryOfOrigin")?.value || "",
-    foreignID:       document.getElementById("foreignID")?.value.trim() || "",
+    citizenship:     idType === "IC" ? "citizen" : "nonCitizen",
+    countryOfOrigin,
+    foreignID,
     originalChurch:  document.getElementById("originalChurch")?.value || "",
     yearJoining:     document.getElementById("yearJoining")?.value || "",
     komselCode:      document.getElementById("komselCode")?.value || "",
@@ -1339,6 +1485,7 @@ function loadDraft() {
     const fieldMap = [
       "fullName", "icNo", "dob", "race",
       "maritalStatus", "baptismDate", "countryOfOrigin", "foreignID",
+      "idType",
       "originalChurch", "yearJoining", "komselCode",
       "occupation", "phoneNumber", "currentAddress"
     ];
@@ -1378,10 +1525,16 @@ function loadDraft() {
       const radio = document.querySelector(`input[name="citizenship"][value="${data.citizenship}"]`);
       if (radio) {
         radio.checked = true;
-        if (data.citizenship === "nonCitizen") {
-          document.getElementById("countryField").classList.add("visible");
-        }
       }
+    }
+
+    // Sync identifier type (IC / Passport / MyTentera) and dependent fields
+    const idTypeEl = document.getElementById("idType");
+    if (idTypeEl) {
+      const dt = data.idType || (data.citizenship === "nonCitizen" ? "MyTentera" : "IC");
+      idTypeEl.value = dt;
+      // Trigger idType handler to enable/disable correct fields
+      idTypeEl.dispatchEvent(new Event("change"));
     }
 
     if (data.savedAt) {
@@ -2212,7 +2365,7 @@ function initSectionE() {
     }
 
     const btn = document.getElementById("btnSubmit");
-    const icVal = (document.getElementById("icNo")?.value || "").replace(/-/g, "");
+    let icVal = "";
 
     // Disable button to prevent double submission
     btn.disabled = true;
@@ -2220,12 +2373,39 @@ function initSectionE() {
 
     try {
       const sectionADraftPre = JSON.parse(localStorage.getItem("bem_otr_draft_sectionA") || "{}");
-      const isNonCitizen = sectionADraftPre.citizenship === "nonCitizen";
+      const inferIdType = (s) => {
+        if (s.idType) return s.idType;
+        if (s.citizenship === "citizen") return "IC";
+        const fid = String(s.foreignID || "");
+        if (/[A-Za-z]/.test(fid)) return "Passport";
+        const digitsOnly = fid.replace(/\D/g, "");
+        if (digitsOnly.length === 12) return "MyTentera";
+        // fallback: if it's non-numeric, treat as Passport
+        return "Passport";
+      };
+      const idType = inferIdType(sectionADraftPre);
+      const isNonCitizen = idType !== "IC";
+
+      if (idType === "IC") icVal = (sectionADraftPre.icNo || "").replace(/-/g, "");
 
       // ── Duplicate Check ──
-      if (isNonCitizen) {
-        // For non-citizens: check foreignID uniqueness instead of IC
-        const foreignIDVal = (sectionADraftPre.foreignID || "").trim();
+      if (idType === "IC") {
+        // Malaysian citizen: check IC duplicate as normal
+        const snapshot = await db.collection("registrations")
+          .where("icNo", "==", icVal)
+          .get();
+        if (!snapshot.empty) {
+          document.getElementById("duplicateModal").style.display = "flex";
+          btn.disabled = false;
+          btn.innerHTML = "Hantar / Submit &rarr;";
+          return;
+        }
+      } else {
+        // Non-citizen: check foreignID uniqueness instead of IC
+        let foreignIDVal = (sectionADraftPre.foreignID || "").trim();
+        foreignIDVal = idType === "MyTentera" ? formatMyTentera(foreignIDVal) :
+                        idType === "Passport"  ? formatPassport(foreignIDVal)  :
+                        foreignIDVal;
         if (foreignIDVal) {
           const snapForeign = await db.collection("registrations")
             .where("sectionA.foreignID", "==", foreignIDVal)
@@ -2237,19 +2417,7 @@ function initSectionE() {
             return;
           }
         }
-        // Non-citizen: clear icNo so it isn't stored as empty string
-        icVal = "";
-      } else {
-        // Malaysian citizen: check IC duplicate as normal
-        const snapshot = await db.collection("registrations")
-          .where("icNo", "==", icVal)
-          .get();
-        if (!snapshot.empty) {
-          document.getElementById("duplicateModal").style.display = "flex";
-          btn.disabled = false;
-          btn.innerHTML = "Hantar / Submit &rarr;";
-          return;
-        }
+        icVal = ""; // store empty IC for non-citizens
       }
 
       // ── Collect all section data ──
@@ -2268,7 +2436,14 @@ function initSectionE() {
         dateApplied: new Date().toISOString().split("T")[0],
         approved:    true,
         approvedAt:  firebase.firestore.Timestamp.fromDate(new Date()),
-        uniqueID:    generateUniqueID(sectionADraft.fullName, icVal, sectionADraft.yearJoining, sectionADraft.foreignID),
+        idType:      sectionADraft.idType || idType,
+        uniqueID:    generateUniqueID(
+          sectionADraft.fullName,
+          sectionADraft.idType || idType,
+          icVal,
+          sectionADraft.yearJoining,
+          sectionADraft.foreignID
+        ),
         memberRole:  sectionADraft.memberRole || "",
         photoURL:    photoDataURL || "",
 
@@ -2285,6 +2460,7 @@ function initSectionE() {
         sectionA: {
           fullName:        (sectionADraft.fullName || "").toUpperCase(),
           icNo:            icVal,
+          idType:          sectionADraft.idType || idType,
           gender:          sectionADraft.gender          || "",
           dob:             sectionADraft.dob             || "",
           race:            sectionADraft.race            || "",

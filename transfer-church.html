@@ -34,8 +34,17 @@
       </div>
       <div class="form-grid">
         <div class="form-group full-width">
-          <label class="form-label" for="transferIC">No. KP / IC No. <span class="required">*</span></label>
-          <input type="text" id="transferIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14"/>
+          <label class="form-label" for="transferIC" id="transferLabel">No. ID / IC No. <span class="required">*</span></label>
+          <div style="display:flex;gap:0.8rem;align-items:flex-end;">
+            <input type="text" id="transferIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14" style="flex:1;"/>
+            <div style="width:190px;">
+              <select id="transferIdType" class="form-input form-select">
+                <option value="IC" selected>IC (No. KP)</option>
+                <option value="Passport">Passport</option>
+                <option value="MyTentera">MyTentera</option>
+              </select>
+            </div>
+          </div>
           <span class="error-msg" id="err-transferIC"></span>
         </div>
       </div>
@@ -157,6 +166,36 @@
       return f.substring(0,14);
     }
 
+    function formatMyTentera(v) {
+      return formatIC(v);
+    }
+
+    function formatPassport(v) {
+      return String(v || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0,20);
+    }
+
+    const idTypeEl    = document.getElementById("transferIdType");
+    const transferEl = document.getElementById("transferIC");
+
+    function applyTransferInputRules() {
+      const idType = idTypeEl?.value || "IC";
+      if (!transferEl) return;
+      transferEl.placeholder = idType === "Passport"
+        ? "Masukkan Passport (alphanumeric)"
+        : idType === "MyTentera"
+          ? "Masukkan MyTentera (ddmmyy-##-####)"
+          : "cth/e.g. 901231-14-5678";
+    }
+
+    idTypeEl?.addEventListener("change", () => {
+      applyTransferInputRules();
+      transferEl?.dispatchEvent(new Event("input"));
+      document.getElementById("err-transferIC").textContent = "";
+    });
+
     function showScreen(id) {
       ["screen-verify","screen-transfer"].forEach(s => {
         const el = document.getElementById(s);
@@ -165,19 +204,52 @@
       window.scrollTo({top:0,behavior:"smooth"});
     }
 
-    document.getElementById("transferIC").addEventListener("input", function() {
-      this.value = formatIC(this.value);
+    transferEl?.addEventListener("input", function() {
+      const idType = idTypeEl?.value || "IC";
+      if (idType === "MyTentera") this.value = formatMyTentera(this.value);
+      else if (idType === "Passport") this.value = formatPassport(this.value);
+      else this.value = formatIC(this.value);
     });
 
+    applyTransferInputRules();
+
     document.getElementById("btnVerifyTransfer").addEventListener("click", async () => {
-      const ic    = document.getElementById("transferIC").value.replace(/-/g,"");
+      const idType = idTypeEl?.value || "IC";
+      const raw    = transferEl?.value || "";
       const errEl = document.getElementById("err-transferIC");
       const notice= document.getElementById("verifyNotice");
       errEl.textContent = "";
-      if (ic.length !== 12) { errEl.textContent="Sila masukkan No. KP yang sah / Enter a valid IC No."; return; }
+      let snap;
+
+      if (idType === "IC") {
+        const ic = String(raw).replace(/-/g,"");
+        if (ic.length !== 12 || isNaN(ic)) { errEl.textContent="Sila masukkan No. KP yang sah / Enter a valid IC No."; return; }
+        snap = await db.collection("registrations").where("icNo","==",ic).where("approved","==",true).get();
+      } else if (idType === "MyTentera") {
+        const foreignVal = formatMyTentera(raw);
+        const digitsOnly = foreignVal.replace(/-/g,"");
+        if (digitsOnly.length !== 12 || isNaN(digitsOnly)) { errEl.textContent="Sila masukkan MyTentera yang sah / Please enter a valid MyTentera number."; return; }
+        snap = await db.collection("registrations")
+          .where("sectionA.foreignID","==",foreignVal)
+          .where("approved","==",true)
+          .get();
+        if (snap.empty) {
+          snap = await db.collection("registrations")
+            .where("sectionA.foreignID","==",digitsOnly)
+            .where("approved","==",true)
+            .get();
+        }
+      } else {
+        // Passport
+        const passportNorm = formatPassport(raw);
+        if (passportNorm.length < 4) { errEl.textContent="Sila masukkan nombor Passport yang sah / Please enter a valid Passport number."; return; }
+        snap = await db.collection("registrations")
+          .where("sectionA.foreignID","==",passportNorm)
+          .where("approved","==",true)
+          .get();
+      }
       notice.textContent = "Menyemak... / Checking...";
       try {
-        const snap = await db.collection("registrations").where("icNo","==",ic).where("approved","==",true).get();
         if (snap.empty) {
           errEl.textContent = "Tiada rekod ahli aktif dengan No. KP ini / No active member found.";
           notice.textContent = "";
@@ -207,7 +279,12 @@
       }
     });
 
-    document.getElementById("btnBackTransfer").addEventListener("click", () => showScreen("screen-verify"));
+    document.getElementById("btnBackTransfer").addEventListener("click", () => {
+      showScreen("screen-verify");
+      if (transferEl) transferEl.value = "";
+      if (idTypeEl) { idTypeEl.value = "IC"; applyTransferInputRules(); }
+      document.getElementById("err-transferIC").textContent = "";
+    });
 
     document.getElementById("btnConfirmTransfer").addEventListener("click", async () => {
       const reason     = document.getElementById("transferReason").value.trim();

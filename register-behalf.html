@@ -36,8 +36,17 @@
       </div>
       <div class="form-grid">
         <div class="form-group full-width">
-          <label class="form-label" for="registrantIC">No. KP Anda / Your IC No. <span class="required">*</span></label>
-          <input type="text" id="registrantIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14"/>
+          <label class="form-label" for="registrantIC" id="registrantLabel">No. ID Anda <span class="required">*</span></label>
+          <div style="display:flex;gap:0.8rem;align-items:flex-end;">
+            <input type="text" id="registrantIC" class="form-input" placeholder="cth/e.g. 901231-14-5678" maxlength="14" style="flex:1;"/>
+            <div style="width:190px;">
+              <select id="registrantIdType" class="form-input form-select">
+                <option value="IC" selected>IC (No. KP)</option>
+                <option value="Passport">Passport</option>
+                <option value="MyTentera">MyTentera</option>
+              </select>
+            </div>
+          </div>
           <span class="error-msg" id="err-registrantIC"></span>
         </div>
       </div>
@@ -74,28 +83,100 @@
       return f.substring(0,14);
     }
 
-    document.getElementById("registrantIC").addEventListener("input", function() {
-      this.value = formatIC(this.value);
+    function formatMyTentera(v) {
+      return formatIC(v);
+    }
+
+    function formatPassport(v) {
+      return String(v || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0,20);
+    }
+
+    const idTypeEl    = document.getElementById("registrantIdType");
+    const registrantEl = document.getElementById("registrantIC");
+
+    function applyRegistrantInputRules() {
+      const idType = idTypeEl?.value || "IC";
+      if (!registrantEl) return;
+      registrantEl.placeholder = idType === "Passport"
+        ? "Masukkan Passport (alphanumeric)"
+        : idType === "MyTentera"
+          ? "Masukkan MyTentera (ddmmyy-##-####)"
+          : "cth/e.g. 901231-14-5678";
+    }
+
+    idTypeEl?.addEventListener("change", () => {
+      applyRegistrantInputRules();
+      registrantEl?.dispatchEvent(new Event("input"));
+      document.getElementById("err-registrantIC").textContent = "";
     });
 
+    registrantEl?.addEventListener("input", function() {
+      const idType = idTypeEl?.value || "IC";
+      if (idType === "MyTentera") this.value = formatMyTentera(this.value);
+      else if (idType === "Passport") this.value = formatPassport(this.value);
+      else this.value = formatIC(this.value);
+    });
+
+    applyRegistrantInputRules();
+
     document.getElementById("btnVerifyRegistrant").addEventListener("click", async () => {
-      const ic     = document.getElementById("registrantIC").value.replace(/-/g,"");
+      const idType = idTypeEl?.value || "IC";
+      const raw    = registrantEl?.value || "";
       const errEl  = document.getElementById("err-registrantIC");
       const notice = document.getElementById("verifyNotice");
       errEl.textContent = "";
 
-      if (ic.length !== 12) {
-        errEl.textContent = "Sila masukkan No. KP yang sah / Please enter a valid IC No.";
-        return;
+      let snap;
+      let registrantIdForStorage = "";
+
+      if (idType === "IC") {
+        const ic = String(raw).replace(/-/g,"");
+        if (ic.length !== 12 || isNaN(ic)) {
+          errEl.textContent = "Sila masukkan No. KP yang sah / Please enter a valid IC No.";
+          return;
+        }
+        registrantIdForStorage = ic;
+        snap = await db.collection("registrations")
+          .where("icNo","==",ic)
+          .where("approved","==",true)
+          .get();
+      } else if (idType === "MyTentera") {
+        const foreignVal = formatMyTentera(raw);
+        const digitsOnly = foreignVal.replace(/-/g,"");
+        if (digitsOnly.length !== 12 || isNaN(digitsOnly)) {
+          errEl.textContent = "Sila masukkan MyTentera yang sah / Please enter a valid MyTentera number.";
+          return;
+        }
+        registrantIdForStorage = foreignVal;
+        snap = await db.collection("registrations")
+          .where("sectionA.foreignID","==",foreignVal)
+          .where("approved","==",true)
+          .get();
+        if (snap.empty) {
+          snap = await db.collection("registrations")
+            .where("sectionA.foreignID","==",digitsOnly)
+            .where("approved","==",true)
+            .get();
+        }
+      } else {
+        // Passport
+        const passportNorm = formatPassport(raw);
+        if (passportNorm.length < 4) {
+          errEl.textContent = "Sila masukkan nombor Passport yang sah / Please enter a valid Passport number.";
+          return;
+        }
+        registrantIdForStorage = passportNorm;
+        snap = await db.collection("registrations")
+          .where("sectionA.foreignID","==",passportNorm)
+          .where("approved","==",true)
+          .get();
       }
 
       notice.textContent = "Menyemak... / Checking...";
       try {
-        const snap = await db.collection("registrations")
-          .where("icNo","==",ic)
-          .where("approved","==",true)
-          .get();
-
         if (snap.empty) {
           errEl.textContent = "Anda bukan ahli aktif. Hanya ahli aktif boleh mendaftar bagi pihak orang lain. / You are not an active member. Only active members can register on behalf of others.";
           notice.textContent = "";
@@ -104,7 +185,7 @@
 
         // Verified — redirect to main form in behalf mode
         notice.textContent = "";
-        sessionStorage.setItem("behalf_registrant_ic", ic);
+        sessionStorage.setItem("behalf_registrant_ic", registrantIdForStorage);
         sessionStorage.setItem("behalf_registrant_name", snap.docs[0].data().name || "");
         window.location.href = "index.html?mode=behalf&from=behalf";
 

@@ -767,6 +767,8 @@ function populateFormWithData(data) {
   // (can't use localStorage in edit mode since it gets cleared)
   const children = (c.children || []).filter(ch => ch.name?.trim() && ch.gender);
   editModeChildren = children;
+  renderChildCards(editModeChildren);
+  if (!editModeChildren.length) addChild();
 
   // ── Sections D & E — make read-only (these are never editable) ──
   makeReadOnly("section-d");
@@ -1751,21 +1753,21 @@ const DRAFT_KEY_C = "bem_otr_draft_sectionC";
 
 // Re-render Section C child cards from an array (used by partner autofill)
 function renderChildCards(children) {
-  if (!children || !children.length) return;
   const container = document.getElementById("childrenContainer");
   if (!container) return; // Section C not rendered yet — draft already saved, will load on nav
-  // Clear existing empty cards
-  container.innerHTML = "";
-  let num = 0;
+  // Clear existing cards and rebuild from scratch
+  const list = document.getElementById("childrenList");
+  if (!list) return;
+  list.innerHTML = "";
+  childCount = 0;
+
+  if (!children || !children.length) return;
   children.forEach(child => {
-    if (child.name?.trim() && child.gender) {
-      num++;
-      addChild({ ...child }, num);
-    }
+    if (child.name?.trim() && child.gender) addChild({ ...child });
   });
   // Update count display if present
   const countEl = document.getElementById("childCount");
-  if (countEl) countEl.textContent = num;
+  if (countEl) countEl.textContent = childCount;
 }
 
 function createChildCard(num, data = {}) {
@@ -2022,9 +2024,7 @@ function saveSectionCDraft() {
 function loadSectionCDraft() {
   // In edit mode, use the pre-loaded children from Firestore
   if (IS_EDIT_MODE) {
-    if (editModeChildren && editModeChildren.length > 0) {
-      editModeChildren.forEach(child => addChild(child));
-    }
+    renderChildCards(editModeChildren || []);
     return;
   }
   // Normal registration: load from localStorage
@@ -2123,6 +2123,11 @@ pledgeAgree.addEventListener("change", () => {
 // ── Init Section C ──
 document.addEventListener("DOMContentLoaded", () => {
   bindSectionCEvents();
+  if (IS_EDIT_MODE) {
+    // Edit mode data arrives asynchronously via initEditMode()/populateFormWithData().
+    // Do not pre-create an empty card here.
+    return;
+  }
   const draft = localStorage.getItem(DRAFT_KEY_C);
   let draftLoaded = false;
   if (draft) {

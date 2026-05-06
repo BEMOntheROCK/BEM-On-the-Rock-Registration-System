@@ -1,0 +1,47 @@
+rules_version = '2';
+// BEM On The Rock — Option B (permissive public access, minimal tightening)
+//
+// Public pages use Firestore without Firebase Auth. Admin tools use email/password.
+// - Anyone can read/create/update registrations & affiliatedMembers (matches current app).
+// - Deletes and affiliatedMember updates require a signed-in user (admin flow).
+// - Deceased: public may create reports; listing is admin-only.
+//
+// Hardening: In Firebase Console → Authentication → Sign-in method, disable public
+// "Sign up" if you only create admin accounts manually (reduces who counts as isSignedIn).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Main membership records (forms, IC lookup, renewal, payment check, edit flows, etc.)
+    match /registrations/{registrationId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    // Affiliated-member records (public add + lookup; admin list/delete)
+    match /affiliatedMembers/{memberId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    // Deceased notifications (public submit; admin reads full list in deceased-admin-view)
+    match /deceased/{recordId} {
+      allow read: if isSignedIn();
+      allow create: if true;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

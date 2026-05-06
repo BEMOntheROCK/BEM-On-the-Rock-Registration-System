@@ -61,11 +61,19 @@ function tryAutoVerify() {
           memberData  = docSnap.data();
           if (isAdmin) {
             // Go straight to preview without showing IC screen at all
-            showPreviewModal();
+            try {
+              showPreviewModal();
+            } catch (previewErr) {
+              console.error("Auto-verify preview render error:", previewErr);
+            }
           } else {
             const icEl = document.getElementById("verifyIC");
             if (icEl) icEl.value = icParam || "";
-            showPreviewModal();
+            try {
+              showPreviewModal();
+            } catch (previewErr) {
+              console.error("Auto-verify preview render error:", previewErr);
+            }
           }
         }
       } else if (icParam) {
@@ -77,10 +85,16 @@ function tryAutoVerify() {
           memberData  = snap.docs[0].data();
           const icEl  = document.getElementById("verifyIC");
           if (icEl) icEl.value = icParam;
-          showPreviewModal();
+          try {
+            showPreviewModal();
+          } catch (previewErr) {
+            console.error("Auto-verify preview render error:", previewErr);
+          }
         }
       }
-    } catch(e) { /* silent */ }
+    } catch(e) {
+      console.error("Auto-verify lookup error:", e);
+    }
   });
 }
 
@@ -118,8 +132,14 @@ document.getElementById("btnVerifyIC").addEventListener("click", async () => {
     memberDocId = snap.docs[0].id;
     memberData  = snap.docs[0].data();
     notice.textContent = "";
-    showPreviewModal();
+    try {
+      showPreviewModal();
+    } catch (previewErr) {
+      console.error("Preview render error:", previewErr);
+      errEl.textContent = "Rekod dijumpai, tetapi pratonton gagal dipaparkan / Record found, but preview failed to render.";
+    }
   } catch(e) {
+    console.error("IC verification error:", e);
     errEl.textContent = "Ralat sistem / System error.";
     notice.textContent = "";
   }
@@ -160,12 +180,13 @@ function showPreviewModal() {
   const bMap  = { baptised:"Sudah Dibaptis / Baptised", notBaptised:"Belum Dibaptis / Not Baptised" };
   const kids  = (c.children||[]).filter(k=>k.name?.trim()&&k.gender);
   const svcs = b.services || {};
-  const pernah = SERVICE_LIST
+  const serviceLabels = Array.isArray(SERVICE_LIST) && SERVICE_LIST.length ? SERVICE_LIST : [];
+  const pernah = serviceLabels
     .map((label, i) => ({ label, data: getServiceRowData(svcs, i + 1) }))
     .filter(({ data }) => data.have)
     .map(({ label }) => label)
     .join(", ") || "—";
-  const ingin  = SERVICE_LIST
+  const ingin  = serviceLabels
     .map((label, i) => ({ label, data: getServiceRowData(svcs, i + 1) }))
     .filter(({ data }) => data.want)
     .map(({ label }) => label)

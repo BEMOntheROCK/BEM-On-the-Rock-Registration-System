@@ -346,6 +346,101 @@ document.getElementById("btnDownloadXLSX")?.addEventListener("click", () => {
   XLSX.writeFile(wb, `BEM_OTR_Senarai_Ahli_${new Date().toISOString().split("T")[0]}.xlsx`);
 });
 
+// ── Overall Statistic XLSX Download ──
+document.getElementById("btnDownloadOverallStatsXLSX")?.addEventListener("click", async () => {
+  try {
+    const affiliatedSnap = await db.collection("affiliatedMembers").get();
+    const affiliatedMembers = affiliatedSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const registeredRows = registrations.map((reg, i) => {
+      const a = reg.sectionA || {};
+      return [
+        i + 1,
+        (a.fullName || reg.name || "—").toUpperCase(),
+        a.icNo || reg.icNo || "—",
+        a.phoneNumber || "—"
+      ];
+    });
+
+    const affiliatedRows = affiliatedMembers.map((m, i) => {
+      const a = m.sectionA || {};
+      return [
+        i + 1,
+        (a.fullName || m.name || "—").toUpperCase(),
+        a.icNo || m.icNo || "—",
+        a.phoneNumber || "—"
+      ];
+    });
+
+    const childrenRows = [];
+    registrations.forEach(reg => {
+      const a = reg.sectionA || {};
+      const parentName = (a.fullName || reg.name || "").toUpperCase().trim();
+      const parentPhone = a.phoneNumber || "—";
+      const children = (reg.sectionC?.children || []).filter(c => c.name?.trim() && c.gender);
+      children.forEach(child => {
+        childrenRows.push([
+          childrenRows.length + 1,
+          child.name?.trim().toUpperCase() || "—",
+          child.myKid || "—",
+          parentPhone
+        ]);
+      });
+    });
+
+    const wsData = [];
+    const pushTitleRow = title => wsData.push([title, "", "", ""]);
+    const pushHeader = (col3Label = "IC") => wsData.push(["NUM", "NAME", col3Label, "PHONE NUM"]);
+
+    pushTitleRow("REGISTERED USERS");
+    pushHeader("IC");
+    wsData.push(...registeredRows);
+    wsData.push(["TOTAL REGISTERED USERS", "", "", registeredRows.length]);
+    wsData.push(["", "", "", ""]);
+
+    pushTitleRow("AFFILIATED MEMBERS");
+    pushHeader("IC");
+    wsData.push(...affiliatedRows);
+    wsData.push(["TOTAL AFFILIATED MEMBER", "", "", affiliatedRows.length]);
+    wsData.push(["", "", "", ""]);
+
+    pushTitleRow("CHILDREN");
+    pushHeader("MyKID");
+    wsData.push(...childrenRows);
+    wsData.push(["TOTAL CHILDREN", "", "", childrenRows.length]);
+    wsData.push(["", "", "", ""]);
+
+    const overallTotal = registeredRows.length + affiliatedRows.length + childrenRows.length;
+    wsData.push(["OVERALL TOTAL", "", "", overallTotal]);
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [
+      { wch: 8 },
+      { wch: 34 },
+      { wch: 24 },
+      { wch: 20 }
+    ];
+
+    // Merge section titles and total labels across first 3 columns.
+    ws["!merges"] = [
+      XLSX.utils.decode_range("A1:C1"),
+      XLSX.utils.decode_range(`A${registeredRows.length + 3}:C${registeredRows.length + 3}`),
+      XLSX.utils.decode_range(`A${registeredRows.length + 5}:C${registeredRows.length + 5}`),
+      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + 7}:C${registeredRows.length + affiliatedRows.length + 7}`),
+      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + 9}:C${registeredRows.length + affiliatedRows.length + 9}`),
+      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}:C${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}`),
+      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}:C${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}`)
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Overall Statistic");
+    XLSX.writeFile(wb, `BEM_OTR_Overall_Statistic_${new Date().toISOString().split("T")[0]}.xlsx`);
+  } catch (e) {
+    console.error("Overall statistic export error:", e);
+    alert("Gagal jana fail Overall Statistic .xlsx. / Failed to generate Overall Statistic .xlsx.");
+  }
+});
+
 // ── Activate Modal ──
 function openActivateModal(id, name) {
   pendingActivateId = id;

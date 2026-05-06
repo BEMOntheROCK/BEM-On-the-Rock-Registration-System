@@ -1753,11 +1753,9 @@ const DRAFT_KEY_C = "bem_otr_draft_sectionC";
 
 // Re-render Section C child cards from an array (used by partner autofill)
 function renderChildCards(children) {
-  const container = document.getElementById("childrenContainer");
-  if (!container) return; // Section C not rendered yet — draft already saved, will load on nav
-  // Clear existing cards and rebuild from scratch
   const list = document.getElementById("childrenList");
   if (!list) return;
+  // Clear existing cards and rebuild from scratch
   list.innerHTML = "";
   childCount = 0;
 
@@ -1914,9 +1912,11 @@ function renumberChildren() {
 }
 
 function addChild(data = {}) {
+  const list = document.getElementById("childrenList");
+  if (!list) return;
   childCount++;
   const card = createChildCard(childCount, data);
-  document.getElementById("childrenList").appendChild(card);
+  list.appendChild(card);
   saveSectionCDraft();
 }
 

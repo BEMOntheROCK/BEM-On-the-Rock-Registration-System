@@ -169,17 +169,21 @@ function vGrid(content) {
 }
 
 function showPreviewModal() {
-  const a = memberData.sectionA || {};
-  const b = memberData.sectionB || {};
-  const c = memberData.sectionC || {};
-  const d = memberData.sectionD || {};
-  const e = memberData.sectionE || {};
+  if (!memberData || typeof memberData !== "object") {
+    throw new Error("Invalid member data for preview.");
+  }
+  const a = (memberData.sectionA && typeof memberData.sectionA === "object") ? memberData.sectionA : {};
+  const b = (memberData.sectionB && typeof memberData.sectionB === "object") ? memberData.sectionB : {};
+  const c = (memberData.sectionC && typeof memberData.sectionC === "object") ? memberData.sectionC : {};
+  const d = (memberData.sectionD && typeof memberData.sectionD === "object") ? memberData.sectionD : {};
+  const e = (memberData.sectionE && typeof memberData.sectionE === "object") ? memberData.sectionE : {};
   const gMap  = { male:"Lelaki / Male", female:"Perempuan / Female" };
   const msMap = { single:"Bujang / Single", engaged:"Bertunang / Engaged",
     married:"Berkahwin / Married", divorced:"Bercerai / Divorced", widowed:"Balu/Duda / Widowed" };
   const bMap  = { baptised:"Sudah Dibaptis / Baptised", notBaptised:"Belum Dibaptis / Not Baptised" };
-  const kids  = (c.children||[]).filter(k=>k.name?.trim()&&k.gender);
-  const svcs = b.services || {};
+  const rawChildren = Array.isArray(c.children) ? c.children : [];
+  const kids = rawChildren.filter(k => k && typeof k === "object" && String(k.name || "").trim() && k.gender);
+  const svcs = (b.services && typeof b.services === "object") ? b.services : {};
   const serviceLabels = Array.isArray(SERVICE_LIST) && SERVICE_LIST.length ? SERVICE_LIST : [];
   const pernah = serviceLabels
     .map((label, i) => ({ label, data: getServiceRowData(svcs, i + 1) }))
@@ -192,9 +196,10 @@ function showPreviewModal() {
     .map(({ label }) => label)
     .join(", ") || "—";
   const uid   = memberData.uniqueID || "—";
+  const displayName = String(a.fullName || memberData.name || "—").toUpperCase();
 
   document.getElementById("previewModalName").innerHTML =
-    `📋 <strong style="color:var(--marigold-bright)">${(a.fullName||memberData.name||"—").toUpperCase()}</strong>`;
+    `📋 <strong style="color:var(--marigold-bright)">${displayName}</strong>`;
 
   document.getElementById("previewModalBody").innerHTML = `
     ${memberData.photoURL ? `<div style="text-align:center;margin-bottom:1.2rem;">
@@ -205,7 +210,7 @@ function showPreviewModal() {
     ${sectionTitle("A. Maklumat Peribadi / Personal Information")}
     ${vGrid(`
       ${vRow("ID Unik / Unique ID", `<strong style="color:var(--marigold)">${uid}</strong>`)}
-      ${vRow("Nama Penuh / Full Name", (a.fullName||"—").toUpperCase())}
+      ${vRow("Nama Penuh / Full Name", String(a.fullName || "—").toUpperCase())}
       ${vRow("No. KP / IC No.", a.citizenship==="nonCitizen"?(a.foreignID||"—"):(a.icNo||"—"))}
       ${vRow("Jantina / Gender", gMap[a.gender]||"—")}
       ${vRow("Tarikh Lahir / Date of Birth", formatDisplayDate(a.dob))}

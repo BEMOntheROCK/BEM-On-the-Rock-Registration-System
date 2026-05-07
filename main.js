@@ -1343,51 +1343,83 @@ function checkNextButton() {
   const btn = document.getElementById("btnNext");
   if (!btn) return;
 
-  // Edit mode: re-check completeness too (user may have cleared a required field)
   const allMet = isSectionAComplete();
   btn.disabled = !allMet;
   btn.style.opacity = allMet ? "" : "0.45";
   btn.style.cursor  = allMet ? "" : "not-allowed";
+
+  // Clear red messages once user has filled the field
+  if (allMet) {
+    document.querySelectorAll(".sectionA-req-msg").forEach(el => el.remove());
+  }
 }
 
 // Scroll to first unfilled required field in Section A when dimmed Next is clicked
 function scrollToFirstEmptySectionA() {
-  const getVal   = id => (document.getElementById(id)?.value || "").trim();
-  const getRadio = name => document.querySelector(`input[name="${name}"]:checked`)?.value || "";
+  const getVal    = id => (document.getElementById(id)?.value || "").trim();
+  const getRadio  = name => document.querySelector(`input[name="${name}"]:checked`)?.value || "";
   const isChecked = name => !!document.querySelector(`input[name="${name}"]:checked`);
-  const idType = getVal("idType") || "IC";
+  const idType    = getVal("idType") || "IC";
   const isNonCitizen = idType !== "IC";
   const isBaptised   = getRadio("baptismStatus") === "baptised";
   const ms = getVal("maritalStatus");
 
-  const scrollTo = id => {
-    const el = document.getElementById(id);
-    if (el) { el.scrollIntoView({ behavior:"smooth", block:"center" }); el.focus?.(); }
+  // Clear any previous inline error messages
+  document.querySelectorAll(".sectionA-req-msg").forEach(el => el.remove());
+
+  const MSG_BM = "Sila isi maklumat berikut";
+  const MSG_EN = "Please input this field";
+  const requiredMsg = `<span class="sectionA-req-msg error-msg" style="display:block;margin-top:0.35rem;color:#E05555;font-size:0.82rem;">
+    ${MSG_BM} / ${MSG_EN}</span>`;
+
+  const showError = (id, insertAfter) => {
+    const anchor = insertAfter ? document.getElementById(insertAfter) : document.getElementById(id);
+    if (!anchor) return;
+    const msg = document.createElement("span");
+    msg.className = "sectionA-req-msg error-msg";
+    msg.style.cssText = "display:block;margin-top:0.35rem;color:#E05555;font-size:0.82rem;";
+    msg.textContent = `${MSG_BM} / ${MSG_EN}`;
+    anchor.parentNode.insertBefore(msg, anchor.nextSibling);
+    anchor.scrollIntoView({ behavior: "smooth", block: "center" });
+    anchor.focus?.();
   };
 
-  if (!IS_AFFILIATED_MODE && !isChecked("memberRole")) { scrollTo("rolePastoral"); return; }
-  if (!getVal("fullName"))    { scrollTo("fullName"); return; }
+  // Radio group helper — insert after the checkbox-group wrapper
+  const showRadioError = (groupName, firstRadioId) => {
+    const firstRadio = document.getElementById(firstRadioId);
+    if (!firstRadio) return;
+    const group = firstRadio.closest(".checkbox-group") || firstRadio.closest(".form-group") || firstRadio.parentNode;
+    const msg = document.createElement("span");
+    msg.className = "sectionA-req-msg error-msg";
+    msg.style.cssText = "display:block;margin-top:0.35rem;color:#E05555;font-size:0.82rem;";
+    msg.textContent = `${MSG_BM} / ${MSG_EN}`;
+    group.parentNode.insertBefore(msg, group.nextSibling);
+    group.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  if (!IS_AFFILIATED_MODE && !isChecked("memberRole")) { showRadioError("memberRole", "rolePastoral"); return; }
+  if (!getVal("fullName"))    { showError("fullName"); return; }
   const idRaw = getVal("icNo");
-  if (!idRaw) { scrollTo("icNo"); return; }
+  if (!idRaw) { showError("icNo"); return; }
   if (idType === "IC" || idType === "MyTentera") {
     const d = idRaw.replace(/-/g,"");
-    if (d.length !== 12 || isNaN(d)) { scrollTo("icNo"); return; }
+    if (d.length !== 12 || isNaN(d)) { showError("icNo"); return; }
   } else if (idType === "Passport") {
-    if (idRaw.toUpperCase().replace(/[^A-Z0-9]/g,"").length < 4) { scrollTo("icNo"); return; }
+    if (idRaw.toUpperCase().replace(/[^A-Z0-9]/g,"").length < 4) { showError("icNo"); return; }
   }
-  if (!isChecked("gender"))        { scrollTo("genderMale"); return; }
-  if (!getVal("phoneNumber"))      { scrollTo("phoneNumber"); return; }
-  if (!getVal("dob"))              { scrollTo("dob"); return; }
-  if (!getVal("race"))             { scrollTo("race"); return; }
-  if (!getVal("maritalStatus"))    { scrollTo("maritalStatus"); return; }
-  if ((ms === "married" || ms === "engaged") && !getVal("partnerName"))   { scrollTo("partnerName"); return; }
-  if (ms === "widowed" && !getVal("latePartnerName"))                     { scrollTo("latePartnerName"); return; }
-  if (!isChecked("baptismStatus")) { scrollTo("baptised"); return; }
-  if (isBaptised && !getVal("baptismYear")) { scrollTo("baptismYear"); return; }
-  if (isNonCitizen && !getVal("countryOfOrigin")) { scrollTo("countryOfOrigin"); return; }
-  if (!getVal("yearJoining"))      { scrollTo("yearJoining"); return; }
-  if (!IS_AFFILIATED_MODE && (!getVal("komselCode") || !isValidKomsel(getVal("komselCode")))) { scrollTo("komselCode"); return; }
-  if (!getVal("currentAddress"))   { scrollTo("currentAddress"); return; }
+  if (!isChecked("gender"))        { showRadioError("gender", "genderMale"); return; }
+  if (!getVal("phoneNumber"))      { showError("phoneNumber"); return; }
+  if (!getVal("dob"))              { showError("dob"); return; }
+  if (!getVal("race"))             { showError("race"); return; }
+  if (!getVal("maritalStatus"))    { showError("maritalStatus"); return; }
+  if ((ms === "married" || ms === "engaged") && !getVal("partnerName"))  { showError("partnerName"); return; }
+  if (ms === "widowed" && !getVal("latePartnerName"))                    { showError("latePartnerName"); return; }
+  if (!isChecked("baptismStatus")) { showRadioError("baptismStatus", "baptised"); return; }
+  if (isBaptised && !getVal("baptismYear")) { showError("baptismYear"); return; }
+  if (isNonCitizen && !getVal("countryOfOrigin")) { showError("countryOfOrigin"); return; }
+  if (!getVal("yearJoining"))      { showError("yearJoining"); return; }
+  if (!IS_AFFILIATED_MODE && (!getVal("komselCode") || !isValidKomsel(getVal("komselCode")))) { showError("komselCode"); return; }
+  if (!getVal("currentAddress"))   { showError("currentAddress"); return; }
 }
 
 function isSectionAComplete() {

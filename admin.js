@@ -404,13 +404,33 @@ document.getElementById("btnDownloadOverallStatsXLSX")?.addEventListener("click"
       ];
     });
 
+    // Build deduplicated children list — same couple logic as stats.js
     const childrenRows = [];
+    const processedIds = new Set();
     registrations.forEach(reg => {
+      if (processedIds.has(reg.id)) return;
       const a = reg.sectionA || {};
-      const parentName = (a.fullName || reg.name || "").toUpperCase().trim();
-      const parentPhone = a.phoneNumber || "—";
-      const children = (reg.sectionC?.children || []).filter(c => c.name?.trim() && c.gender);
-      children.forEach(child => {
+      const ms = a.maritalStatus || "";
+      const myName = (a.fullName || reg.name || "").toUpperCase().trim();
+      const partnerName = (a.partnerName || "").toUpperCase().trim();
+      let kids = (reg.sectionC?.children || []).filter(c => c.name?.trim() && c.gender);
+
+      // Try to find partner and use whichever has more children
+      if ((ms === "married" || ms === "engaged" || ms === "widowed") && partnerName) {
+        const partnerReg = registrations.find(r =>
+          r.id !== reg.id &&
+          !processedIds.has(r.id) &&
+          (r.sectionA?.fullName || r.name || "").toUpperCase().trim() === partnerName
+        );
+        if (partnerReg) {
+          const partnerKids = (partnerReg.sectionC?.children || []).filter(c => c.name?.trim() && c.gender);
+          if (partnerKids.length > kids.length) kids = partnerKids;
+          processedIds.add(partnerReg.id);
+        }
+      }
+
+      processedIds.add(reg.id);
+      kids.forEach(child => {
         childrenRows.push([
           childrenRows.length + 1,
           child.name?.trim().toUpperCase() || "—",
@@ -461,7 +481,7 @@ document.getElementById("btnDownloadOverallStatsXLSX")?.addEventListener("click"
       XLSX.utils.decode_range(`A${registeredRows.length + 3}:C${registeredRows.length + 3}`),
       XLSX.utils.decode_range(`A${registeredRows.length + 5}:C${registeredRows.length + 5}`),
       XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + 7}:C${registeredRows.length + affiliatedRows.length + 7}`),
-      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + 9}:B${registeredRows.length + affiliatedRows.length + 9}`),
+      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + 9}:C${registeredRows.length + affiliatedRows.length + 9}`),
       XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}:B${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}`),
       XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}:B${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}`)
     ];

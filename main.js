@@ -381,7 +381,6 @@ const IS_BEHALF_MODE     = new URLSearchParams(window.location.search).get("mode
 const IS_AFFILIATED_MODE = new URLSearchParams(window.location.search).get("mode") === "affiliated";
 const IS_EDIT_MODE       = new URLSearchParams(window.location.search).get("mode") === "edit";
 const EDIT_DOC_ID        = new URLSearchParams(window.location.search).get("docId") || "";
-const IS_FROM_UPDATE     = new URLSearchParams(window.location.search).get("from") === "update";
 
 // ═══════════════════════════════════════════════
 // 1j. AFFILIATED MEMBER AUTOFILL (for main registration)
@@ -683,7 +682,7 @@ async function initEditMode() {
   const eligNotice = document.querySelector(".eligibility-notice");
   if (eligNotice) eligNotice.style.display = "none";
 
-  // Replace the back-to-home button with a history back link
+  // Hide the back-to-home button, replace with back link
   const backBtn = document.querySelector(".back-home-btn");
   if (backBtn) {
     backBtn.textContent = "← Kembali / Back";
@@ -821,10 +820,11 @@ function populateFormWithData(data) {
   renderChildCards(editModeChildren);
   if (!editModeChildren.length) addChild();
 
-  // ── Section D — make read-only (not editable) ──
+  // ── Sections D & E — make read-only (these are never editable) ──
   makeReadOnly("section-d");
+  makeReadOnly("section-e");
 
-  // Populate Section E fields with existing data
+  // Populate Section E fields with existing data for display (correct IDs)
   if (e.komsel) setVal("confessionKomsel", e.komsel);
   if (e.since)  setVal("confessionSince",  e.since);
   if (e.leader) setVal("confessionLeader", e.leader);
@@ -850,6 +850,13 @@ function makeReadOnly(sectionId) {
     el.style.opacity = "0.6";
     el.style.cursor  = "not-allowed";
   });
+  // Add visual banner
+  const banner = document.createElement("div");
+  banner.style.cssText = `background:rgba(255,140,0,0.06);border:1px solid rgba(255,140,0,0.2);
+    border-radius:var(--radius);padding:0.7rem 1rem;margin-bottom:1rem;
+    font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.04em;color:var(--text-muted);`;
+  banner.textContent = "Seksyen ini tidak boleh diedit / This section cannot be edited.";
+  section.insertBefore(banner, section.querySelector(".section-header")?.nextSibling || section.firstChild);
 }
 
 // ── Override submit in edit mode — show diff modal instead ──
@@ -1076,11 +1083,6 @@ function showEditDiffModal(changes, newA, newSvcs, newKids) {
         // Remove payment reminder
         const payReminder = successDiv.querySelector("div[style*='rgba(255,140,0']");
         if (payReminder) payReminder.remove();
-        // Hide top-left back button if coming from update-info
-        if (IS_FROM_UPDATE) {
-          const backBtn = document.querySelector(".back-home-btn");
-          if (backBtn) backBtn.style.display = "none";
-        }
       }
       window.scrollTo({top:0, behavior:"smooth"});
     } catch(err) {
@@ -1308,11 +1310,14 @@ function bindEvents() {
     input.addEventListener("input",  () => checkNextButton());
   });
 
-  // ── Next Button — unrestricted for testing ──
+  // ── Next Button — Section A validation ──
   const btnNext = document.getElementById("btnNext");
   if (btnNext) {
-    btnNext.disabled = false;
     btnNext.addEventListener("click", () => {
+      if (!isSectionAComplete()) {
+        scrollToFirstEmptySectionA();
+        return;
+      }
       saveDraft();
       navigateTo("b");
     });
@@ -1338,13 +1343,51 @@ function checkNextButton() {
   const btn = document.getElementById("btnNext");
   if (!btn) return;
 
-  // Edit mode: allow free navigation — user already has saved data
-  if (IS_EDIT_MODE) { btn.disabled = false; return; }
-
+  // Edit mode: re-check completeness too (user may have cleared a required field)
   const allMet = isSectionAComplete();
   btn.disabled = !allMet;
   btn.style.opacity = allMet ? "" : "0.45";
   btn.style.cursor  = allMet ? "" : "not-allowed";
+}
+
+// Scroll to first unfilled required field in Section A when dimmed Next is clicked
+function scrollToFirstEmptySectionA() {
+  const getVal   = id => (document.getElementById(id)?.value || "").trim();
+  const getRadio = name => document.querySelector(`input[name="${name}"]:checked`)?.value || "";
+  const isChecked = name => !!document.querySelector(`input[name="${name}"]:checked`);
+  const idType = getVal("idType") || "IC";
+  const isNonCitizen = idType !== "IC";
+  const isBaptised   = getRadio("baptismStatus") === "baptised";
+  const ms = getVal("maritalStatus");
+
+  const scrollTo = id => {
+    const el = document.getElementById(id);
+    if (el) { el.scrollIntoView({ behavior:"smooth", block:"center" }); el.focus?.(); }
+  };
+
+  if (!IS_AFFILIATED_MODE && !isChecked("memberRole")) { scrollTo("rolePastoral"); return; }
+  if (!getVal("fullName"))    { scrollTo("fullName"); return; }
+  const idRaw = getVal("icNo");
+  if (!idRaw) { scrollTo("icNo"); return; }
+  if (idType === "IC" || idType === "MyTentera") {
+    const d = idRaw.replace(/-/g,"");
+    if (d.length !== 12 || isNaN(d)) { scrollTo("icNo"); return; }
+  } else if (idType === "Passport") {
+    if (idRaw.toUpperCase().replace(/[^A-Z0-9]/g,"").length < 4) { scrollTo("icNo"); return; }
+  }
+  if (!isChecked("gender"))        { scrollTo("genderMale"); return; }
+  if (!getVal("phoneNumber"))      { scrollTo("phoneNumber"); return; }
+  if (!getVal("dob"))              { scrollTo("dob"); return; }
+  if (!getVal("race"))             { scrollTo("race"); return; }
+  if (!getVal("maritalStatus"))    { scrollTo("maritalStatus"); return; }
+  if ((ms === "married" || ms === "engaged") && !getVal("partnerName"))   { scrollTo("partnerName"); return; }
+  if (ms === "widowed" && !getVal("latePartnerName"))                     { scrollTo("latePartnerName"); return; }
+  if (!isChecked("baptismStatus")) { scrollTo("baptised"); return; }
+  if (isBaptised && !getVal("baptismYear")) { scrollTo("baptismYear"); return; }
+  if (isNonCitizen && !getVal("countryOfOrigin")) { scrollTo("countryOfOrigin"); return; }
+  if (!getVal("yearJoining"))      { scrollTo("yearJoining"); return; }
+  if (!IS_AFFILIATED_MODE && (!getVal("komselCode") || !isValidKomsel(getVal("komselCode")))) { scrollTo("komselCode"); return; }
+  if (!getVal("currentAddress"))   { scrollTo("currentAddress"); return; }
 }
 
 function isSectionAComplete() {
@@ -1704,7 +1747,10 @@ function navigateTo(sectionId) {
     if (fullName && confName) confName.value = fullName.value;
 
     syncConfessionRefs();
+    checkSectionESubmit();
   }
+
+  if (sectionId === "d") checkSectionDNext();
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -1810,12 +1856,14 @@ function bindSectionBEvents() {
   const btnBackB = document.getElementById("btnBackB");
   if (btnBackB) btnBackB.addEventListener("click", () => navigateTo("a"));
 
-  // Next button
+  // Next button — no content validation, but dim if "Others" is checked with incomplete fields
   const btnNextB = document.getElementById("btnNextB");
-  if (btnNextB) btnNextB.addEventListener("click", () => {
-    saveSectionBDraft();
-    navigateTo("c");
-  });
+  if (btnNextB) {
+    btnNextB.addEventListener("click", () => {
+      saveSectionBDraft();
+      navigateTo("c");
+    });
+  }
 
   // Auto-save on others fields
   const othersName = document.getElementById("othersServiceName");
@@ -2078,6 +2126,28 @@ function bindSectionCEvents() {
   document.getElementById("btnNextC").addEventListener("click", () => {
     saveSectionCDraft();
 
+    // ── Check for partially filled child cards ──
+    const partialChildren = [];
+    document.querySelectorAll(".child-card").forEach((card, idx) => {
+      const num    = card.dataset.childNum || (idx + 1);
+      const name   = card.querySelector(`[id^="childName-"]`)?.value?.trim() || "";
+      const gender = card.querySelector(`input[name^="childGender-"]:checked`)?.value || "";
+      const myKid  = card.querySelector(`[id^="childMyKid-"]`)?.value?.trim() || "";
+      const ageEl  = card.querySelector(`[id^="childAge-"]`);
+      const age    = ageEl ? ageEl.value.trim() : "";
+      if (!name) return; // completely empty card — skip
+      const missing = [];
+      if (!myKid)   missing.push("MyKid");
+      if (!age)     missing.push("Umur / Age");
+      if (!gender)  missing.push("Jantina / Gender");
+      if (missing.length) partialChildren.push({ num: parseInt(num), missing });
+    });
+
+    if (partialChildren.length > 0) {
+      showPartialChildModal(partialChildren);
+      return;
+    }
+
     // ── Check for children aged 13+ ──
     const overAgeChildren = [];
     document.querySelectorAll(".child-card").forEach(card => {
@@ -2091,12 +2161,51 @@ function bindSectionCEvents() {
 
     if (overAgeChildren.length > 0) {
       showOverAgeModal(overAgeChildren);
-      return; // Block navigation
+      return;
     }
 
     navigateTo("d");
   });
 }
+
+// ── Partial child fill modal ──
+function showPartialChildModal(partialList) {
+  let modal = document.getElementById("partialChildModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "partialChildModal";
+    modal.className = "modal-overlay";
+    modal.innerHTML = `
+      <div class="modal-card modal-card--sm">
+        <div class="modal-header">
+          <h3 class="modal-title" style="color:#E8A000;">⚠️ Maklumat Anak Tidak Lengkap / Incomplete Child Info</h3>
+        </div>
+        <div class="modal-body" style="padding:1.2rem 1.5rem;">
+          <div id="partialChildList"></div>
+        </div>
+        <div class="modal-footer" style="justify-content:center;">
+          <button class="btn btn-primary" id="btnPartialChildOk">Saya Faham / I Understand</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById("btnPartialChildOk").addEventListener("click", () => {
+      modal.style.display = "none";
+    });
+  }
+
+  const list = document.getElementById("partialChildList");
+  list.innerHTML = partialList.map(c => `
+    <div style="background:rgba(232,160,0,0.08);border:1px solid rgba(232,160,0,0.25);
+      border-radius:var(--radius);padding:0.75rem 1rem;margin-bottom:0.6rem;font-size:0.9rem;">
+      <strong style="color:var(--text-primary);">
+        ${c.missing.join(", ")} anak ke-${c.num} tidak diisi, sila isi sebelum meneruskan.
+      </strong><br/>
+      <span style="color:var(--text-muted);font-style:italic;font-size:0.83rem;">
+        The ${c.missing.join(", ")} of Child ${c.num} is yet to be filled, please fill them to proceed.
+      </span>
+    </div>`).join("");
+
+  modal.style.display = "flex";
 
 // ── Over-age children modal ──
 function showOverAgeModal(children) {
@@ -2198,11 +2307,12 @@ function bindSectionDEvents() {
   if (pledgeAgree) {
     pledgeAgree.addEventListener("change", () => {
       saveSectionDDraft();
-      // Highlight agreement box when ticked
       const label = document.getElementById("pledgeAgreeLabel");
       if (pledgeAgree.checked) {
         label.style.borderColor = "var(--marigold)";
+        label.style.boxShadow = "";
       }
+      checkSectionDNext();
     });
   }
 
@@ -2210,20 +2320,33 @@ function bindSectionDEvents() {
   document.getElementById("btnBackD")?.addEventListener("click", () => navigateTo("c"));
 
   // Next button — requires pledge tick
-document.getElementById("btnNextD")?.addEventListener("click", () => {
-  const pledgeAgree = document.getElementById("pledgeAgree");
-  if (!pledgeAgree?.checked) {
-    const label = document.getElementById("pledgeAgreeLabel");
-    if (label) {
-      label.style.borderColor = "#E05555";
-      label.style.boxShadow = "0 0 0 2px rgba(224,85,85,0.25)";
-      label.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-    return; // Block navigation
+  const btnNextD = document.getElementById("btnNextD");
+  if (btnNextD) {
+    checkSectionDNext();
+    btnNextD.addEventListener("click", () => {
+      const pledge = document.getElementById("pledgeAgree");
+      if (!pledge?.checked) {
+        const label = document.getElementById("pledgeAgreeLabel");
+        if (label) {
+          label.style.borderColor = "#E05555";
+          label.style.boxShadow = "0 0 0 2px rgba(224,85,85,0.25)";
+          label.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        return;
+      }
+      saveSectionDDraft();
+      navigateTo("e");
+    });
   }
-  saveSectionDDraft();
-  navigateTo("e");
-});
+}
+
+function checkSectionDNext() {
+  const btn = document.getElementById("btnNextD");
+  if (!btn) return;
+  const checked = !!document.getElementById("pledgeAgree")?.checked;
+  btn.disabled = !checked;
+  btn.style.opacity = checked ? "" : "0.45";
+  btn.style.cursor  = checked ? "" : "not-allowed";
 }
 
 function saveSectionDDraft() {
@@ -2338,24 +2461,32 @@ function initSectionE() {
     document.getElementById(id)?.addEventListener("input", () => {
       saveSectionEDraft();
       syncConfessionRefs();
+      checkSectionESubmit();
     });
     document.getElementById(id)?.addEventListener("change", () => {
       saveSectionEDraft();
       syncConfessionRefs();
+      checkSectionESubmit();
     });
   });
+
+  checkSectionESubmit();
 
   // Back button
   document.getElementById("btnBackE")?.addEventListener("click", () => navigateTo("d"));
 
   // Submit button — Firestore integration
   document.getElementById("btnSubmit")?.addEventListener("click", async () => {
-    // ── EDIT MODE: show diff modal instead of submitting ──
+    // ── EDIT MODE: validate Section E then show diff modal ──
     if (IS_EDIT_MODE) {
-      saveDraft(); // ensure latest values are in localStorage
+      if (!isSectionEComplete()) { showSectionEModal(); return; }
+      saveDraft();
       await submitEditMode();
       return;
     }
+
+    // ── Normal mode: validate Section E first ──
+    if (!isSectionEComplete()) { showSectionEModal(); return; }
 
     const btn = document.getElementById("btnSubmit");
     let icVal = "";
@@ -2542,12 +2673,55 @@ function initSectionE() {
 
   // Success page back button
   document.getElementById("btnSuccessBack")?.addEventListener("click", () => {
-    if (IS_FROM_UPDATE) {
-      window.location.href = "update-info.html";
-    } else {
-      location.reload();
-    }
+    location.reload();
   });
+}
+
+function isSectionEComplete() {
+  const since  = (document.getElementById("confessionSince")?.value  || "").trim();
+  const leader = (document.getElementById("confessionLeader")?.value || "").trim();
+  return !!since && !!leader;
+}
+
+function checkSectionESubmit() {
+  const btn = document.getElementById("btnSubmit");
+  if (!btn) return;
+  const ok = isSectionEComplete();
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? "" : "0.45";
+  btn.style.cursor  = ok ? "" : "not-allowed";
+}
+
+function showSectionEModal() {
+  let modal = document.getElementById("sectionEValidModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "sectionEValidModal";
+    modal.className = "modal-overlay";
+    modal.innerHTML = `
+      <div class="modal-card modal-card--sm">
+        <div class="modal-header">
+          <h3 class="modal-title" style="color:#E8A000;">⚠️ Maklumat Tidak Lengkap / Incomplete Info</h3>
+        </div>
+        <div class="modal-body" style="padding:1.2rem 1.5rem;text-align:center;">
+          <p style="font-size:0.95rem;color:var(--text-primary);line-height:1.7;margin-bottom:0.5rem;">
+            Sila masukkan maklumat <strong>'Menyertai sejak tahun bila'</strong> dan <strong>'nama ketua KOMSEL'</strong> anda sebelum meneruskan.
+          </p>
+          <p style="font-size:0.83rem;color:var(--text-muted);font-style:italic;line-height:1.6;">
+            Please enter the <strong>'year since you joined the cell group'</strong> and <strong>'Under whose leadership'</strong> field before proceeding.
+          </p>
+        </div>
+        <div class="modal-footer" style="justify-content:center;">
+          <button class="btn btn-primary" id="btnSectionEModalOk">OK</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById("btnSectionEModalOk").addEventListener("click", () => {
+      modal.style.display = "none";
+      document.getElementById("confessionSince")?.focus();
+    });
+  }
+  modal.style.display = "flex";
 }
 
 function syncConfessionRefs() {
@@ -2568,10 +2742,6 @@ function syncConfessionRefs() {
 function showSuccessPage() {
   document.getElementById("registrationForm").style.display = "none";
   document.getElementById("successPage").style.display = "block";
-  if (IS_FROM_UPDATE) {
-    const backBtn = document.querySelector(".back-home-btn");
-    if (backBtn) backBtn.style.display = "none";
-  }
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 

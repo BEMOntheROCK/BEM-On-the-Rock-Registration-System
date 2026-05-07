@@ -381,6 +381,7 @@ const IS_BEHALF_MODE     = new URLSearchParams(window.location.search).get("mode
 const IS_AFFILIATED_MODE = new URLSearchParams(window.location.search).get("mode") === "affiliated";
 const IS_EDIT_MODE       = new URLSearchParams(window.location.search).get("mode") === "edit";
 const EDIT_DOC_ID        = new URLSearchParams(window.location.search).get("docId") || "";
+const IS_FROM_UPDATE     = new URLSearchParams(window.location.search).get("from") === "update";
 
 // ═══════════════════════════════════════════════
 // 1j. AFFILIATED MEMBER AUTOFILL (for main registration)
@@ -685,8 +686,12 @@ async function initEditMode() {
   // Hide the back-to-home button, replace with back link
   const backBtn = document.querySelector(".back-home-btn");
   if (backBtn) {
-    backBtn.textContent = "← Kembali / Back";
-    backBtn.href = "javascript:history.back()";
+    if (IS_FROM_UPDATE) {
+      backBtn.style.display = "none";
+    } else {
+      backBtn.textContent = "← Kembali / Back";
+      backBtn.href = "javascript:history.back()";
+    }
   }
 
   // Replace submit button text
@@ -820,8 +825,9 @@ function populateFormWithData(data) {
   renderChildCards(editModeChildren);
   if (!editModeChildren.length) addChild();
 
-  // ── Section D — make read-only (not editable) ──
+  // ── Sections D & E — make read-only (these are never editable) ──
   makeReadOnly("section-d");
+  makeReadOnly("section-e");
 
   // Populate Section E fields with existing data for display (correct IDs)
   if (e.komsel) setVal("confessionKomsel", e.komsel);
@@ -849,6 +855,13 @@ function makeReadOnly(sectionId) {
     el.style.opacity = "0.6";
     el.style.cursor  = "not-allowed";
   });
+  // Add visual banner
+  const banner = document.createElement("div");
+  banner.style.cssText = `background:rgba(255,140,0,0.06);border:1px solid rgba(255,140,0,0.2);
+    border-radius:var(--radius);padding:0.7rem 1rem;margin-bottom:1rem;
+    font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.04em;color:var(--text-muted);`;
+  banner.textContent = "Seksyen ini tidak boleh diedit / This section cannot be edited.";
+  section.insertBefore(banner, section.querySelector(".section-header")?.nextSibling || section.firstChild);
 }
 
 // ── Override submit in edit mode — show diff modal instead ──
@@ -930,24 +943,14 @@ function collectCurrentFormData() {
     if (name && gender) newChildren.push({ name, gender, myKid, age });
   });
 
-  // Section E — read from live fields
-  const newE = {
-    komsel: document.getElementById("confessionKomsel")?.value?.trim() || "",
-    since:  document.getElementById("confessionSince")?.value?.trim()  || "",
-    leader: document.getElementById("confessionLeader")?.value?.trim() || "",
-    name:   document.getElementById("confessionName")?.value?.trim()   || "",
-    date:   document.getElementById("confessionDate")?.value?.trim()   || "",
-  };
-
-  return { newA, newServices, newChildren, newE };
+  return { newA, newServices, newChildren };
 }
 
 async function submitEditMode() {
-  const { newA, newServices, newChildren, newE } = collectCurrentFormData();
+  const { newA, newServices, newChildren } = collectCurrentFormData();
   const oldA = editOriginalData?.sectionA || {};
   const oldB = editOriginalData?.sectionB || {};
   const oldC = editOriginalData?.sectionC || {};
-  const oldE = editOriginalData?.sectionE || {};
 
   // Build diff
   const changes = [];
@@ -984,19 +987,11 @@ async function submitEditMode() {
     changes.push({ section:"A — Peribadi", field:"Gambar / Photo", before:"(gambar lama)", after:"(gambar baru)" });
   }
 
-  // Section E diff
-  const E_LABELS = { komsel:"Kod Komsel (E)", since:"Ahli Sejak (E)", leader:"Pemimpin Komsel (E)", name:"Nama Pengaku (E)", date:"Tarikh (E)" };
-  Object.keys(E_LABELS).forEach(key => {
-    const before = String(oldE[key] || "").trim();
-    const after  = String(newE[key] || "").trim();
-    if (before !== after) changes.push({ section:"E — Pengakuan", field:E_LABELS[key], before:before||"—", after:after||"—" });
-  });
-
   // Show diff modal
-  showEditDiffModal(changes, newA, newSvcs, newKids, newE);
+  showEditDiffModal(changes, newA, newSvcs, newKids);
 }
 
-function showEditDiffModal(changes, newA, newSvcs, newKids, newE) {
+function showEditDiffModal(changes, newA, newSvcs, newKids) {
   // Create modal if not present
   let modal = document.getElementById("editDiffModal");
   if (!modal) {
@@ -1066,7 +1061,6 @@ function showEditDiffModal(changes, newA, newSvcs, newKids, newE) {
         sectionA:            { ...(editOriginalData?.sectionA||{}), ...newA },
         "sectionB.services": newSvcs,
         "sectionC.children": newKids,
-        sectionE:            { ...(editOriginalData?.sectionE||{}), ...newE },
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
       };
       if (photoDataURL && photoDataURL !== editOriginalData?.photoURL) {
@@ -2555,7 +2549,11 @@ function initSectionE() {
 
   // Success page back button
   document.getElementById("btnSuccessBack")?.addEventListener("click", () => {
-    location.reload();
+    if (IS_FROM_UPDATE) {
+      window.location.href = "update-info.html";
+    } else {
+      location.reload();
+    }
   });
 }
 

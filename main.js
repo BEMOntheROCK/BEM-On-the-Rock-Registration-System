@@ -2192,6 +2192,7 @@ function showPartialChildModal(partialList) {
       modal.style.display = "none";
     });
   }
+}
 
   const list = document.getElementById("partialChildList");
   list.innerHTML = partialList.map(c => `

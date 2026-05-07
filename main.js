@@ -2192,7 +2192,6 @@ function showPartialChildModal(partialList) {
       modal.style.display = "none";
     });
   }
-}
 
   const list = document.getElementById("partialChildList");
   list.innerHTML = partialList.map(c => `
@@ -2207,6 +2206,7 @@ function showPartialChildModal(partialList) {
     </div>`).join("");
 
   modal.style.display = "flex";
+}
 
 // ── Over-age children modal ──
 function showOverAgeModal(children) {

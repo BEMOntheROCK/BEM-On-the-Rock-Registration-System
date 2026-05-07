@@ -1314,7 +1314,7 @@ function bindEvents() {
   const btnNext = document.getElementById("btnNext");
   if (btnNext) {
     btnNext.addEventListener("click", () => {
-      if (!isSectionAComplete()) {
+      if (btnNext.dataset.ready !== "true") {
         scrollToFirstEmptySectionA();
         return;
       }
@@ -1344,11 +1344,11 @@ function checkNextButton() {
   if (!btn) return;
 
   const allMet = isSectionAComplete();
-  btn.disabled = !allMet;
+  btn.disabled = false; // never truly disable — we need click events to fire
+  btn.dataset.ready = allMet ? "true" : "false";
   btn.style.opacity = allMet ? "" : "0.45";
   btn.style.cursor  = allMet ? "" : "not-allowed";
 
-  // Clear red messages once user has filled the field
   if (allMet) {
     document.querySelectorAll(".sectionA-req-msg").forEach(el => el.remove());
   }
@@ -2358,7 +2358,7 @@ function bindSectionDEvents() {
     checkSectionDNext();
     btnNextD.addEventListener("click", () => {
       const pledge = document.getElementById("pledgeAgree");
-      if (!pledge?.checked) {
+      if (btnNextD.dataset.ready !== "true") {
         const label = document.getElementById("pledgeAgreeLabel");
         if (label) {
           label.style.borderColor = "#E05555";
@@ -2377,7 +2377,8 @@ function checkSectionDNext() {
   const btn = document.getElementById("btnNextD");
   if (!btn) return;
   const checked = !!document.getElementById("pledgeAgree")?.checked;
-  btn.disabled = !checked;
+  btn.disabled = false;
+  btn.dataset.ready = checked ? "true" : "false";
   btn.style.opacity = checked ? "" : "0.45";
   btn.style.cursor  = checked ? "" : "not-allowed";
 }
@@ -2510,16 +2511,13 @@ function initSectionE() {
 
   // Submit button — Firestore integration
   document.getElementById("btnSubmit")?.addEventListener("click", async () => {
-    // ── EDIT MODE: validate Section E then show diff modal ──
     if (IS_EDIT_MODE) {
-      if (!isSectionEComplete()) { showSectionEModal(); return; }
+      if (document.getElementById("btnSubmit").dataset.ready !== "true") { showSectionEModal(); return; }
       saveDraft();
       await submitEditMode();
       return;
     }
-
-    // ── Normal mode: validate Section E first ──
-    if (!isSectionEComplete()) { showSectionEModal(); return; }
+    if (document.getElementById("btnSubmit").dataset.ready !== "true") { showSectionEModal(); return; }
 
     const btn = document.getElementById("btnSubmit");
     let icVal = "";
@@ -2720,7 +2718,8 @@ function checkSectionESubmit() {
   const btn = document.getElementById("btnSubmit");
   if (!btn) return;
   const ok = isSectionEComplete();
-  btn.disabled = !ok;
+  btn.disabled = false;
+  btn.dataset.ready = ok ? "true" : "false";
   btn.style.opacity = ok ? "" : "0.45";
   btn.style.cursor  = ok ? "" : "not-allowed";
 }

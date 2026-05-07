@@ -414,15 +414,17 @@ document.getElementById("btnDownloadOverallStatsXLSX")?.addEventListener("click"
         childrenRows.push([
           childrenRows.length + 1,
           child.name?.trim().toUpperCase() || "—",
-          child.myKid || "—",
-          parentPhone
+          child.myKid || "—"
         ]);
       });
     });
 
     const wsData = [];
-    const pushTitleRow = title => wsData.push([title, "", "", ""]);
-    const pushHeader = (col3Label = "IC") => wsData.push(["NUM", "NAME", col3Label, "PHONE NUM"]);
+    const pushTitleRow = (title, cols = 4) => wsData.push([title, ...Array(cols - 1).fill("")]);
+    const pushHeader = (col3Label = "IC", includePhone = true) =>
+      includePhone
+        ? wsData.push(["NUM", "NAME", col3Label, "PHONE NUM"])
+        : wsData.push(["NUM", "NAME", col3Label]);
 
     pushTitleRow("REGISTERED USERS");
     pushHeader("IC");
@@ -436,11 +438,11 @@ document.getElementById("btnDownloadOverallStatsXLSX")?.addEventListener("click"
     wsData.push(["TOTAL AFFILIATED MEMBER", "", "", affiliatedRows.length]);
     wsData.push(["", "", "", ""]);
 
-    pushTitleRow("CHILDREN");
-    pushHeader("MyKID");
+    pushTitleRow("CHILDREN", 3);
+    pushHeader("MyKID", false);
     wsData.push(...childrenRows);
-    wsData.push(["TOTAL CHILDREN", "", "", childrenRows.length]);
-    wsData.push(["", "", "", ""]);
+    wsData.push(["TOTAL CHILDREN", "", childrenRows.length]);
+    wsData.push(["", "", ""]);
 
     const overallTotal = registeredRows.length + affiliatedRows.length + childrenRows.length;
     wsData.push(["OVERALL TOTAL", "", "", overallTotal]);
@@ -459,9 +461,9 @@ document.getElementById("btnDownloadOverallStatsXLSX")?.addEventListener("click"
       XLSX.utils.decode_range(`A${registeredRows.length + 3}:C${registeredRows.length + 3}`),
       XLSX.utils.decode_range(`A${registeredRows.length + 5}:C${registeredRows.length + 5}`),
       XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + 7}:C${registeredRows.length + affiliatedRows.length + 7}`),
-      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + 9}:C${registeredRows.length + affiliatedRows.length + 9}`),
-      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}:C${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}`),
-      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}:C${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}`)
+      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + 9}:B${registeredRows.length + affiliatedRows.length + 9}`),
+      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}:B${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}`),
+      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}:B${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}`)
     ];
 
     const wb = XLSX.utils.book_new();

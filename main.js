@@ -683,15 +683,11 @@ async function initEditMode() {
   const eligNotice = document.querySelector(".eligibility-notice");
   if (eligNotice) eligNotice.style.display = "none";
 
-  // Hide the back-to-home button, replace with back link
+  // Replace the back-to-home button with a history back link
   const backBtn = document.querySelector(".back-home-btn");
   if (backBtn) {
-    if (IS_FROM_UPDATE) {
-      backBtn.style.display = "none";
-    } else {
-      backBtn.textContent = "← Kembali / Back";
-      backBtn.href = "javascript:history.back()";
-    }
+    backBtn.textContent = "← Kembali / Back";
+    backBtn.href = "javascript:history.back()";
   }
 
   // Replace submit button text
@@ -825,11 +821,10 @@ function populateFormWithData(data) {
   renderChildCards(editModeChildren);
   if (!editModeChildren.length) addChild();
 
-  // ── Sections D & E — make read-only (these are never editable) ──
+  // ── Section D — make read-only (not editable) ──
   makeReadOnly("section-d");
-  makeReadOnly("section-e");
 
-  // Populate Section E fields with existing data for display (correct IDs)
+  // Populate Section E fields with existing data
   if (e.komsel) setVal("confessionKomsel", e.komsel);
   if (e.since)  setVal("confessionSince",  e.since);
   if (e.leader) setVal("confessionLeader", e.leader);
@@ -855,13 +850,6 @@ function makeReadOnly(sectionId) {
     el.style.opacity = "0.6";
     el.style.cursor  = "not-allowed";
   });
-  // Add visual banner
-  const banner = document.createElement("div");
-  banner.style.cssText = `background:rgba(255,140,0,0.06);border:1px solid rgba(255,140,0,0.2);
-    border-radius:var(--radius);padding:0.7rem 1rem;margin-bottom:1rem;
-    font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.04em;color:var(--text-muted);`;
-  banner.textContent = "Seksyen ini tidak boleh diedit / This section cannot be edited.";
-  section.insertBefore(banner, section.querySelector(".section-header")?.nextSibling || section.firstChild);
 }
 
 // ── Override submit in edit mode — show diff modal instead ──
@@ -1088,6 +1076,11 @@ function showEditDiffModal(changes, newA, newSvcs, newKids) {
         // Remove payment reminder
         const payReminder = successDiv.querySelector("div[style*='rgba(255,140,0']");
         if (payReminder) payReminder.remove();
+        // Hide top-left back button if coming from update-info
+        if (IS_FROM_UPDATE) {
+          const backBtn = document.querySelector(".back-home-btn");
+          if (backBtn) backBtn.style.display = "none";
+        }
       }
       window.scrollTo({top:0, behavior:"smooth"});
     } catch(err) {
@@ -2575,6 +2568,10 @@ function syncConfessionRefs() {
 function showSuccessPage() {
   document.getElementById("registrationForm").style.display = "none";
   document.getElementById("successPage").style.display = "block";
+  if (IS_FROM_UPDATE) {
+    const backBtn = document.querySelector(".back-home-btn");
+    if (backBtn) backBtn.style.display = "none";
+  }
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 

@@ -820,11 +820,10 @@ function populateFormWithData(data) {
   renderChildCards(editModeChildren);
   if (!editModeChildren.length) addChild();
 
-  // ── Sections D & E — make read-only (these are never editable) ──
+  // ── Section D — make read-only (not editable) ──
   makeReadOnly("section-d");
-  makeReadOnly("section-e");
 
-  // Populate Section E fields with existing data for display (correct IDs)
+  // Populate Section E fields with existing data
   if (e.komsel) setVal("confessionKomsel", e.komsel);
   if (e.since)  setVal("confessionSince",  e.since);
   if (e.leader) setVal("confessionLeader", e.leader);
@@ -850,13 +849,6 @@ function makeReadOnly(sectionId) {
     el.style.opacity = "0.6";
     el.style.cursor  = "not-allowed";
   });
-  // Add visual banner
-  const banner = document.createElement("div");
-  banner.style.cssText = `background:rgba(255,140,0,0.06);border:1px solid rgba(255,140,0,0.2);
-    border-radius:var(--radius);padding:0.7rem 1rem;margin-bottom:1rem;
-    font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.04em;color:var(--text-muted);`;
-  banner.textContent = "Seksyen ini tidak boleh diedit / This section cannot be edited.";
-  section.insertBefore(banner, section.querySelector(".section-header")?.nextSibling || section.firstChild);
 }
 
 // ── Override submit in edit mode — show diff modal instead ──

@@ -1357,7 +1357,6 @@ function bindEvents() {
             const age    = card.querySelector(`[id^="childAge-"]`)?.value?.trim() || "";
             if (!name) return;
             const missing = [];
-            if (!myKid)  missing.push("MyKid");
             if (!age)    missing.push("Umur / Age");
             if (!gender) missing.push("Jantina / Gender");
             if (missing.length) partialChildren.push({ num: parseInt(num), missing });
@@ -2237,7 +2236,6 @@ function bindSectionCEvents() {
       const age    = ageEl ? ageEl.value.trim() : "";
       if (!name) return; // completely empty card — skip
       const missing = [];
-      if (!myKid)   missing.push("MyKid");
       if (!age)     missing.push("Umur / Age");
       if (!gender)  missing.push("Jantina / Gender");
       if (missing.length) partialChildren.push({ num: parseInt(num), missing });

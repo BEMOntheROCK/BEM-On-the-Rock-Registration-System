@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="admin.css"/>
   <link rel="stylesheet" href="stats.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body class="admin-body">
 
@@ -53,6 +55,10 @@
           <div id="statsLoading" class="stats-loading" style="display:none;">
             <span>Memuatkan... / Loading...</span>
           </div>
+
+          <button class="btn btn-primary" id="btnExportPDF" style="white-space:nowrap;">
+            📄 Eksport PDF / Export PDF
+          </button>
 
           <a href="admin.html" class="btn btn-secondary" style="text-decoration:none;white-space:nowrap;">
             &larr; Kembali / Back

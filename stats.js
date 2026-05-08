@@ -705,8 +705,301 @@ document.getElementById("closeListModal")?.addEventListener("click",    () => do
 document.getElementById("closeListModalBtn")?.addEventListener("click", () => document.getElementById("listModal").style.display="none");
 
 // ══════════════════════════════════════════════
-// GO-TO NAV DROPDOWN
+// EXPORT PDF
 // ══════════════════════════════════════════════
+document.getElementById("btnExportPDF")?.addEventListener("click", exportStatsPDF);
+
+async function exportStatsPDF() {
+  const btn = document.getElementById("btnExportPDF");
+  btn.disabled = true;
+  btn.textContent = "⏳ Menjana PDF...";
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const PAGE_W = 210, PAGE_H = 297, MARGIN = 14;
+  const CONTENT_W = PAGE_W - MARGIN * 2;
+  let y = MARGIN;
+
+  const MARIGOLD_RGB  = [255, 140, 0];
+  const DARK_RGB      = [20, 16, 10];
+  const MUTED_RGB     = [120, 110, 95];
+  const WHITE_RGB     = [255, 255, 255];
+  const BORDER_RGB    = [60, 50, 35];
+
+  // ── Helper: new page if needed ──
+  function checkPage(needed = 10) {
+    if (y + needed > PAGE_H - MARGIN) {
+      doc.addPage();
+      y = MARGIN;
+    }
+  }
+
+  // ── Helper: section title bar ──
+  function sectionTitle(label) {
+    checkPage(14);
+    doc.setFillColor(...MARIGOLD_RGB);
+    doc.roundedRect(MARGIN, y, CONTENT_W, 9, 2, 2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...DARK_RGB);
+    doc.text(label, MARGIN + 4, y + 6);
+    y += 12;
+  }
+
+  // ── Helper: draw table ──
+  function drawTable(headers, rows, colWidths) {
+    const ROW_H = 7, HEAD_H = 8;
+    const tableW = colWidths.reduce((a,b) => a+b, 0);
+
+    // Header
+    checkPage(HEAD_H + 2);
+    doc.setFillColor(40, 32, 20);
+    doc.rect(MARGIN, y, tableW, HEAD_H, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...MARIGOLD_RGB);
+    let x = MARGIN;
+    headers.forEach((h, i) => {
+      doc.text(h, x + 3, y + 5.5);
+      x += colWidths[i];
+    });
+    y += HEAD_H;
+
+    // Rows
+    rows.forEach((row, ri) => {
+      checkPage(ROW_H + 1);
+      if (ri % 2 === 0) {
+        doc.setFillColor(30, 24, 15);
+        doc.rect(MARGIN, y, tableW, ROW_H, "F");
+      }
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...WHITE_RGB);
+      x = MARGIN;
+      row.forEach((cell, i) => {
+        const cellStr = String(cell ?? "—");
+        doc.text(cellStr, x + 3, y + 5, { maxWidth: colWidths[i] - 5 });
+        x += colWidths[i];
+      });
+      // Bottom border
+      doc.setDrawColor(...BORDER_RGB);
+      doc.line(MARGIN, y + ROW_H, MARGIN + tableW, y + ROW_H);
+      y += ROW_H;
+    });
+    y += 4;
+  }
+
+  // ── Helper: capture chart canvas as image ──
+  async function chartImage(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    const imgData = canvas.toDataURL("image/png", 1.0);
+    return imgData;
+  }
+
+  // ── Helper: add chart image, dynamic sizing ──
+  async function addChart(canvasId, label, fullWidth = false) {
+    const img = await chartImage(canvasId);
+    if (!img) return;
+    const canvas = document.getElementById(canvasId);
+    const aspect = canvas.height / canvas.width;
+    const imgW = fullWidth ? CONTENT_W : CONTENT_W / 2 - 3;
+    const imgH = Math.min(imgW * aspect, 80);
+    checkPage(imgH + 4);
+    return { img, imgW, imgH };
+  }
+
+  // ════════════════════════════════
+  // PAGE 1 — HEADER
+  // ════════════════════════════════
+  // Dark background header
+  doc.setFillColor(...DARK_RGB);
+  doc.rect(0, 0, PAGE_W, 38, "F");
+  doc.setFillColor(...MARIGOLD_RGB);
+  doc.rect(0, 36, PAGE_W, 1.5, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(...MARIGOLD_RGB);
+  doc.text("BEM ON THE ROCK", PAGE_W / 2, 14, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...WHITE_RGB);
+  doc.text("Statistik Keanggotaan / Membership Statistics", PAGE_W / 2, 21, { align: "center" });
+
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED_RGB);
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("ms-MY", { day:"2-digit", month:"long", year:"numeric" });
+  const timeStr = now.toLocaleTimeString("ms-MY", { hour:"2-digit", minute:"2-digit" });
+  doc.text(`Dijana pada / Generated on: ${dateStr}, ${timeStr}`, PAGE_W / 2, 28, { align: "center" });
+
+  y = 46;
+
+  // ════════════════════════════════
+  // SUMMARY CARDS
+  // ════════════════════════════════
+  sectionTitle("RINGKASAN / SUMMARY");
+
+  const summaryItems = [
+    { label: "Jumlah Ahli / Total Members",           id: "totalMembers" },
+    { label: "Ahli Aktif / Active Members",           id: "activeMembers" },
+    { label: "Ahli Tidak Aktif / Inactive Members",   id: "inactiveMembers" },
+    { label: "Ahli Berpindah / Transferred",          id: "transferredMembers" },
+    { label: "Sudah Dibaptis / Baptised",             id: "baptisedMembers" },
+    { label: "Bilangan Kanak-kanak / Children (≤12)", id: "withChildren" },
+  ];
+
+  const CARD_W = (CONTENT_W - 4) / 3;
+  const CARD_H = 18;
+  let cardX = MARGIN, cardRow = 0;
+
+  summaryItems.forEach((item, i) => {
+    if (i > 0 && i % 3 === 0) { y += CARD_H + 3; cardX = MARGIN; cardRow++; }
+    checkPage(CARD_H + 3);
+    doc.setFillColor(40, 32, 18);
+    doc.roundedRect(cardX, y, CARD_W, CARD_H, 2, 2, "F");
+    doc.setDrawColor(...MARIGOLD_RGB);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(cardX, y, CARD_W, CARD_H, 2, 2, "S");
+
+    const val = document.getElementById(item.id)?.textContent || "—";
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(...MARIGOLD_RGB);
+    doc.text(val, cardX + CARD_W / 2, y + 9, { align: "center" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    doc.setTextColor(...MUTED_RGB);
+    doc.text(item.label, cardX + CARD_W / 2, y + 14.5, { align: "center", maxWidth: CARD_W - 4 });
+
+    cardX += CARD_W + 2;
+  });
+
+  y += CARD_H + 8;
+
+  // ════════════════════════════════
+  // 1. GENDER + 2. AGE (side by side)
+  // ════════════════════════════════
+  sectionTitle("1. STATISTIK JANTINA / GENDER STATISTICS");
+  const genderRes = await addChart("chartGender");
+  const ageRes    = await addChart("chartAge");
+
+  if (genderRes && ageRes) {
+    const pairH = Math.max(genderRes.imgH, ageRes.imgH);
+    checkPage(pairH + 16);
+    // Gender left
+    doc.addImage(genderRes.img, "PNG", MARGIN, y, CONTENT_W / 2 - 3, genderRes.imgH);
+    // Age section title right inline
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...MARIGOLD_RGB);
+    doc.text("4. STATISTIK KUMPULAN UMUR / AGE GROUP", MARGIN + CONTENT_W / 2 + 3, y - 2);
+    doc.addImage(ageRes.img, "PNG", MARGIN + CONTENT_W / 2 + 3, y, CONTENT_W / 2 - 3, ageRes.imgH);
+    y += pairH + 6;
+  } else if (genderRes) {
+    checkPage(genderRes.imgH + 4);
+    doc.addImage(genderRes.img, "PNG", MARGIN, y, genderRes.imgW, genderRes.imgH);
+    y += genderRes.imgH + 6;
+  }
+
+  // ════════════════════════════════
+  // 2. REGISTRATIONS OVER TIME
+  // ════════════════════════════════
+  checkPage(10);
+  sectionTitle("2. JUMLAH PENDAFTARAN DARI SEMASA KE SEMASA / REGISTRATIONS OVER TIME");
+  const timeRes = await addChart("chartTime", "", true);
+  if (timeRes) {
+    const imgH = Math.min(CONTENT_W * 0.35, 70);
+    checkPage(imgH + 4);
+    doc.addImage(timeRes.img, "PNG", MARGIN, y, CONTENT_W, imgH);
+    y += imgH + 6;
+  }
+
+  // ════════════════════════════════
+  // 3. RACE TABLE
+  // ════════════════════════════════
+  checkPage(20);
+  sectionTitle("3. STATISTIK BANGSA / RACE STATISTICS");
+  const raceRows = [];
+  document.querySelectorAll("#raceTableBody tr").forEach(tr => {
+    const cells = tr.querySelectorAll("td");
+    if (cells.length >= 2) raceRows.push([cells[0].textContent.trim(), cells[1].textContent.trim()]);
+  });
+  drawTable(["Bangsa / Race", "Jumlah / Total"], raceRows, [CONTENT_W - 40, 40]);
+
+  // ════════════════════════════════
+  // 5. MARITAL STATUS
+  // ════════════════════════════════
+  checkPage(10);
+  sectionTitle("5. STATISTIK STATUS PERKAHWINAN / MARITAL STATUS STATISTICS");
+  const maritalRes = await addChart("chartMarital", "", true);
+  if (maritalRes) {
+    const imgH = Math.min(CONTENT_W * 0.4, 75);
+    checkPage(imgH + 4);
+    doc.addImage(maritalRes.img, "PNG", MARGIN, y, CONTENT_W, imgH);
+    y += imgH + 6;
+  }
+
+  // ════════════════════════════════
+  // 6. KOMSEL TABLE
+  // ════════════════════════════════
+  checkPage(20);
+  sectionTitle("6. BILANGAN AHLI DALAM KOMSEL / MEMBERS BY CELL GROUP");
+  const komselRows = [];
+  document.querySelectorAll("#komselTableBody tr").forEach(tr => {
+    const cells = tr.querySelectorAll("td");
+    if (cells.length >= 2) komselRows.push([cells[0].textContent.trim(), cells[1].textContent.trim()]);
+  });
+  drawTable(["KOMSEL / Cell Group", "Jumlah Ahli / Total Members"], komselRows, [CONTENT_W - 40, 40]);
+
+  // ════════════════════════════════
+  // 7. CHILDREN CHART
+  // ════════════════════════════════
+  checkPage(10);
+  sectionTitle("7. STATISTIK ANGGOTA DENGAN ANAK / MEMBERS WITH CHILDREN");
+  const childrenRes = await addChart("chartChildren", "", true);
+  if (childrenRes) {
+    const imgH = Math.min(CONTENT_W * 0.35, 70);
+    checkPage(imgH + 4);
+    doc.addImage(childrenRes.img, "PNG", MARGIN, y, CONTENT_W, imgH);
+    y += imgH + 6;
+  }
+
+  // ════════════════════════════════
+  // 8. CITY TABLE
+  // ════════════════════════════════
+  checkPage(20);
+  sectionTitle("8. BILANGAN ANGGOTA MENGIKUT BANDAR / MEMBERS BY CITY");
+  const cityRows = [];
+  document.querySelectorAll("#cityTableBody tr").forEach(tr => {
+    const cells = tr.querySelectorAll("td");
+    if (cells.length >= 2) cityRows.push([cells[0].textContent.trim(), cells[1].textContent.trim()]);
+  });
+  drawTable(["Bandar / City", "Jumlah Ahli / Total Members"], cityRows, [CONTENT_W - 40, 40]);
+
+  // ── Footer on every page ──
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFillColor(...DARK_RGB);
+    doc.rect(0, PAGE_H - 10, PAGE_W, 10, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED_RGB);
+    doc.text("BEM On The Rock — Statistik Keanggotaan / Membership Statistics", MARGIN, PAGE_H - 4);
+    doc.text(`${p} / ${totalPages}`, PAGE_W - MARGIN, PAGE_H - 4, { align: "right" });
+  }
+
+  // ── Save ──
+  const filename = `BEM_OTR_Statistics_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}.pdf`;
+  doc.save(filename);
+
+  btn.disabled = false;
+  btn.textContent = "📄 Eksport PDF / Export PDF";
+}
 document.getElementById("gotoSelect")?.addEventListener("change", function() {
   const id = this.value;
   if (!id) return;

@@ -1324,9 +1324,77 @@ function bindEvents() {
   }
 
   // ── Step Navigator clicks ──
+  const SECTION_ORDER = ["a", "b", "c", "d", "e"];
   document.querySelectorAll(".step").forEach(step => {
     step.addEventListener("click", function () {
-      navigateTo(this.dataset.section);
+      const target  = this.dataset.section;
+      const current = document.querySelector(".form-section:not([style*='display:none'],[style*='display: none'])")?.id?.replace("section-", "") || "a";
+      const currentIdx = SECTION_ORDER.indexOf(current);
+      const targetIdx  = SECTION_ORDER.indexOf(target);
+
+      // Going backward — always allow
+      if (targetIdx <= currentIdx) { navigateTo(target); return; }
+
+      // Going forward — check each gate in order up to the target
+      for (let i = currentIdx; i < targetIdx; i++) {
+        const from = SECTION_ORDER[i];
+
+        if (from === "a") {
+          if (!isSectionAComplete()) {
+            navigateTo("a");
+            setTimeout(() => scrollToFirstEmptySectionA(), 350);
+            return;
+          }
+        }
+
+        if (from === "c") {
+          const partialChildren = [];
+          document.querySelectorAll(".child-card").forEach((card, idx) => {
+            const num    = card.dataset.childNum || (idx + 1);
+            const name   = card.querySelector(`[id^="childName-"]`)?.value?.trim() || "";
+            const gender = card.querySelector(`input[name^="childGender-"]:checked`)?.value || "";
+            const myKid  = card.querySelector(`[id^="childMyKid-"]`)?.value?.trim() || "";
+            const age    = card.querySelector(`[id^="childAge-"]`)?.value?.trim() || "";
+            if (!name) return;
+            const missing = [];
+            if (!myKid)  missing.push("MyKid");
+            if (!age)    missing.push("Umur / Age");
+            if (!gender) missing.push("Jantina / Gender");
+            if (missing.length) partialChildren.push({ num: parseInt(num), missing });
+          });
+          if (partialChildren.length > 0) {
+            navigateTo("c");
+            setTimeout(() => showPartialChildModal(partialChildren), 350);
+            return;
+          }
+        }
+
+        if (from === "d") {
+          if (!document.getElementById("pledgeAgree")?.checked) {
+            navigateTo("d");
+            setTimeout(() => {
+              const label = document.getElementById("pledgeAgreeLabel");
+              if (label) {
+                label.style.borderColor = "#E05555";
+                label.style.boxShadow = "0 0 0 2px rgba(224,85,85,0.25)";
+                label.scrollIntoView({ behavior: "smooth", block: "center" });
+              }
+            }, 350);
+            return;
+          }
+        }
+
+        if (from === "e") {
+          if (!isSectionEComplete()) {
+            navigateTo("e");
+            setTimeout(() => showSectionEModal(), 350);
+            return;
+          }
+        }
+      }
+
+      // All gates passed — allow navigation
+      navigateTo(target);
     });
   });
 

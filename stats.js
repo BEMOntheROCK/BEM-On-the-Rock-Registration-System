@@ -716,6 +716,285 @@ async function exportStatsPDF() {
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const PAGE_W = 210, PAGE_H = 297, MARGIN = 20;
+  const CONTENT_W = PAGE_W - MARGIN * 2;
+  let y = MARGIN;
+
+  const BLACK  = [0, 0, 0];
+  const MUTED  = [120, 120, 120];
+  const BORDER = [0, 0, 0];
+
+  // ── Footer on current page ──
+  function drawFooter() {
+    const p = doc.getNumberOfPages();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text("BEM On The Rock — Statistik Keanggotaan / Membership Statistics", MARGIN, PAGE_H - 8);
+    doc.text(String(p), PAGE_W - MARGIN, PAGE_H - 8, { align: "right" });
+    doc.setDrawColor(...MUTED);
+    doc.setLineWidth(0.3);
+    doc.line(MARGIN, PAGE_H - 11, PAGE_W - MARGIN, PAGE_H - 11);
+  }
+
+  // ── New page ──
+  function newPage() {
+    drawFooter();
+    doc.addPage();
+    y = MARGIN;
+  }
+
+  // ── Check space, new page if needed ──
+  function checkPage(needed) {
+    if (y + needed > PAGE_H - 18) newPage();
+  }
+
+  // ── Section heading: "BM bold  EN italic" ──
+  function sectionHeading(bm, en) {
+    checkPage(12);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...BLACK);
+    const bmWidth = doc.getTextWidth(bm + " ");
+    doc.text(bm, MARGIN, y);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(11);
+    doc.setTextColor(...MUTED);
+    doc.text(en, MARGIN + bmWidth, y);
+    y += 6;
+  }
+
+  // ── Summary row: label left cell, value right cell ──
+  function summaryRow(bmLabel, enLabel, value) {
+    const ROW_H = 14;
+    const COL1  = CONTENT_W * 0.55;
+    const COL2  = CONTENT_W * 0.45;
+    checkPage(ROW_H + 3);
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.rect(MARGIN, y, COL1, ROW_H, "S");
+    doc.rect(MARGIN + COL1, y, COL2, ROW_H, "S");
+    // Label
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...BLACK);
+    doc.text(bmLabel, MARGIN + 3, y + 5);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...MUTED);
+    doc.text(enLabel, MARGIN + 3, y + 10);
+    // Value
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(...BLACK);
+    doc.text(String(value), MARGIN + COL1 + COL2 / 2, y + 9, { align: "center" });
+    y += ROW_H + 3;
+  }
+
+  // ── Plain table (no shading) ──
+  function drawTable(headers, rows, colWidths) {
+    const ROW_H  = 7;
+    const HEAD_H = 8;
+    const tableW = colWidths.reduce((a, b) => a + b, 0);
+
+    checkPage(HEAD_H + 4);
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.rect(MARGIN, y, tableW, HEAD_H, "S");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...BLACK);
+    let x = MARGIN;
+    headers.forEach((h, i) => {
+      // Split BM bold / EN italic inline
+      const parts = h.split(" / ");
+      if (parts.length === 2) {
+        const bmW = doc.getTextWidth(parts[0] + " / ");
+        doc.setFont("helvetica", "bold");
+        doc.text(parts[0] + " /", x + 3, y + 5.5);
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8.5);
+        doc.text(" " + parts[1], x + 3 + bmW, y + 5.5);
+        doc.setFontSize(9);
+      } else {
+        doc.setFont("helvetica", "bold");
+        doc.text(h, x + 3, y + 5.5);
+      }
+      if (i < headers.length - 1) doc.line(x + colWidths[i], y, x + colWidths[i], y + HEAD_H);
+      x += colWidths[i];
+    });
+    y += HEAD_H;
+
+    rows.forEach((row, ri) => {
+      checkPage(ROW_H + 1);
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.2);
+      doc.rect(MARGIN, y, tableW, ROW_H, "S");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...BLACK);
+      x = MARGIN;
+      row.forEach((cell, i) => {
+        doc.text(String(cell ?? "—"), x + 3, y + 5, { maxWidth: colWidths[i] - 5 });
+        if (i < row.length - 1) doc.line(x + colWidths[i], y, x + colWidths[i], y + ROW_H);
+        x += colWidths[i];
+      });
+      y += ROW_H;
+    });
+    y += 8;
+  }
+
+  // ── Add chart image (full width, never side-by-side) ──
+  async function addChart(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const imgData = canvas.toDataURL("image/png", 1.0);
+    const aspect  = canvas.height / canvas.width;
+    const imgW    = CONTENT_W;
+    const imgH    = Math.min(imgW * aspect, 90);
+    checkPage(imgH + 4);
+    doc.addImage(imgData, "PNG", MARGIN, y, imgW, imgH);
+    y += imgH + 8;
+  }
+
+  // ════════════════════════════
+  // HEADER (page 1 only)
+  // ════════════════════════════
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...MUTED);
+  const bmSub = "Sistem Keanggotaan ";
+  const bmSubW = doc.getTextWidth(bmSub);
+  doc.text(bmSub, MARGIN, y);
+  doc.setFont("helvetica", "italic");
+  doc.text("Registration system", MARGIN + bmSubW, y);
+  y += 6;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(...BLACK);
+  doc.text("BEM On The ROCK", MARGIN, y);
+  y += 5;
+
+  doc.setDrawColor(...BLACK);
+  doc.setLineWidth(0.4);
+  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+  y += 8;
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("ms-MY", { day: "2-digit", month: "long", year: "numeric" });
+  const timeStr = now.toLocaleTimeString("ms-MY", { hour: "2-digit", minute: "2-digit" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED);
+  doc.text(`Dijana pada / Generated on: ${dateStr}, ${timeStr}`, MARGIN, y);
+  y += 8;
+
+  // ════════════════════════════
+  // SUMMARY
+  // ════════════════════════════
+  sectionHeading("Ringkasan Data", "Data Summary");
+  y += 2;
+
+  const totalReg      = allData.length;
+  const coupleGroups  = buildCoupleGroups(allData);
+  const totalChildren = coupleGroups.reduce((sum, g) => sum + g.total, 0);
+
+  // Fetch affiliated count
+  let totalAffiliated = 0;
+  try {
+    const affSnap = await db.collection("affiliatedMembers").get();
+    totalAffiliated = affSnap.size;
+  } catch(e) { console.warn("Could not fetch affiliated count", e); }
+
+  summaryRow("Jumlah Jemaat Berdaftar", "Total Registered Members", totalReg);
+  summaryRow("Jumlah Jemaat Bersekutu", "Total Associated Members", totalAffiliated);
+  summaryRow(
+    "Jumlah Kanak-Kanak (Berdaftar Di Bawah Jemaat Berdaftar)",
+    "Total Children (Registered under Registered Members)",
+    totalChildren
+  );
+  y += 4;
+
+  // ════════════════════════════
+  // 1. GENDER
+  // ════════════════════════════
+  sectionHeading("Statistik Jantina", "Gender's Statistics");
+  await addChart("chartGender");
+
+  // ════════════════════════════
+  // 2. REGISTRATIONS OVER TIME
+  // ════════════════════════════
+  sectionHeading("Jumlah Pendaftaran dari Semasa ke Semasa", "Registrations Over Time");
+  await addChart("chartTime");
+
+  // ════════════════════════════
+  // 3. RACE TABLE
+  // ════════════════════════════
+  sectionHeading("Statistik Bangsa", "Race Statistics");
+  const raceRows = [];
+  document.querySelectorAll("#raceTableBody tr").forEach(tr => {
+    const cells = tr.querySelectorAll("td");
+    if (cells.length >= 2) raceRows.push([cells[0].textContent.trim(), cells[1].textContent.trim()]);
+  });
+  drawTable(["Bangsa / Race", "Jumlah / Total"], raceRows, [CONTENT_W - 40, 40]);
+
+  // ════════════════════════════
+  // 4. AGE GROUP
+  // ════════════════════════════
+  sectionHeading("Statistik Kumpulan Umur", "Age Group Statistics");
+  await addChart("chartAge");
+
+  // ════════════════════════════
+  // 5. MARITAL STATUS
+  // ════════════════════════════
+  sectionHeading("Statistik Status Perkahwinan", "Marital Status Statistics");
+  await addChart("chartMarital");
+
+  // ════════════════════════════
+  // 6. KOMSEL TABLE
+  // ════════════════════════════
+  sectionHeading("Bilangan Ahli dalam KOMSEL", "Members by Cell Group");
+  const komselRows = [];
+  document.querySelectorAll("#komselTableBody tr").forEach(tr => {
+    const cells = tr.querySelectorAll("td");
+    if (cells.length >= 2) komselRows.push([cells[0].textContent.trim(), cells[1].textContent.trim()]);
+  });
+  drawTable(["KOMSEL / Cell Group", "Jumlah Ahli / Total Members"], komselRows, [CONTENT_W - 40, 40]);
+
+  // ════════════════════════════
+  // 7. CHILDREN CHART
+  // ════════════════════════════
+  sectionHeading("Statistik Anggota dengan Anak", "Members with Children");
+  await addChart("chartChildren");
+
+  // ════════════════════════════
+  // 8. CITY TABLE
+  // ════════════════════════════
+  sectionHeading("Bilangan Anggota Mengikut Bandar", "Members by City");
+  const cityRows = [];
+  document.querySelectorAll("#cityTableBody tr").forEach(tr => {
+    const cells = tr.querySelectorAll("td");
+    if (cells.length >= 2) cityRows.push([cells[0].textContent.trim(), cells[1].textContent.trim()]);
+  });
+  drawTable(["Bandar / City", "Jumlah Ahli / Total Members"], cityRows, [CONTENT_W - 40, 40]);
+
+  // ── Footer on last page ──
+  drawFooter();
+
+  // ── Save ──
+  const filename = `BEM_OTR_Statistics_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}.pdf`;
+  doc.save(filename);
+
+  btn.disabled = false;
+  btn.textContent = "📄 Eksport PDF / Export PDF";
+}
+  const btn = document.getElementById("btnExportPDF");
+  btn.disabled = true;
+  btn.textContent = "⏳ Menjana PDF...";
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const PAGE_W = 210, PAGE_H = 297, MARGIN = 14;
   const CONTENT_W = PAGE_W - MARGIN * 2;
   let y = MARGIN;
@@ -1009,7 +1288,7 @@ async function exportStatsPDF() {
 
   btn.disabled = false;
   btn.textContent = "📄 Eksport PDF / Export PDF";
-}
+
 
 async function exportStatsPDF() {
   const btn = document.getElementById("btnExportPDF");

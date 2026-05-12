@@ -845,13 +845,20 @@ async function exportStatsPDF() {
   }
 
   // ── Add chart image with dark-text override for legible legends ──
-  // Fixed heights per chart type to avoid squishing
   const CHART_HEIGHTS = {
-    chartGender:   80,
-    chartAge:      80,
-    chartTime:    65,
-    chartMarital:  75,
+    chartGender:   85,
+    chartAge:      90,
+    chartTime:     65,
+    chartMarital:  70,
     chartChildren: 65,
+  };
+  // Pie/donut charts render better constrained to a square-ish width
+  const CHART_WIDTHS = {
+    chartGender:   100,
+    chartAge:      170,
+    chartTime:     CONTENT_W,
+    chartMarital:  CONTENT_W,
+    chartChildren: CONTENT_W,
   };
 
   async function addChart(canvasId) {
@@ -892,20 +899,61 @@ async function exportStatsPDF() {
     }
 
     const imgH = CHART_HEIGHTS[canvasId] || 70;
-    const imgW = CONTENT_W;
+    const imgW = CHART_WIDTHS[canvasId]  || CONTENT_W;
+    const imgX = MARGIN + (CONTENT_W - imgW) / 2; // centre if narrower
 
-    // ── Ensure heading + chart stay on same page ──
     checkPage(imgH + 4);
-    doc.addImage(imgData, "PNG", MARGIN, y, imgW, imgH);
-    y += imgH + 8;
+    doc.addImage(imgData, "PNG", imgX, y, imgW, imgH);
+    y += imgH + 6;
   }
 
   // ── Section heading that checks space for both itself AND the chart ──
   function sectionHeadingWithChart(bm, en, canvasId) {
     const chartH = CHART_HEIGHTS[canvasId] || 70;
-    const totalNeeded = 6 + chartH + 12; // heading + chart + padding
+    const totalNeeded = 6 + chartH + 12;
     if (y + totalNeeded > PAGE_H - 18) newPage();
     sectionHeading(bm, en);
+  }
+
+  // ── Small count table drawn under a chart ──
+  function drawCountTable(headers, rows, colWidths) {
+    const ROW_H  = 6.5;
+    const HEAD_H = 7.5;
+    const tableW = colWidths.reduce((a, b) => a + b, 0);
+    const tableX = MARGIN + (CONTENT_W - tableW) / 2;
+
+    checkPage(HEAD_H + rows.length * ROW_H + 6);
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.25);
+    doc.rect(tableX, y, tableW, HEAD_H, "S");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...BLACK);
+    let x = tableX;
+    headers.forEach((h, i) => {
+      doc.text(h, x + 3, y + 5);
+      if (i < headers.length - 1) doc.line(x + colWidths[i], y, x + colWidths[i], y + HEAD_H);
+      x += colWidths[i];
+    });
+    y += HEAD_H;
+
+    rows.forEach((row) => {
+      checkPage(ROW_H + 1);
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.2);
+      doc.rect(tableX, y, tableW, ROW_H, "S");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...BLACK);
+      x = tableX;
+      row.forEach((cell, i) => {
+        doc.text(String(cell ?? "—"), x + 3, y + 4.5);
+        if (i < row.length - 1) doc.line(x + colWidths[i], y, x + colWidths[i], y + ROW_H);
+        x += colWidths[i];
+      });
+      y += ROW_H;
+    });
+    y += 8;
   }
 
   // ════════════════════════════
@@ -972,6 +1020,22 @@ async function exportStatsPDF() {
   // ════════════════════════════
   sectionHeadingWithChart("Statistik Jantina", "Gender's Statistics", "chartGender");
   await addChart("chartGender");
+  // Count table
+  const genderCounts = { male:0, female:0 };
+  allData.forEach(r => {
+    const g = r.sectionA?.gender;
+    if (g === "male") genderCounts.male++;
+    else if (g === "female") genderCounts.female++;
+  });
+  drawCountTable(
+    ["Jantina / Gender", "Jumlah / Total"],
+    [
+      ["Lelaki / Male",       genderCounts.male],
+      ["Perempuan / Female",  genderCounts.female],
+      ["Jumlah / Total",      genderCounts.male + genderCounts.female],
+    ],
+    [100, 50]
+  );
 
   // ════════════════════════════
   // 2. REGISTRATIONS OVER TIME
@@ -995,12 +1059,51 @@ async function exportStatsPDF() {
   // ════════════════════════════
   sectionHeadingWithChart("Statistik Kumpulan Umur", "Age Group Statistics", "chartAge");
   await addChart("chartAge");
+  // Count table
+  const AGE_ORDER = [
+    "Belia / Teen (13–17)",
+    "Dewasa Muda / Young Adults (18–29)",
+    "Dewasa / Adult (30–59)",
+    "Warga Emas / Senior (60+)",
+    "Tidak Diketahui / Unknown"
+  ];
+  const ageCounts = {};
+  AGE_ORDER.forEach(k => ageCounts[k] = 0);
+  allData.forEach(r => {
+    const g = getAgeGroup(r.sectionA?.dob);
+    ageCounts[g] = (ageCounts[g] || 0) + 1;
+  });
+  drawCountTable(
+    ["Kumpulan Umur / Age Group", "Jumlah / Total"],
+    [...AGE_ORDER.map(k => [k, ageCounts[k]]), ["Jumlah / Total", allData.length]],
+    [130, 40]
+  );
 
   // ════════════════════════════
   // 5. MARITAL STATUS
   // ════════════════════════════
   sectionHeadingWithChart("Statistik Status Perkahwinan", "Marital Status Statistics", "chartMarital");
   await addChart("chartMarital");
+  // Count table
+  const MCATS   = ["single","engaged","married","divorced","widowed"];
+  const MLABELS = ["Bujang / Single","Bertunang / Engaged","Berkahwin / Married","Bercerai / Divorced","Balu/Duda / Widowed"];
+  const mMale   = new Array(5).fill(0), mFemale = new Array(5).fill(0);
+  allData.forEach(r => {
+    const ms = r.sectionA?.maritalStatus;
+    const g  = r.sectionA?.gender;
+    const idx = MCATS.indexOf(ms);
+    if (idx < 0) return;
+    if (g === "male") mMale[idx]++;
+    else if (g === "female") mFemale[idx]++;
+  });
+  drawCountTable(
+    ["Status / Status", "Lelaki / Male", "Perempuan / Female", "Jumlah / Total"],
+    [
+      ...MLABELS.map((l, i) => [l, mMale[i], mFemale[i], mMale[i] + mFemale[i]]),
+      ["Jumlah / Total", mMale.reduce((a,b)=>a+b,0), mFemale.reduce((a,b)=>a+b,0), allData.length]
+    ],
+    [80, 32, 42, 32]
+  );
 
   // ════════════════════════════
   // 6. KOMSEL TABLE
@@ -1018,6 +1121,24 @@ async function exportStatsPDF() {
   // ════════════════════════════
   sectionHeadingWithChart("Statistik Anggota dengan Anak", "Members with Children", "chartChildren");
   await addChart("chartChildren");
+  // Count table
+  const childGroups  = buildCoupleGroups(allData);
+  const childBuckets = {0:0,1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0};
+  childGroups.forEach(g => { childBuckets[Math.min(g.total,8)]++; });
+  const singleNoKids = allData.filter(r => {
+    const kids = (r.sectionC?.children||[]).filter(c=>c.name?.trim()&&c.gender);
+    return kids.length === 0;
+  }).length;
+  childBuckets[0] = singleNoKids;
+  const childLabels = ["Tiada anak","1 anak","2 anak","3 anak","4 anak","5 anak","6 anak","7 anak","8+ anak"];
+  drawCountTable(
+    ["Bilangan Anak / No. of Children", "Bilangan Keluarga / Families"],
+    [
+      ...childLabels.map((l, i) => [l, childBuckets[i]]),
+      ["Jumlah / Total", Object.values(childBuckets).reduce((a,b)=>a+b,0)]
+    ],
+    [120, 50]
+  );
 
   // ════════════════════════════
   // 8. CITY TABLE

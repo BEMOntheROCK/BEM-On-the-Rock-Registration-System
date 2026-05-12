@@ -1060,8 +1060,8 @@ async function exportStatsPDF() {
   await addChart("chartAge");
   // Count table
   const AGE_ORDER = [
-    "Belia / Teen (13–17)",
-    "Dewasa Muda / Young Adults (18–29)",
+    "Remaja / Teen (13–17)",
+    "Dewasa Muda / Young Adult (18–29)",
     "Dewasa / Adult (30–59)",
     "Warga Emas / Senior (60+)",
     "Tidak Diketahui / Unknown"

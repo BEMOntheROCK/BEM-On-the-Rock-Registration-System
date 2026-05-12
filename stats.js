@@ -844,17 +844,68 @@ async function exportStatsPDF() {
     y += 8;
   }
 
-  // ── Add chart image (full width, never side-by-side) ──
+  // ── Add chart image with dark-text override for legible legends ──
+  // Fixed heights per chart type to avoid squishing
+  const CHART_HEIGHTS = {
+    chartGender:   80,
+    chartAge:      80,
+    chartTime:    65,
+    chartMarital:  75,
+    chartChildren: 65,
+  };
+
   async function addChart(canvasId) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
+
+    // ── Override chart colours to dark for PDF capture ──
+    const chart = allCharts[canvasId];
+    if (chart) {
+      chart.options.plugins.legend.labels.color = "#000000";
+      if (chart.options.scales) {
+        ["x","y"].forEach(axis => {
+          if (chart.options.scales[axis]) {
+            chart.options.scales[axis].ticks = { ...chart.options.scales[axis].ticks, color: "#111111" };
+            chart.options.scales[axis].grid  = { ...chart.options.scales[axis].grid,  color: "#cccccc" };
+          }
+        });
+      }
+      chart.update("none");
+    }
+
     const imgData = canvas.toDataURL("image/png", 1.0);
-    const aspect  = canvas.height / canvas.width;
-    const imgW    = CONTENT_W;
-    const imgH    = Math.min(imgW * aspect, 90);
+
+    // ── Restore original dark-mode colours ──
+    if (chart) {
+      const tc = chartText();
+      const gc = chartGridColor();
+      chart.options.plugins.legend.labels.color = tc;
+      if (chart.options.scales) {
+        ["x","y"].forEach(axis => {
+          if (chart.options.scales[axis]) {
+            chart.options.scales[axis].ticks = { ...chart.options.scales[axis].ticks, color: tc };
+            chart.options.scales[axis].grid  = { ...chart.options.scales[axis].grid,  color: gc };
+          }
+        });
+      }
+      chart.update("none");
+    }
+
+    const imgH = CHART_HEIGHTS[canvasId] || 70;
+    const imgW = CONTENT_W;
+
+    // ── Ensure heading + chart stay on same page ──
     checkPage(imgH + 4);
     doc.addImage(imgData, "PNG", MARGIN, y, imgW, imgH);
     y += imgH + 8;
+  }
+
+  // ── Section heading that checks space for both itself AND the chart ──
+  function sectionHeadingWithChart(bm, en, canvasId) {
+    const chartH = CHART_HEIGHTS[canvasId] || 70;
+    const totalNeeded = 6 + chartH + 12; // heading + chart + padding
+    if (y + totalNeeded > PAGE_H - 18) newPage();
+    sectionHeading(bm, en);
   }
 
   // ════════════════════════════
@@ -919,13 +970,13 @@ async function exportStatsPDF() {
   // ════════════════════════════
   // 1. GENDER
   // ════════════════════════════
-  sectionHeading("Statistik Jantina", "Gender's Statistics");
+  sectionHeadingWithChart("Statistik Jantina", "Gender's Statistics", "chartGender");
   await addChart("chartGender");
 
   // ════════════════════════════
   // 2. REGISTRATIONS OVER TIME
   // ════════════════════════════
-  sectionHeading("Jumlah Pendaftaran dari Semasa ke Semasa", "Registrations Over Time");
+  sectionHeadingWithChart("Jumlah Pendaftaran dari Semasa ke Semasa", "Registrations Over Time", "chartTime");
   await addChart("chartTime");
 
   // ════════════════════════════
@@ -942,13 +993,13 @@ async function exportStatsPDF() {
   // ════════════════════════════
   // 4. AGE GROUP
   // ════════════════════════════
-  sectionHeading("Statistik Kumpulan Umur", "Age Group Statistics");
+  sectionHeadingWithChart("Statistik Kumpulan Umur", "Age Group Statistics", "chartAge");
   await addChart("chartAge");
 
   // ════════════════════════════
   // 5. MARITAL STATUS
   // ════════════════════════════
-  sectionHeading("Statistik Status Perkahwinan", "Marital Status Statistics");
+  sectionHeadingWithChart("Statistik Status Perkahwinan", "Marital Status Statistics", "chartMarital");
   await addChart("chartMarital");
 
   // ════════════════════════════
@@ -965,7 +1016,7 @@ async function exportStatsPDF() {
   // ════════════════════════════
   // 7. CHILDREN CHART
   // ════════════════════════════
-  sectionHeading("Statistik Anggota dengan Anak", "Members with Children");
+  sectionHeadingWithChart("Statistik Anggota dengan Anak", "Members with Children", "chartChildren");
   await addChart("chartChildren");
 
   // ════════════════════════════

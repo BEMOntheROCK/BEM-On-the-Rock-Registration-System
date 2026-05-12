@@ -184,31 +184,32 @@ document.querySelectorAll(".time-filter-btn").forEach(btn => {
   });
 });
 
-// ── Normalise race string for grouping ──
+// ── Normalise race string — extract first race before any separator ──
 function normaliseRace(raw) {
   if (!raw || !raw.trim()) return "TIDAK DIKETAHUI / UNKNOWN";
-  // Take only the part before any slash (mixed race → first race only)
-  let r = raw.split("/")[0].trim();
-  // Remove all spaces for comparison key, uppercase
-  r = r.toUpperCase().replace(/\s+/g, "");
+  // Split on common mix-race separators/keywords
+  let r = raw.toUpperCase().trim();
+  r = r.split(/\s*[,\/&]\s*|\s+(?:MIX|AND|DAN|ATAU)\s+/)[0].trim();
+  if (!r) return "TIDAK DIKETAHUI / UNKNOWN";
   return r;
 }
 
 function displayRace(raw) {
   if (!raw || !raw.trim()) return "TIDAK DIKETAHUI / UNKNOWN";
-  return raw.split("/")[0].trim().toUpperCase();
+  let r = raw.toUpperCase().trim();
+  r = r.split(/\s*[,\/&]\s*|\s+(?:MIX|AND|DAN|ATAU)\s+/)[0].trim();
+  return r || "TIDAK DIKETAHUI / UNKNOWN";
 }
 
 // ══════════════════════════════════════════════
 // RACE — Table with list modal
 // ══════════════════════════════════════════════
 function renderRaceTable() {
-  const map = {}; // normalised key → { display, members[] }
+  const map = {}; // normalised race → members[]
   allData.forEach(r => {
     const raw  = r.sectionA?.race || "";
     const key  = normaliseRace(raw);
-    const disp = displayRace(raw);
-    if (!map[key]) map[key] = { display: disp, members: [] };
+    if (!map[key]) map[key] = { members: [] };
     map[key].members.push({ name:(r.name||r.sectionA?.fullName||"—"), uid:r.uniqueID||"—" });
   });
 
@@ -216,9 +217,9 @@ function renderRaceTable() {
   const tbody  = document.getElementById("raceTableBody");
   if (!tbody) return;
 
-  tbody.innerHTML = sorted.map(([key, {display, members}]) => `
+  tbody.innerHTML = sorted.map(([key, {members}]) => `
     <tr>
-      <td style="font-weight:700;">${display}</td>
+      <td style="font-weight:700;">${key}</td>
       <td style="text-align:center;font-weight:700;color:var(--marigold-bright)">${members.length}</td>
       <td style="text-align:center">
         <button class="stats-view-btn" data-race="${encodeURIComponent(key)}">👁 Lihat / View</button>
@@ -231,13 +232,156 @@ function renderRaceTable() {
 
   tbody.querySelectorAll(".stats-view-btn[data-race]").forEach(btn => {
     btn.addEventListener("click", () => {
-      const key  = decodeURIComponent(btn.dataset.race);
+      const key   = decodeURIComponent(btn.dataset.race);
       const entry = lookup[key];
       if (!entry) return;
-      openListModal(`Ahli Bangsa ${entry.display}`, buildMemberListTable(entry.members));
+      openListModal(`Ahli Bangsa: ${key}`, buildMemberListTable(entry.members));
     });
   });
 }
+
+// ══════════════════════════════════════════════
+// MERGE RACE — Modal with full manual control
+// ══════════════════════════════════════════════
+let mergeRaceSelected = new Set();
+
+function openMergeRaceModal() {
+  mergeRaceSelected.clear();
+  document.getElementById("mergeRaceOutput").value = "";
+  document.getElementById("mergeRaceStatus").textContent = "";
+  document.getElementById("mergeRaceSearch").value = "";
+  renderMergeRaceList("");
+  document.getElementById("mergeRaceModal").style.display = "flex";
+}
+
+function getAllUniqueRaces() {
+  const races = new Set();
+  allData.forEach(r => {
+    const norm = normaliseRace(r.sectionA?.race || "");
+    races.add(norm);
+  });
+  return Array.from(races).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+  );
+}
+
+function renderMergeRaceList(filter) {
+  const all    = getAllUniqueRaces();
+  const f      = filter.toUpperCase().trim();
+  const shown  = f ? all.filter(r => r.includes(f)) : all;
+  const list   = document.getElementById("mergeRaceList");
+  const countEl = document.getElementById("mergeRaceSelCount");
+
+  list.innerHTML = shown.map(race => {
+    const count   = allData.filter(r => normaliseRace(r.sectionA?.race || "") === race).length;
+    const checked = mergeRaceSelected.has(race);
+    return `
+      <label class="merge-race-item ${checked ? "merge-race-item--selected" : ""}"
+        style="display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0.75rem;
+          border-radius:var(--radius);cursor:pointer;margin-bottom:0.3rem;
+          background:${checked ? "rgba(255,140,0,0.12)" : "rgba(255,255,255,0.02)"};
+          border:1px solid ${checked ? "var(--marigold)" : "var(--border-card)"};
+          transition:all 0.15s ease;">
+        <input type="checkbox" class="merge-race-chk" data-race="${encodeURIComponent(race)}"
+          ${checked ? "checked" : ""} style="accent-color:var(--marigold);width:16px;height:16px;flex-shrink:0;"/>
+        <span style="flex:1;font-weight:600;font-size:0.9rem;">${race}</span>
+        <span style="font-size:0.8rem;color:var(--text-muted);">${count} ahli</span>
+      </label>`;
+  }).join("") || `<p style="color:var(--text-muted);font-style:italic;text-align:center;padding:1rem;">
+    Tiada bangsa dijumpai / No races found</p>`;
+
+  list.querySelectorAll(".merge-race-chk").forEach(chk => {
+    chk.addEventListener("change", () => {
+      const race = decodeURIComponent(chk.dataset.race);
+      if (chk.checked) mergeRaceSelected.add(race);
+      else mergeRaceSelected.delete(race);
+      renderMergeRaceList(document.getElementById("mergeRaceSearch").value);
+      countEl.textContent = `${mergeRaceSelected.size} dipilih / selected`;
+      // Auto-fill output if only one selected
+      const outEl = document.getElementById("mergeRaceOutput");
+      if (mergeRaceSelected.size === 1 && !outEl.value.trim()) {
+        outEl.value = Array.from(mergeRaceSelected)[0];
+      }
+    });
+  });
+
+  countEl.textContent = `${mergeRaceSelected.size} dipilih / selected`;
+}
+
+document.getElementById("btnMergeRace")?.addEventListener("click", openMergeRaceModal);
+document.getElementById("closeMergeModal")?.addEventListener("click", () => {
+  document.getElementById("mergeRaceModal").style.display = "none";
+});
+document.getElementById("mergeRaceSearch")?.addEventListener("input", function() {
+  renderMergeRaceList(this.value);
+});
+document.getElementById("btnMergeClearSel")?.addEventListener("click", () => {
+  mergeRaceSelected.clear();
+  renderMergeRaceList(document.getElementById("mergeRaceSearch").value);
+});
+
+document.getElementById("btnMergeConfirm")?.addEventListener("click", async () => {
+  const output  = document.getElementById("mergeRaceOutput").value.trim().toUpperCase();
+  const statusEl = document.getElementById("mergeRaceStatus");
+
+  if (mergeRaceSelected.size < 2) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila pilih sekurang-kurangnya 2 bangsa. / Please select at least 2 races.";
+    return;
+  }
+  if (!output) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila masukkan nama output. / Please enter an output name.";
+    return;
+  }
+
+  const btn = document.getElementById("btnMergeConfirm");
+  btn.disabled = true;
+  btn.textContent = "⏳ Mengemaskini...";
+  statusEl.style.color = "var(--text-muted)";
+  statusEl.textContent = "Mengemaskini rekod... / Updating records...";
+
+  try {
+    // Find all members whose normalised race is in the selected set
+    const batch = db.batch();
+    let count = 0;
+    allData.forEach(reg => {
+      const norm = normaliseRace(reg.sectionA?.race || "");
+      if (mergeRaceSelected.has(norm)) {
+        const ref = db.collection("registrations").doc(reg.id);
+        batch.update(ref, { "sectionA.race": output });
+        count++;
+      }
+    });
+
+    await batch.commit();
+
+    // Update allData in memory
+    allData.forEach(reg => {
+      const norm = normaliseRace(reg.sectionA?.race || "");
+      if (mergeRaceSelected.has(norm)) {
+        if (reg.sectionA) reg.sectionA.race = output;
+      }
+    });
+
+    // Refresh race table
+    renderRaceTable();
+
+    statusEl.style.color = "#4CAF7D";
+    statusEl.textContent = `✅ Berjaya dikemaskini ${count} rekod. / Successfully updated ${count} records.`;
+    mergeRaceSelected.clear();
+    document.getElementById("mergeRaceOutput").value = "";
+    renderMergeRaceList(document.getElementById("mergeRaceSearch").value);
+
+  } catch(e) {
+    console.error(e);
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Ralat semasa mengemaskini. / Error while updating.";
+  }
+
+  btn.disabled = false;
+  btn.textContent = "✅ Gabung / Merge";
+});
 
 // ══════════════════════════════════════════════
 // AGE GROUP — Doughnut

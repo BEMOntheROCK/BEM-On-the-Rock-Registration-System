@@ -1032,7 +1032,6 @@ async function exportStatsPDF() {
     [
       ["Lelaki / Male",       genderCounts.male],
       ["Perempuan / Female",  genderCounts.female],
-      ["Jumlah / Total",      genderCounts.male + genderCounts.female],
     ],
     [100, 50]
   );

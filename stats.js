@@ -368,7 +368,9 @@ function renderKomselTable() {
     map[code].push({ name:(r.name||r.sectionA?.fullName||"—"), uid:r.uniqueID||"—" });
   });
 
-  const sorted = Object.entries(map).sort((a,b) => a[0].localeCompare(b[0]));
+  const sorted = Object.entries(map).sort((a, b) =>
+    a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: "base" })
+  );
   const tbody  = document.getElementById("komselTableBody");
   if (!tbody) return;
 

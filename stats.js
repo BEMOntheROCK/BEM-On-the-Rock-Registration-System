@@ -478,9 +478,12 @@ function renderMarital() {
 // SHARED: member list table builder
 // ══════════════════════════════════════════════
 function buildMemberListTable(members) {
+  const sorted = [...members].sort((a, b) =>
+    (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
+  );
   return `<table class="stats-modal-table">
     <thead><tr><th>Nama / Name</th><th>ID Unik / Unique ID</th></tr></thead>
-    <tbody>${members.map(m=>`
+    <tbody>${sorted.map(m=>`
       <tr>
         <td>${(m.name||"—").toUpperCase()}</td>
         <td style="color:var(--marigold);font-family:var(--font-display);font-size:0.85rem">${m.uid||"—"}</td>
@@ -535,7 +538,9 @@ function renderKomselTable() {
   tbody.querySelectorAll(".stats-view-btn[data-code]").forEach(btn => {
     btn.addEventListener("click", () => {
       const code    = decodeURIComponent(btn.dataset.code);
-      const members = map[code];
+      const members = [...(map[code] || [])].sort((a, b) =>
+        (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
+      );
       openListModal(
         `Ahli Komsel ${code} / Cell Group ${code} Members`,
         buildMemberListTable(members.map(m => ({ name: m.name, uid: m.uid }))),
@@ -1168,6 +1173,9 @@ function openListModal(title, bodyHTML, pdfCtx = null) {
 }
 
 async function exportKomselPDF(code, members) {
+  members = [...members].sort((a, b) =>
+    (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
+  );
   const { jsPDF } = window.jspdf;
   const doc     = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const PAGE_W  = 210, PAGE_H = 297, MARGIN = 14;

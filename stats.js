@@ -537,6 +537,296 @@ function renderKomselTable() {
 }
 
 // ══════════════════════════════════════════════
+// MERGE KOMSEL
+// ══════════════════════════════════════════════
+let mergeKomselSelected = new Set();
+
+function getAllUniqueKomsel() {
+  const codes = new Set();
+  allData.forEach(r => {
+    const raw  = (r.sectionA?.komselCode || "").trim();
+    codes.add(raw ? normaliseKomselCode(raw) : "—");
+  });
+  return Array.from(codes).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+  );
+}
+
+function renderMergeKomselList(filter) {
+  const all     = getAllUniqueKomsel();
+  const f       = filter.toUpperCase().trim();
+  const shown   = f ? all.filter(c => c.includes(f)) : all;
+  const list    = document.getElementById("mergeKomselList");
+  const countEl = document.getElementById("mergeKomselSelCount");
+
+  list.innerHTML = shown.map(code => {
+    const count   = allData.filter(r => {
+      const raw = (r.sectionA?.komselCode || "").trim();
+      return (raw ? normaliseKomselCode(raw) : "—") === code;
+    }).length;
+    const checked = mergeKomselSelected.has(code);
+    return `
+      <label style="display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0.75rem;
+        border-radius:var(--radius);cursor:pointer;margin-bottom:0.3rem;
+        background:${checked ? "rgba(255,140,0,0.12)" : "rgba(255,255,255,0.02)"};
+        border:1px solid ${checked ? "var(--marigold)" : "var(--border-card)"};
+        transition:all 0.15s ease;">
+        <input type="checkbox" class="merge-komsel-chk" data-code="${encodeURIComponent(code)}"
+          ${checked ? "checked" : ""} style="accent-color:var(--marigold);width:16px;height:16px;flex-shrink:0;"/>
+        <span style="flex:1;font-weight:600;font-size:0.9rem;">${code}</span>
+        <span style="font-size:0.8rem;color:var(--text-muted);">${count} ahli</span>
+      </label>`;
+  }).join("") || `<p style="color:var(--text-muted);font-style:italic;text-align:center;padding:1rem;">Tiada KOMSEL dijumpai.</p>`;
+
+  list.querySelectorAll(".merge-komsel-chk").forEach(chk => {
+    chk.addEventListener("change", () => {
+      const code = decodeURIComponent(chk.dataset.code);
+      if (chk.checked) mergeKomselSelected.add(code);
+      else mergeKomselSelected.delete(code);
+      renderMergeKomselList(document.getElementById("mergeKomselSearch").value);
+      countEl.textContent = `${mergeKomselSelected.size} dipilih / selected`;
+      const outEl = document.getElementById("mergeKomselOutput");
+      if (mergeKomselSelected.size === 1 && !outEl.value.trim()) {
+        outEl.value = Array.from(mergeKomselSelected)[0];
+      }
+    });
+  });
+  countEl.textContent = `${mergeKomselSelected.size} dipilih / selected`;
+}
+
+document.getElementById("btnMergeKomsel")?.addEventListener("click", () => {
+  mergeKomselSelected.clear();
+  document.getElementById("mergeKomselOutput").value = "";
+  document.getElementById("mergeKomselStatus").textContent = "";
+  document.getElementById("mergeKomselSearch").value = "";
+  renderMergeKomselList("");
+  document.getElementById("mergeKomselModal").style.display = "flex";
+});
+document.getElementById("closeMergeKomselModal")?.addEventListener("click", () => {
+  document.getElementById("mergeKomselModal").style.display = "none";
+});
+document.getElementById("mergeKomselSearch")?.addEventListener("input", function() {
+  renderMergeKomselList(this.value);
+});
+document.getElementById("btnMergeKomselClear")?.addEventListener("click", () => {
+  mergeKomselSelected.clear();
+  renderMergeKomselList(document.getElementById("mergeKomselSearch").value);
+});
+
+document.getElementById("btnMergeKomselConfirm")?.addEventListener("click", async () => {
+  const output   = document.getElementById("mergeKomselOutput").value.trim().toUpperCase();
+  const statusEl = document.getElementById("mergeKomselStatus");
+
+  if (mergeKomselSelected.size < 2) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila pilih sekurang-kurangnya 2 KOMSEL. / Please select at least 2 cell groups.";
+    return;
+  }
+  if (!output) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila masukkan nama output. / Please enter an output name.";
+    return;
+  }
+
+  const btn = document.getElementById("btnMergeKomselConfirm");
+  btn.disabled = true;
+  btn.textContent = "⏳ Mengemaskini...";
+  statusEl.style.color = "var(--text-muted)";
+  statusEl.textContent = "Mengemaskini rekod... / Updating records...";
+
+  try {
+    const batch = db.batch();
+    let count = 0;
+    allData.forEach(reg => {
+      const raw  = (reg.sectionA?.komselCode || "").trim();
+      const code = raw ? normaliseKomselCode(raw) : "—";
+      if (mergeKomselSelected.has(code)) {
+        batch.update(db.collection("registrations").doc(reg.id), { "sectionA.komselCode": output });
+        count++;
+      }
+    });
+    await batch.commit();
+
+    allData.forEach(reg => {
+      const raw  = (reg.sectionA?.komselCode || "").trim();
+      const code = raw ? normaliseKomselCode(raw) : "—";
+      if (mergeKomselSelected.has(code) && reg.sectionA) reg.sectionA.komselCode = output;
+    });
+
+    renderKomselTable();
+    statusEl.style.color = "#4CAF7D";
+    statusEl.textContent = `✅ Berjaya dikemaskini ${count} rekod. / Successfully updated ${count} records.`;
+    mergeKomselSelected.clear();
+    document.getElementById("mergeKomselOutput").value = "";
+    renderMergeKomselList(document.getElementById("mergeKomselSearch").value);
+  } catch(e) {
+    console.error(e);
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Ralat semasa mengemaskini. / Error while updating.";
+  }
+
+  btn.disabled = false;
+  btn.textContent = "✅ Gabung / Merge";
+});
+
+// ══════════════════════════════════════════════
+// UNMERGE / SPLIT KOMSEL
+// ══════════════════════════════════════════════
+let unmergeSelectedKomsel   = null;
+let unmergeSelectedMembers  = new Set();
+
+function renderUnmergeKomselPickList(filter) {
+  const all   = getAllUniqueKomsel();
+  const f     = filter.toUpperCase().trim();
+  const shown = f ? all.filter(c => c.includes(f)) : all;
+  const list  = document.getElementById("unmergeKomselPickList");
+
+  list.innerHTML = shown.map(code => {
+    const count = allData.filter(r => {
+      const raw = (r.sectionA?.komselCode || "").trim();
+      return (raw ? normaliseKomselCode(raw) : "—") === code;
+    }).length;
+    return `
+      <div class="unmerge-komsel-pick" data-code="${encodeURIComponent(code)}"
+        style="display:flex;align-items:center;justify-content:space-between;
+          padding:0.6rem 0.9rem;border-radius:var(--radius);cursor:pointer;
+          margin-bottom:0.3rem;border:1px solid var(--border-card);
+          background:rgba(255,255,255,0.02);transition:all 0.15s ease;">
+        <span style="font-weight:600;">${code}</span>
+        <span style="font-size:0.8rem;color:var(--text-muted);">${count} ahli → </span>
+      </div>`;
+  }).join("") || `<p style="color:var(--text-muted);font-style:italic;text-align:center;padding:1rem;">Tiada KOMSEL dijumpai.</p>`;
+
+  list.querySelectorAll(".unmerge-komsel-pick").forEach(el => {
+    el.addEventListener("mouseenter", () => el.style.background = "rgba(255,140,0,0.08)");
+    el.addEventListener("mouseleave", () => el.style.background = "rgba(255,255,255,0.02)");
+    el.addEventListener("click", () => {
+      unmergeSelectedKomsel  = decodeURIComponent(el.dataset.code);
+      unmergeSelectedMembers = new Set();
+      document.getElementById("unmergeSelectedKomselLabel").textContent =
+        `KOMSEL: ${unmergeSelectedKomsel}`;
+      renderUnmergeMemberList();
+      document.getElementById("unmergeStep1").style.display = "none";
+      document.getElementById("unmergeStep2").style.display = "flex";
+    });
+  });
+}
+
+function renderUnmergeMemberList() {
+  const members = allData.filter(r => {
+    const raw  = (r.sectionA?.komselCode || "").trim();
+    return (raw ? normaliseKomselCode(raw) : "—") === unmergeSelectedKomsel;
+  });
+  const list    = document.getElementById("unmergeMemberList");
+  const countEl = document.getElementById("unmergeMemberSelCount");
+
+  list.innerHTML = members.map(r => {
+    const id      = r.id;
+    const name    = (r.name || r.sectionA?.fullName || "—").toUpperCase();
+    const uid     = r.uniqueID || "—";
+    const checked = unmergeSelectedMembers.has(id);
+    return `
+      <label style="display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0.75rem;
+        border-radius:var(--radius);cursor:pointer;margin-bottom:0.3rem;
+        background:${checked ? "rgba(255,140,0,0.12)" : "rgba(255,255,255,0.02)"};
+        border:1px solid ${checked ? "var(--marigold)" : "var(--border-card)"};
+        transition:all 0.15s ease;">
+        <input type="checkbox" class="unmerge-member-chk" data-id="${id}"
+          ${checked ? "checked" : ""} style="accent-color:var(--marigold);width:16px;height:16px;flex-shrink:0;"/>
+        <span style="flex:1;font-weight:600;font-size:0.88rem;">${name}</span>
+        <span style="font-size:0.78rem;color:var(--text-muted);">${uid}</span>
+      </label>`;
+  }).join("") || `<p style="color:var(--text-muted);font-style:italic;text-align:center;padding:1rem;">Tiada ahli.</p>`;
+
+  list.querySelectorAll(".unmerge-member-chk").forEach(chk => {
+    chk.addEventListener("change", () => {
+      if (chk.checked) unmergeSelectedMembers.add(chk.dataset.id);
+      else unmergeSelectedMembers.delete(chk.dataset.id);
+      renderUnmergeMemberList();
+      countEl.textContent = `${unmergeSelectedMembers.size} dipilih / selected`;
+    });
+  });
+  countEl.textContent = `${unmergeSelectedMembers.size} dipilih / selected`;
+}
+
+document.getElementById("btnUnmergeKomsel")?.addEventListener("click", () => {
+  unmergeSelectedKomsel  = null;
+  unmergeSelectedMembers = new Set();
+  document.getElementById("unmergeKomselSearch").value = "";
+  document.getElementById("unmergeNewKomsel").value    = "";
+  document.getElementById("unmergeStatus").textContent = "";
+  document.getElementById("unmergeStep1").style.display = "flex";
+  document.getElementById("unmergeStep2").style.display = "none";
+  renderUnmergeKomselPickList("");
+  document.getElementById("unmergeKomselModal").style.display = "flex";
+});
+document.getElementById("closeUnmergeKomselModal")?.addEventListener("click", () => {
+  document.getElementById("unmergeKomselModal").style.display = "none";
+});
+document.getElementById("unmergeKomselSearch")?.addEventListener("input", function() {
+  renderUnmergeKomselPickList(this.value);
+});
+document.getElementById("btnUnmergeBack")?.addEventListener("click", () => {
+  unmergeSelectedMembers = new Set();
+  document.getElementById("unmergeStep2").style.display = "none";
+  document.getElementById("unmergeStep1").style.display = "flex";
+});
+document.getElementById("btnUnmergeClearSel")?.addEventListener("click", () => {
+  unmergeSelectedMembers = new Set();
+  renderUnmergeMemberList();
+});
+
+document.getElementById("btnUnmergeConfirm")?.addEventListener("click", async () => {
+  const newCode  = document.getElementById("unmergeNewKomsel").value.trim().toUpperCase();
+  const statusEl = document.getElementById("unmergeStatus");
+
+  if (unmergeSelectedMembers.size === 0) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila pilih sekurang-kurangnya 1 ahli. / Please select at least 1 member.";
+    return;
+  }
+  if (!newCode) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila masukkan nama KOMSEL baharu. / Please enter a new cell group name.";
+    return;
+  }
+
+  const btn = document.getElementById("btnUnmergeConfirm");
+  btn.disabled = true;
+  btn.textContent = "⏳ Memindahkan...";
+  statusEl.style.color = "var(--text-muted)";
+  statusEl.textContent = "Mengemaskini rekod... / Updating records...";
+
+  try {
+    const batch = db.batch();
+    unmergeSelectedMembers.forEach(id => {
+      batch.update(db.collection("registrations").doc(id), { "sectionA.komselCode": newCode });
+    });
+    await batch.commit();
+
+    allData.forEach(reg => {
+      if (unmergeSelectedMembers.has(reg.id) && reg.sectionA) {
+        reg.sectionA.komselCode = newCode;
+      }
+    });
+
+    renderKomselTable();
+    statusEl.style.color = "#4CAF7D";
+    statusEl.textContent = `✅ Berjaya dipindahkan ${unmergeSelectedMembers.size} ahli ke ${newCode}. / Successfully moved ${unmergeSelectedMembers.size} members to ${newCode}.`;
+    unmergeSelectedMembers = new Set();
+    document.getElementById("unmergeNewKomsel").value = "";
+    renderUnmergeMemberList();
+  } catch(e) {
+    console.error(e);
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Ralat semasa memindahkan. / Error while moving.";
+  }
+
+  btn.disabled = false;
+  btn.textContent = "✅ Pindah / Move";
+});
+
+// ══════════════════════════════════════════════
 // CHILDREN CHART + LIST MODAL
 // ══════════════════════════════════════════════
 

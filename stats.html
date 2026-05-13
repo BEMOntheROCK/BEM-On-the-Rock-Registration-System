@@ -153,7 +153,17 @@
 
       <!-- ══ 6. KOMSEL TABLE ══ -->
       <div class="stats-section-card" id="section-komsel">
-        <h3 class="stats-section-title">👥 Bilangan Ahli dalam KOMSEL / Members by Cell Group</h3>
+        <div class="stats-section-header">
+          <h3 class="stats-section-title">👥 Bilangan Ahli dalam KOMSEL / Members by Cell Group</h3>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button class="btn btn-secondary" id="btnMergeKomsel" style="white-space:nowrap;font-size:0.82rem;">
+              🔀 Gabungkan KOMSEL / Merge Cell Group
+            </button>
+            <button class="btn btn-secondary" id="btnUnmergeKomsel" style="white-space:nowrap;font-size:0.82rem;">
+              ✂️ Pecahkan KOMSEL / Split Cell Group
+            </button>
+          </div>
+        </div>
         <div class="stats-table-wrap stats-table-wrap--scroll">
           <table class="stats-data-table stats-data-table--sticky">
             <thead>
@@ -253,6 +263,94 @@
           <button class="btn btn-primary" id="btnMergeConfirm">✅ Gabung / Merge</button>
         </div>
         <div id="mergeRaceStatus" style="font-size:0.85rem;min-height:1.2rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Merge KOMSEL modal -->
+  <div class="modal-overlay" id="mergeKomselModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;">
+    <div class="modal-card" style="max-width:680px;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="modal-header">
+        <h3 class="modal-title">🔀 Gabungkan KOMSEL / Merge Cell Group</h3>
+        <button class="modal-close" id="closeMergeKomselModal">&times;</button>
+      </div>
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border-card);">
+        <p style="font-size:0.88rem;color:var(--text-muted);margin:0;line-height:1.6;">
+          Pilih KOMSEL yang ingin digabungkan, kemudian masukkan nama KOMSEL baharu.<br/>
+          <em>Select cell groups to merge, then enter the new cell group name.</em>
+        </p>
+      </div>
+      <div style="padding:0.8rem 1.5rem;border-bottom:1px solid var(--border-card);">
+        <input type="text" id="mergeKomselSearch" class="form-input"
+          placeholder="🔍 Tapis KOMSEL / Filter cell groups..." style="width:100%;"/>
+      </div>
+      <div id="mergeKomselList" style="flex:1;overflow-y:auto;padding:0.8rem 1.5rem;"></div>
+      <div style="padding:1rem 1.5rem;border-top:1px solid var(--border-card);display:flex;flex-direction:column;gap:0.75rem;">
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+          <label style="font-family:var(--font-display);font-size:0.82rem;color:var(--text-muted);white-space:nowrap;">
+            Nama Output / Output Name:
+          </label>
+          <input type="text" id="mergeKomselOutput" class="form-input"
+            placeholder="cth / e.g. ZPA1" style="flex:1;min-width:160px;text-transform:uppercase;"/>
+        </div>
+        <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap;">
+          <span id="mergeKomselSelCount" style="font-size:0.83rem;color:var(--text-muted);align-self:center;">0 dipilih / selected</span>
+          <button class="btn btn-secondary" id="btnMergeKomselClear">Nyahpilih / Clear</button>
+          <button class="btn btn-primary" id="btnMergeKomselConfirm">✅ Gabung / Merge</button>
+        </div>
+        <div id="mergeKomselStatus" style="font-size:0.85rem;min-height:1.2rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unmerge/Split KOMSEL modal — Step 1: select KOMSEL -->
+  <div class="modal-overlay" id="unmergeKomselModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;">
+    <div class="modal-card" style="max-width:680px;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="modal-header">
+        <h3 class="modal-title">✂️ Pecahkan KOMSEL / Split Cell Group</h3>
+        <button class="modal-close" id="closeUnmergeKomselModal">&times;</button>
+      </div>
+      <!-- Step 1: pick a KOMSEL -->
+      <div id="unmergeStep1" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border-card);">
+          <p style="font-size:0.88rem;color:var(--text-muted);margin:0;line-height:1.6;">
+            Langkah 1: Pilih KOMSEL yang ingin dipecahkan.<br/>
+            <em>Step 1: Select the cell group to split.</em>
+          </p>
+        </div>
+        <div style="padding:0.8rem 1.5rem;border-bottom:1px solid var(--border-card);">
+          <input type="text" id="unmergeKomselSearch" class="form-input"
+            placeholder="🔍 Tapis KOMSEL / Filter cell groups..." style="width:100%;"/>
+        </div>
+        <div id="unmergeKomselPickList" style="flex:1;overflow-y:auto;padding:0.8rem 1.5rem;"></div>
+      </div>
+      <!-- Step 2: pick members -->
+      <div id="unmergeStep2" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border-card);">
+          <p style="font-size:0.88rem;color:var(--text-muted);margin:0;line-height:1.6;">
+            Langkah 2: Pilih ahli yang ingin dipindahkan ke KOMSEL baharu.<br/>
+            <em>Step 2: Select members to move to a new cell group.</em>
+          </p>
+          <div style="margin-top:0.5rem;font-family:var(--font-display);font-size:0.82rem;color:var(--marigold);"
+            id="unmergeSelectedKomselLabel"></div>
+        </div>
+        <div id="unmergeMemberList" style="flex:1;overflow-y:auto;padding:0.8rem 1.5rem;"></div>
+        <div style="padding:1rem 1.5rem;border-top:1px solid var(--border-card);display:flex;flex-direction:column;gap:0.75rem;">
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+            <label style="font-family:var(--font-display);font-size:0.82rem;color:var(--text-muted);white-space:nowrap;">
+              KOMSEL Baharu / New Cell Group:
+            </label>
+            <input type="text" id="unmergeNewKomsel" class="form-input"
+              placeholder="cth / e.g. ZPA2" style="flex:1;min-width:160px;text-transform:uppercase;"/>
+          </div>
+          <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap;">
+            <span id="unmergeMemberSelCount" style="font-size:0.83rem;color:var(--text-muted);align-self:center;">0 dipilih / selected</span>
+            <button class="btn btn-secondary" id="btnUnmergeBack">← Kembali / Back</button>
+            <button class="btn btn-secondary" id="btnUnmergeClearSel">Nyahpilih / Clear</button>
+            <button class="btn btn-primary" id="btnUnmergeConfirm">✅ Pindah / Move</button>
+          </div>
+          <div id="unmergeStatus" style="font-size:0.85rem;min-height:1.2rem;"></div>
+        </div>
       </div>
     </div>
   </div>

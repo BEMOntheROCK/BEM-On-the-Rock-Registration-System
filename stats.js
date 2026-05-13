@@ -1139,7 +1139,7 @@ function getCityFromAddress(reg) {
 }
 
 function renderCityTable() {
-  const map = {}; // city → [ {name,uid,country?} ]
+  const map = {};
   allData.forEach(r => {
     const city = getCityFromAddress(r);
     if (!map[city]) map[city] = [];
@@ -1147,10 +1147,10 @@ function renderCityTable() {
       name:    (r.name || r.sectionA?.fullName || "—"),
       uid:     r.uniqueID || "—",
       country: r.sectionA?.countryOfOrigin || "—",
+      address: r.sectionA?.currentAddress  || "—",
     });
   });
 
-  // Sort cities by count descending, put Abroad and Others last
   const sorted = Object.entries(map).sort((a,b) => {
     if (a[0]==="__abroad__") return 1;
     if (b[0]==="__abroad__") return -1;
@@ -1179,33 +1179,34 @@ function renderCityTable() {
 
   tbody.querySelectorAll(".stats-view-btn[data-city]").forEach(btn => {
     btn.addEventListener("click", () => {
-      const city    = decodeURIComponent(btn.dataset.city);
-      const members = map[city];
+      const city     = decodeURIComponent(btn.dataset.city);
+      const members  = [...(map[city] || [])].sort((a,b) =>
+        (a.name||"").localeCompare(b.name||"", undefined, { sensitivity:"base" })
+      );
       const isAbroad = btn.dataset.abroad === "1";
+      const title    = city === "__abroad__" ? "Luar Negara / Abroad" : `Ahli dari ${city}`;
 
-      if (isAbroad) {
-        // Show Name | Unique ID | Country of Origin table
-        const tableHTML = `<table class="stats-modal-table">
-          <thead><tr>
-            <th>Nama / Name</th>
-            <th>ID Unik / Unique ID</th>
-            <th>Negara Asal / Country of Origin</th>
-          </tr></thead>
-          <tbody>${members.map(m => `
-            <tr>
-              <td>${(m.name||"—").toUpperCase()}</td>
-              <td style="color:var(--marigold);font-family:var(--font-display);font-size:0.85rem;">${m.uid||"—"}</td>
-              <td>${m.country||"—"}</td>
-            </tr>`).join("")}
-          </tbody>
-        </table>`;
-        openListModal("Luar Negara / Abroad", tableHTML);
-      } else {
-        openListModal(
-          `Ahli dari ${city === "__abroad__" ? "Luar Negara" : city}`,
-          buildMemberListTable(members)
-        );
-      }
+      const tableHTML = `
+        <div style="overflow-x:auto;">
+          <table class="stats-modal-table" style="min-width:600px;">
+            <thead><tr>
+              <th>Nama / Name</th>
+              <th>ID Unik / Unique ID</th>
+              ${isAbroad ? "<th>Negara Asal / Country of Origin</th>" : ""}
+              <th>Alamat / Address</th>
+            </tr></thead>
+            <tbody>${members.map(m => `
+              <tr>
+                <td>${(m.name||"—").toUpperCase()}</td>
+                <td style="color:var(--marigold);font-family:var(--font-display);font-size:0.85rem;">${m.uid||"—"}</td>
+                ${isAbroad ? `<td>${m.country||"—"}</td>` : ""}
+                <td style="font-size:0.85rem;">${m.address||"—"}</td>
+              </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>`;
+
+      openListModal(title, tableHTML);
     });
   });
 }

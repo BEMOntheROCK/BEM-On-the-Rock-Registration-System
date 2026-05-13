@@ -996,47 +996,75 @@ function showChildrenListModal(groups) {
 // CITY TABLE — 3 columns with modal
 // ══════════════════════════════════════════════
 // ── Malaysia postcode → city lookup ──
-// Postcodes grouped by first 2–3 digits for efficiency
 const MY_POSTCODE_CITIES = {
-  // Sarawak
+  // ── SARAWAK ──
+  // Kuching
   93: "Kuching", 94: "Kuching", 95: "Kuching", 96: "Kuching",
-  97: "Bintulu", 98: "Miri",
-  91: "Tawau",   // actually Sabah but near border — leave as Tawau
-  99: "Keningau",
-  // Miri area
-  981: "Miri", 982: "Miri", 983: "Miri",
-  // Bintulu area
-  971: "Bintulu", 972: "Bintulu",
-  // Sibu area
-  961: "Sibu", 962: "Sibu", 963: "Sibu",
+  930: "Kuching", 931: "Serian", 932: "Kuching", 933: "Kuching",
+  934: "Kuching", 935: "Kuching", 936: "Kuching", 937: "Kuching",
+  938: "Kuching", 939: "Kuching",
+  940: "Kuching", 941: "Sarikei", 942: "Kota Samarahan", 943: "Kota Samarahan",
+  944: "Serian", 945: "Serian", 946: "Kuching", 947: "Kuching",
+  948: "Kuching", 949: "Kuching",
   // Sri Aman
-  951: "Sri Aman", 952: "Sri Aman",
-  // Sarikei
-  941: "Sarikei", 942: "Sarikei",
-  // Kapit
-  964: "Kapit",
-  // Betong
-  953: "Betong",
-  // Limbang
-  984: "Limbang",
-  // Lawas
-  985: "Lawas",
-  // Mukah
-  966: "Mukah",
-  // Serian
-  931: "Serian",
-  // Kota Samarahan
-  942: "Kota Samarahan",
-  // Sabah
-  88: "Kota Kinabalu", 89: "Kota Kinabalu", 90: "Sandakan",
-  // Peninsular
-  10: "Pulau Pinang", 11: "Pulau Pinang",
-  41: "Kuala Lumpur", 50: "Kuala Lumpur", 51: "Kuala Lumpur",
-  52: "Kuala Lumpur", 53: "Kuala Lumpur", 54: "Kuala Lumpur",
-  55: "Kuala Lumpur", 56: "Kuala Lumpur", 57: "Kuala Lumpur",
-  58: "Kuala Lumpur", 59: "Kuala Lumpur",
-  68: "Ampang",       70: "Seremban",
-  80: "Johor Bahru",  81: "Johor Bahru",  83: "Batu Pahat",
+  951: "Sri Aman", 952: "Sri Aman", 953: "Betong", 954: "Betong",
+  // Sibu
+  96: "Sibu",
+  961: "Sibu", 962: "Sibu", 963: "Sibu",
+  964: "Kapit", 965: "Kapit",
+  966: "Mukah", 967: "Mukah", 968: "Sarikei", 969: "Sarikei",
+  // Bintulu
+  97: "Bintulu",
+  971: "Bintulu", 972: "Bintulu", 973: "Bintulu",
+  // Miri
+  98: "Miri",
+  981: "Miri", 982: "Miri", 983: "Miri",
+  984: "Limbang", 985: "Lawas", 986: "Miri", 987: "Miri", 988: "Miri", 989: "Miri",
+  // ── SABAH ──
+  88: "Kota Kinabalu", 89: "Kota Kinabalu",
+  880: "Kota Kinabalu", 881: "Kota Kinabalu", 882: "Kota Kinabalu",
+  883: "Kota Kinabalu", 884: "Kota Kinabalu", 885: "Kota Kinabalu",
+  886: "Kota Kinabalu", 887: "Kota Kinabalu", 888: "Kota Kinabalu", 889: "Kota Kinabalu",
+  90: "Sandakan", 91: "Tawau",
+  900: "Sandakan", 901: "Sandakan", 902: "Sandakan", 903: "Sandakan",
+  910: "Tawau", 911: "Tawau", 912: "Tawau", 913: "Tawau",
+  920: "Keningau", 921: "Keningau", 922: "Keningau",
+  926: "Ranau", 927: "Ranau",
+  928: "Kota Belud", 929: "Kota Belud",
+  // ── PENINSULAR MALAYSIA ──
+  // Pulau Pinang
+  10: "Pulau Pinang", 11: "Pulau Pinang", 12: "Pulau Pinang", 13: "Pulau Pinang", 14: "Pulau Pinang",
+  // Kedah
+  5: "Alor Setar", 6: "Alor Setar",
+  50: "Alor Setar",
+  // Perlis
+  2: "Kangar",
+  // Perak
+  30: "Ipoh", 31: "Ipoh", 32: "Ipoh", 33: "Ipoh", 34: "Ipoh",
+  35: "Teluk Intan", 36: "Teluk Intan",
+  // Kelantan
+  15: "Kota Bharu", 16: "Kota Bharu", 17: "Kota Bharu",
+  // Terengganu
+  20: "Kuala Terengganu", 21: "Kuala Terengganu", 22: "Kuala Terengganu", 23: "Dungun",
+  // Pahang
+  25: "Kuantan", 26: "Kuantan", 27: "Temerloh", 28: "Raub",
+  // Selangor / KL
+  40: "Shah Alam", 41: "Klang", 42: "Klang", 43: "Kajang",
+  44: "Rawang", 45: "Kuala Selangor", 46: "Petaling Jaya",
+  47: "Petaling Jaya", 48: "Petaling Jaya",
+  50: "Kuala Lumpur", 51: "Kuala Lumpur", 52: "Kuala Lumpur",
+  53: "Kuala Lumpur", 54: "Kuala Lumpur", 55: "Kuala Lumpur",
+  56: "Kuala Lumpur", 57: "Kuala Lumpur", 58: "Kuala Lumpur", 59: "Kuala Lumpur",
+  60: "Kuala Lumpur", 62: "Putrajaya", 63: "Cyberjaya",
+  68: "Ampang", 69: "Ampang",
+  // Negeri Sembilan
+  70: "Seremban", 71: "Seremban", 72: "Seremban", 73: "Seremban",
+  // Melaka
+  75: "Melaka", 76: "Melaka", 77: "Melaka", 78: "Melaka",
+  // Johor
+  79: "Johor Bahru", 80: "Johor Bahru", 81: "Johor Bahru",
+  82: "Johor Bahru", 83: "Batu Pahat", 84: "Muar", 85: "Segamat",
+  86: "Kluang", 87: "Kluang",
 };
 
 function getCityFromAddress(reg) {
@@ -1049,21 +1077,60 @@ function getCityFromAddress(reg) {
   const postcodeMatch = addr.match(/\b(\d{5})\b/);
   if (postcodeMatch) {
     const pc  = postcodeMatch[1];
-    const pc3 = parseInt(pc.substring(0,3), 10);
-    const pc2 = parseInt(pc.substring(0,2), 10);
+    const pc3 = parseInt(pc.substring(0, 3), 10);
+    const pc2 = parseInt(pc.substring(0, 2), 10);
+    // 3-digit prefix takes priority over 2-digit
     if (MY_POSTCODE_CITIES[pc3]) return MY_POSTCODE_CITIES[pc3];
     if (MY_POSTCODE_CITIES[pc2]) return MY_POSTCODE_CITIES[pc2];
   }
 
-  // Fallback: keyword scan
+  // Fallback: keyword scan — order matters (more specific first)
   const lower = addr.toLowerCase();
   const keywords = [
-    ["Kuching","kuching"],["Miri","miri"],["Sibu","sibu"],["Bintulu","bintulu"],
-    ["Kota Samarahan","samarahan"],["Serian","serian"],["Sri Aman","sri aman"],
-    ["Betong","betong"],["Sarikei","sarikei"],["Kapit","kapit"],["Limbang","limbang"],
-    ["Lawas","lawas"],["Mukah","mukah"],["Kota Kinabalu","kinabalu"],
-    ["Kuala Lumpur","kuala lumpur"],["Johor Bahru","johor bahru"],
-    ["Penang","penang"],["Pulau Pinang","pulau pinang"],
+    ["Kota Samarahan",  "kota samarahan"],
+    ["Kota Kinabalu",   "kota kinabalu"],
+    ["Johor Bahru",     "johor bahru"],
+    ["Pulau Pinang",    "pulau pinang"],
+    ["Pulau Pinang",    "penang"],
+    ["Kuala Lumpur",    "kuala lumpur"],
+    ["Petaling Jaya",   "petaling jaya"],
+    ["Shah Alam",       "shah alam"],
+    ["Sri Aman",        "sri aman"],
+    ["Batu Pahat",      "batu pahat"],
+    ["Alor Setar",      "alor setar"],
+    ["Kota Bharu",      "kota bharu"],
+    ["Kuala Terengganu","kuala terengganu"],
+    ["Kuching",         "kuching"],
+    ["Miri",            "miri"],
+    ["Sibu",            "sibu"],
+    ["Bintulu",         "bintulu"],
+    ["Lawas",           "lawas"],
+    ["Limbang",         "limbang"],
+    ["Mukah",           "mukah"],
+    ["Kapit",           "kapit"],
+    ["Sarikei",         "sarikei"],
+    ["Betong",          "betong"],
+    ["Serian",          "serian"],
+    ["Sandakan",        "sandakan"],
+    ["Tawau",           "tawau"],
+    ["Keningau",        "keningau"],
+    ["Ranau",           "ranau"],
+    ["Ipoh",            "ipoh"],
+    ["Seremban",        "seremban"],
+    ["Melaka",          "melaka"],
+    ["Kuantan",         "kuantan"],
+    ["Kangar",          "kangar"],
+    ["Segamat",         "segamat"],
+    ["Kluang",          "kluang"],
+    ["Muar",            "muar"],
+    ["Dungun",          "dungun"],
+    ["Temerloh",        "temerloh"],
+    ["Ampang",          "ampang"],
+    ["Kajang",          "kajang"],
+    ["Klang",           "klang"],
+    ["Rawang",          "rawang"],
+    ["Putrajaya",       "putrajaya"],
+    ["Cyberjaya",       "cyberjaya"],
   ];
   for (const [name, key] of keywords) {
     if (lower.includes(key)) return name;

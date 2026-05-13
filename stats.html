@@ -137,47 +137,6 @@
         </div>
       </div>
 
-      <!-- ══ MERGE RACE MODAL ══ -->
-      <div class="modal-overlay" id="mergeRaceModal" style="display:none;">
-        <div class="modal-card" style="max-width:680px;max-height:90vh;display:flex;flex-direction:column;">
-          <div class="modal-header">
-            <h3 class="modal-title">🔀 Gabung Bangsa / Merge Race</h3>
-            <button class="modal-close" id="closeMergeModal">&times;</button>
-          </div>
-          <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border-card);">
-            <p style="font-size:0.88rem;color:var(--text-muted);margin:0;line-height:1.6;">
-              Pilih bangsa yang ingin digabungkan, kemudian masukkan nama output.<br/>
-              <em>Select races to merge, then enter the output name.</em>
-            </p>
-          </div>
-          <!-- Search -->
-          <div style="padding:0.8rem 1.5rem;border-bottom:1px solid var(--border-card);">
-            <input type="text" id="mergeRaceSearch" class="form-input"
-              placeholder="🔍 Tapis bangsa / Filter races..." style="width:100%;"/>
-          </div>
-          <!-- Race list -->
-          <div id="mergeRaceList" style="flex:1;overflow-y:auto;padding:0.8rem 1.5rem;"></div>
-          <!-- Output + actions -->
-          <div style="padding:1rem 1.5rem;border-top:1px solid var(--border-card);display:flex;flex-direction:column;gap:0.75rem;">
-            <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
-              <label style="font-family:var(--font-display);font-size:0.82rem;color:var(--text-muted);white-space:nowrap;">
-                Nama Output / Output Name:
-              </label>
-              <input type="text" id="mergeRaceOutput" class="form-input"
-                placeholder="cth / e.g. KAYAN" style="flex:1;min-width:160px;text-transform:uppercase;"/>
-            </div>
-            <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap;">
-              <span id="mergeRaceSelCount" style="font-size:0.83rem;color:var(--text-muted);align-self:center;">
-                0 dipilih / selected
-              </span>
-              <button class="btn btn-secondary" id="btnMergeClearSel">Nyahpilih / Clear</button>
-              <button class="btn btn-primary" id="btnMergeConfirm">✅ Gabung / Merge</button>
-            </div>
-            <div id="mergeRaceStatus" style="font-size:0.85rem;min-height:1.2rem;"></div>
-          </div>
-        </div>
-      </div>
-
       <!-- ══ 4. AGE GROUP ══ -->
       <div class="stats-section-card" id="section-age">
         <h3 class="stats-section-title">🎂 Statistik Kumpulan Umur / Age Group Statistics</h3>
@@ -253,6 +212,47 @@
       <div class="modal-body" id="listModalBody" style="overflow-y:auto;max-height:60vh;"></div>
       <div class="modal-footer">
         <button class="btn btn-secondary" id="closeListModalBtn">Tutup / Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Merge Race modal -->
+  <div class="modal-overlay" id="mergeRaceModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;">
+    <div class="modal-card" style="max-width:680px;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="modal-header">
+        <h3 class="modal-title">🔀 Gabung Bangsa / Merge Race</h3>
+        <button class="modal-close" id="closeMergeModal">&times;</button>
+      </div>
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border-card);">
+        <p style="font-size:0.88rem;color:var(--text-muted);margin:0;line-height:1.6;">
+          Pilih bangsa yang ingin digabungkan, kemudian masukkan nama output.<br/>
+          <em>Select races to merge, then enter the output name.</em>
+        </p>
+      </div>
+      <!-- Search -->
+      <div style="padding:0.8rem 1.5rem;border-bottom:1px solid var(--border-card);">
+        <input type="text" id="mergeRaceSearch" class="form-input"
+          placeholder="🔍 Tapis bangsa / Filter races..." style="width:100%;"/>
+      </div>
+      <!-- Race list -->
+      <div id="mergeRaceList" style="flex:1;overflow-y:auto;padding:0.8rem 1.5rem;"></div>
+      <!-- Output + actions -->
+      <div style="padding:1rem 1.5rem;border-top:1px solid var(--border-card);display:flex;flex-direction:column;gap:0.75rem;">
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+          <label style="font-family:var(--font-display);font-size:0.82rem;color:var(--text-muted);white-space:nowrap;">
+            Nama Output / Output Name:
+          </label>
+          <input type="text" id="mergeRaceOutput" class="form-input"
+            placeholder="cth / e.g. KAYAN" style="flex:1;min-width:160px;text-transform:uppercase;"/>
+        </div>
+        <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap;">
+          <span id="mergeRaceSelCount" style="font-size:0.83rem;color:var(--text-muted);align-self:center;">
+            0 dipilih / selected
+          </span>
+          <button class="btn btn-secondary" id="btnMergeClearSel">Nyahpilih / Clear</button>
+          <button class="btn btn-primary" id="btnMergeConfirm">✅ Gabung / Merge</button>
+        </div>
+        <div id="mergeRaceStatus" style="font-size:0.85rem;min-height:1.2rem;"></div>
       </div>
     </div>
   </div>

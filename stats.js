@@ -509,7 +509,12 @@ function renderKomselTable() {
     const raw  = (r.sectionA?.komselCode || "").trim();
     const code = raw ? normaliseKomselCode(raw) : "—";
     if (!map[code]) map[code] = [];
-    map[code].push({ name:(r.name||r.sectionA?.fullName||"—"), uid:r.uniqueID||"—" });
+    map[code].push({
+      name:  (r.name || r.sectionA?.fullName || "—").toUpperCase(),
+      uid:   r.uniqueID || "—",
+      ic:    r.sectionA?.icNo || r.icNo || r.sectionA?.foreignID || "—",
+      phone: r.sectionA?.phoneNumber || "—",
+    });
   });
 
   const sorted = Object.entries(map).sort((a, b) =>
@@ -531,7 +536,11 @@ function renderKomselTable() {
     btn.addEventListener("click", () => {
       const code    = decodeURIComponent(btn.dataset.code);
       const members = map[code];
-      openListModal(`Ahli Komsel ${code} / Cell Group ${code} Members`, buildMemberListTable(members));
+      openListModal(
+        `Ahli Komsel ${code} / Cell Group ${code} Members`,
+        buildMemberListTable(members.map(m => ({ name: m.name, uid: m.uid }))),
+        { type: "komsel", code, members }
+      );
     });
   });
 }
@@ -1132,10 +1141,154 @@ function renderCityTable() {
 // ══════════════════════════════════════════════
 // LIST MODAL — shared
 // ══════════════════════════════════════════════
-function openListModal(title, bodyHTML) {
+function openListModal(title, bodyHTML, pdfCtx = null) {
   document.getElementById("listModalTitle").textContent = title;
   document.getElementById("listModalBody").innerHTML = bodyHTML;
+
+  // PDF export button — show only for KOMSEL lists
+  let pdfBtn = document.getElementById("listModalPdfBtn");
+  if (!pdfBtn) {
+    pdfBtn = document.createElement("button");
+    pdfBtn.id = "listModalPdfBtn";
+    pdfBtn.className = "btn btn-secondary";
+    pdfBtn.style.marginRight = "auto";
+    const footer = document.querySelector("#listModal .modal-footer");
+    footer.insertBefore(pdfBtn, footer.firstChild);
+  }
+
+  if (pdfCtx?.type === "komsel") {
+    pdfBtn.style.display = "";
+    pdfBtn.textContent   = "📄 Eksport ke PDF / Export to PDF";
+    pdfBtn.onclick = () => exportKomselPDF(pdfCtx.code, pdfCtx.members);
+  } else {
+    pdfBtn.style.display = "none";
+  }
+
   document.getElementById("listModal").style.display = "flex";
+}
+
+async function exportKomselPDF(code, members) {
+  const { jsPDF } = window.jspdf;
+  const doc     = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const PAGE_W  = 210, PAGE_H = 297, MARGIN = 14;
+  const CW      = PAGE_W - MARGIN * 2;
+  let y         = MARGIN;
+
+  const BLACK  = [0, 0, 0];
+  const MUTED  = [100, 100, 100];
+  const BORDER = [0, 0, 0];
+  const LIGHT  = [245, 245, 245];
+
+  function checkPage(needed) {
+    if (y + needed > PAGE_H - 14) {
+      drawFooter();
+      doc.addPage();
+      y = MARGIN + 6;
+    }
+  }
+
+  function drawFooter() {
+    const p = doc.getNumberOfPages();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.setDrawColor(...MUTED);
+    doc.setLineWidth(0.3);
+    doc.line(MARGIN, PAGE_H - 11, PAGE_W - MARGIN, PAGE_H - 11);
+    doc.text(`BEM On The Rock — Ahli KOMSEL ${code}`, MARGIN, PAGE_H - 6);
+    doc.text(String(p), PAGE_W - MARGIN, PAGE_H - 6, { align: "right" });
+  }
+
+  // ── Header ──
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...MUTED);
+  doc.text("BEM On The Rock  |  Sistem Keanggotaan / Membership System", MARGIN, y);
+  y += 6;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(...BLACK);
+  doc.text(`Ahli KOMSEL ${code}`, MARGIN, y);
+  y += 6;
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(10);
+  doc.setTextColor(...MUTED);
+  doc.text(`Members of ${code} Cell Group`, MARGIN, y);
+  y += 4;
+
+  doc.setDrawColor(...BLACK);
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+  y += 5;
+
+  const now = new Date();
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED);
+  doc.text(`Dijana pada / Generated on: ${now.toLocaleDateString("ms-MY", { day:"2-digit", month:"long", year:"numeric" })}, ${now.toLocaleTimeString("ms-MY", { hour:"2-digit", minute:"2-digit" })}`, MARGIN, y);
+  y += 8;
+
+  // ── Table ──
+  const COLS   = [12, 82, 52, 36]; // Bil | Nama | IC | Tel
+  const tableW = COLS.reduce((a, b) => a + b, 0);
+  const HEAD_H = 8, ROW_H = 7;
+  const HEADERS = ["Bil.\nNum.", "Nama Ahli / Member's Name", "No. IC / IC Num.", "No. Tel / Phone Num."];
+
+  // Header row
+  checkPage(HEAD_H + ROW_H);
+  doc.setFillColor(220, 220, 220);
+  doc.rect(MARGIN, y, tableW, HEAD_H, "F");
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.3);
+  doc.rect(MARGIN, y, tableW, HEAD_H, "S");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...BLACK);
+  let x = MARGIN;
+  HEADERS.forEach((h, i) => {
+    doc.text(h.replace("\n", " "), x + 2, y + 5.2);
+    if (i < HEADERS.length - 1) doc.line(x + COLS[i], y, x + COLS[i], y + HEAD_H);
+    x += COLS[i];
+  });
+  y += HEAD_H;
+
+  // Data rows
+  members.forEach((m, idx) => {
+    checkPage(ROW_H + 1);
+    if (idx % 2 === 0) {
+      doc.setFillColor(...LIGHT);
+      doc.rect(MARGIN, y, tableW, ROW_H, "F");
+    }
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.2);
+    doc.rect(MARGIN, y, tableW, ROW_H, "S");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...BLACK);
+    x = MARGIN;
+    const cells = [String(idx + 1), m.name, m.ic, m.phone];
+    cells.forEach((cell, i) => {
+      doc.text(String(cell ?? "—"), x + 2, y + 4.8, { maxWidth: COLS[i] - 3 });
+      if (i < cells.length - 1) doc.line(x + COLS[i], y, x + COLS[i], y + ROW_H);
+      x += COLS[i];
+    });
+    y += ROW_H;
+  });
+
+  y += 5;
+
+  // ── Total ──
+  checkPage(10);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...BLACK);
+  doc.text(`Jumlah Ahli / Total Members: ${members.length}`, MARGIN, y);
+
+  drawFooter();
+
+  doc.save(`BEM_OTR_KOMSEL_${code}_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}.pdf`);
 }
 document.getElementById("closeListModal")?.addEventListener("click",    () => document.getElementById("listModal").style.display="none");
 document.getElementById("closeListModalBtn")?.addEventListener("click", () => document.getElementById("listModal").style.display="none");

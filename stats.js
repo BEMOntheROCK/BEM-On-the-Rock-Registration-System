@@ -1068,73 +1068,77 @@ const MY_POSTCODE_CITIES = {
 };
 
 function getCityFromAddress(reg) {
-  // Non-citizen → Luar Negara
   if (reg.sectionA?.citizenship === "nonCitizen") return "__abroad__";
 
   const addr = reg.sectionA?.currentAddress || "";
 
-  // Extract postcode — look for 5 consecutive digits
+  // ── Step 1: Postcode takes absolute priority ──
   const postcodeMatch = addr.match(/\b(\d{5})\b/);
   if (postcodeMatch) {
     const pc  = postcodeMatch[1];
     const pc3 = parseInt(pc.substring(0, 3), 10);
     const pc2 = parseInt(pc.substring(0, 2), 10);
-    // 3-digit prefix takes priority over 2-digit
     if (MY_POSTCODE_CITIES[pc3]) return MY_POSTCODE_CITIES[pc3];
     if (MY_POSTCODE_CITIES[pc2]) return MY_POSTCODE_CITIES[pc2];
   }
 
-  // Fallback: keyword scan — order matters (more specific first)
-  const lower = addr.toLowerCase();
+  // ── Step 2: Keyword scan on last 2 comma-separated segments only ──
+  const segments = addr.split(",").map(s => s.trim()).filter(Boolean);
+  const tail     = segments.slice(-2).join(" ").toLowerCase();
+
   const keywords = [
-    ["Kota Samarahan",  "kota samarahan"],
-    ["Kota Kinabalu",   "kota kinabalu"],
-    ["Johor Bahru",     "johor bahru"],
-    ["Pulau Pinang",    "pulau pinang"],
-    ["Pulau Pinang",    "penang"],
-    ["Kuala Lumpur",    "kuala lumpur"],
-    ["Petaling Jaya",   "petaling jaya"],
-    ["Shah Alam",       "shah alam"],
-    ["Sri Aman",        "sri aman"],
-    ["Batu Pahat",      "batu pahat"],
-    ["Alor Setar",      "alor setar"],
-    ["Kota Bharu",      "kota bharu"],
-    ["Kuala Terengganu","kuala terengganu"],
-    ["Kuching",         "kuching"],
-    ["Miri",            "miri"],
-    ["Sibu",            "sibu"],
-    ["Bintulu",         "bintulu"],
-    ["Lawas",           "lawas"],
-    ["Limbang",         "limbang"],
-    ["Mukah",           "mukah"],
-    ["Kapit",           "kapit"],
-    ["Sarikei",         "sarikei"],
-    ["Betong",          "betong"],
-    ["Serian",          "serian"],
-    ["Sandakan",        "sandakan"],
-    ["Tawau",           "tawau"],
-    ["Keningau",        "keningau"],
-    ["Ranau",           "ranau"],
-    ["Ipoh",            "ipoh"],
-    ["Seremban",        "seremban"],
-    ["Melaka",          "melaka"],
-    ["Kuantan",         "kuantan"],
-    ["Kangar",          "kangar"],
-    ["Segamat",         "segamat"],
-    ["Kluang",          "kluang"],
-    ["Muar",            "muar"],
-    ["Dungun",          "dungun"],
-    ["Temerloh",        "temerloh"],
-    ["Ampang",          "ampang"],
-    ["Kajang",          "kajang"],
-    ["Klang",           "klang"],
-    ["Rawang",          "rawang"],
-    ["Putrajaya",       "putrajaya"],
-    ["Cyberjaya",       "cyberjaya"],
+    ["Kota Samarahan",   "kota samarahan"],
+    ["Kota Kinabalu",    "kota kinabalu"],
+    ["Johor Bahru",      "johor bahru"],
+    ["Pulau Pinang",     "pulau pinang"],
+    ["Pulau Pinang",     "penang"],
+    ["Kuala Lumpur",     "kuala lumpur"],
+    ["Petaling Jaya",    "petaling jaya"],
+    ["Shah Alam",        "shah alam"],
+    ["Sri Aman",         "sri aman"],
+    ["Batu Pahat",       "batu pahat"],
+    ["Alor Setar",       "alor setar"],
+    ["Kota Bharu",       "kota bharu"],
+    ["Kuala Terengganu", "kuala terengganu"],
+    ["Kuching",          "kuching"],
+    ["Miri",             "miri"],
+    ["Sibu",             "sibu"],
+    ["Bintulu",          "bintulu"],
+    ["Lawas",            "lawas"],
+    ["Limbang",          "limbang"],
+    ["Mukah",            "mukah"],
+    ["Kapit",            "kapit"],
+    ["Sarikei",          "sarikei"],
+    ["Betong",           "betong"],
+    ["Serian",           "serian"],
+    ["Sandakan",         "sandakan"],
+    ["Tawau",            "tawau"],
+    ["Keningau",         "keningau"],
+    ["Ranau",            "ranau"],
+    ["Ipoh",             "ipoh"],
+    ["Seremban",         "seremban"],
+    ["Melaka",           "melaka"],
+    ["Kuantan",          "kuantan"],
+    ["Kangar",           "kangar"],
+    ["Segamat",          "segamat"],
+    ["Kluang",           "kluang"],
+    ["Muar",             "muar"],
+    ["Dungun",           "dungun"],
+    ["Temerloh",         "temerloh"],
+    ["Ampang",           "ampang"],
+    ["Kajang",           "kajang"],
+    ["Klang",            "klang"],
+    ["Rawang",           "rawang"],
+    ["Putrajaya",        "putrajaya"],
+    ["Cyberjaya",        "cyberjaya"],
+    ["Sarawak",          "sarawak"],
+    ["Sabah",            "sabah"],
   ];
+
   for (const [name, key] of keywords) {
-    if (lower.includes(key)) return name;
+    if (tail.includes(key)) return name;
   }
+
   return "Lain-lain / Others";
 }
 

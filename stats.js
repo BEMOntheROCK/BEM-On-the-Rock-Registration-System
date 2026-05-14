@@ -1072,19 +1072,19 @@ function getCityFromAddress(reg) {
 
   const addr = reg.sectionA?.currentAddress || "";
 
-  // ── Step 1: Postcode takes absolute priority ──
-  const postcodeMatch = addr.match(/\b(\d{5})\b/);
-  if (postcodeMatch) {
-    const pc  = postcodeMatch[1];
+  // ── Step 1: Match the LAST 5-digit number as postcode ──
+  const postcodeMatches = [...addr.matchAll(/\b(\d{5})\b/g)];
+  if (postcodeMatches.length > 0) {
+    const pc  = postcodeMatches[postcodeMatches.length - 1][1]; // last match
     const pc3 = parseInt(pc.substring(0, 3), 10);
     const pc2 = parseInt(pc.substring(0, 2), 10);
     if (MY_POSTCODE_CITIES[pc3]) return MY_POSTCODE_CITIES[pc3];
     if (MY_POSTCODE_CITIES[pc2]) return MY_POSTCODE_CITIES[pc2];
   }
 
-  // ── Step 2: Keyword scan on last 2 comma-separated segments only ──
-  const segments = addr.split(",").map(s => s.trim()).filter(Boolean);
-  const tail     = segments.slice(-2).join(" ").toLowerCase();
+  // ── Step 2: Keyword scan on last 10 words only ──
+  const words = addr.trim().split(/\s+/);
+  const tail  = words.slice(-10).join(" ").toLowerCase();
 
   const keywords = [
     ["Kota Samarahan",   "kota samarahan"],

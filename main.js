@@ -302,7 +302,7 @@ const VALID_CELL_CODES = (() => {
   };
   add("ZSN", 15); add("ZV", 13); add("ZPA", 7); add("ZPB", 8);
   add("ZPC", 10);  add("ZPD", 9); add("ZT", 15); add("ZSA", 10);
-  add("ZSB", 9);  add("ZC", 5);  add("ZTC", 15); add("ZSC", 15);
+  add("ZSB", 15);  add("ZC", 5);  add("ZTC", 15); add("ZSC", 15);
   return codes;
 })();
 

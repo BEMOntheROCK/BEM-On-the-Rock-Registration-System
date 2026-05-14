@@ -214,12 +214,35 @@
 
   <!-- List modal -->
   <div class="modal-overlay" id="listModal" style="display:none;">
-    <div class="modal-card modal-card--lg">
+    <div class="modal-card modal-card--lg" style="display:flex;flex-direction:column;max-height:90vh;">
       <div class="modal-header">
         <h3 class="modal-title" id="listModalTitle"></h3>
         <button class="modal-close" id="closeListModal">&times;</button>
       </div>
-      <div class="modal-body" id="listModalBody" style="overflow-y:auto;max-height:60vh;"></div>
+      <div class="modal-body" id="listModalBody" style="overflow-y:auto;flex:1;"></div>
+
+      <!-- Floating move bar — shown only in move mode -->
+      <div id="cityMoveBar" style="display:none;flex-direction:column;gap:0.6rem;
+        padding:0.9rem 1.5rem;border-top:2px solid var(--marigold-dim);
+        background:rgba(255,140,0,0.06);">
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+          <select id="cityMoveSelect" class="form-input form-select" style="flex:1;min-width:180px;">
+            <option value="">-- Pilih bandar / Select city --</option>
+          </select>
+          <div id="cityMoveNewWrap" style="display:none;align-items:center;gap:0.5rem;flex:1;">
+            <input type="text" id="cityMoveNewInput" class="form-input"
+              placeholder="Nama bandar baharu / New city name"
+              style="flex:1;text-transform:uppercase;"/>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;justify-content:flex-end;">
+          <span id="cityMoveSelCount" style="font-size:0.83rem;color:var(--text-muted);">0 dipilih / selected</span>
+          <button class="btn btn-secondary" id="btnCityMoveCancel">✕ Batal / Cancel</button>
+          <button class="btn btn-primary" id="btnCityMoveConfirm">✅ Pindah / Move</button>
+        </div>
+        <div id="cityMoveStatus" style="font-size:0.85rem;min-height:1rem;"></div>
+      </div>
+
       <div class="modal-footer">
         <button class="btn btn-secondary" id="closeListModalBtn">Tutup / Close</button>
       </div>

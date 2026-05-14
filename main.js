@@ -1048,7 +1048,8 @@ function showEditDiffModal(changes, newA, newSvcs, newKids) {
         sectionA:            { ...(editOriginalData?.sectionA||{}), ...newA },
         "sectionB.services": newSvcs,
         "sectionC.children": newKids,
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+        manualCity:          firebase.firestore.FieldValue.delete(),
+        lastUpdated:         firebase.firestore.FieldValue.serverTimestamp(),
       };
       if (photoDataURL && photoDataURL !== editOriginalData?.photoURL) {
         payload.photoURL = photoDataURL;

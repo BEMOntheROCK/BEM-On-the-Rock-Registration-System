@@ -936,6 +936,7 @@ document.getElementById("btnSaveChanges").addEventListener("click", async () => 
       sectionA:          newA,
       "sectionB.services": newServices,
       "sectionC.children": newChildren,
+      manualCity:        firebase.firestore.FieldValue.delete(),
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
     };
     if(newPhotoDataURL) payload.photoURL=newPhotoDataURL;

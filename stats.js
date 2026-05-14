@@ -1068,6 +1068,9 @@ const MY_POSTCODE_CITIES = {
 };
 
 function getCityFromAddress(reg) {
+  // ── manualCity override takes absolute priority ──
+  if (reg.manualCity) return reg.manualCity;
+
   if (reg.sectionA?.citizenship === "nonCitizen") return "__abroad__";
 
   const addr = reg.sectionA?.currentAddress || "";
@@ -1170,6 +1173,7 @@ function renderCityTable() {
     const city = getCityFromAddress(r);
     if (!map[city]) map[city] = [];
     map[city].push({
+      id:      r.id,
       name:    (r.name || r.sectionA?.fullName || "—"),
       uid:     r.uniqueID || "—",
       country: r.sectionA?.countryOfOrigin || "—",
@@ -1211,31 +1215,196 @@ function renderCityTable() {
       );
       const isAbroad = btn.dataset.abroad === "1";
       const title    = city === "__abroad__" ? "Luar Negara / Abroad" : `Ahli dari ${city}`;
+      const allCities = sorted
+        .map(([c]) => c)
+        .filter(c => c !== "__abroad__" && c !== city);
 
-      const tableHTML = `
-        <div style="overflow-x:auto;">
-          <table class="stats-modal-table" style="min-width:600px;">
-            <thead><tr>
-              <th>Nama / Name</th>
-              <th>ID Unik / Unique ID</th>
-              ${isAbroad ? "<th>Negara Asal / Country of Origin</th>" : ""}
-              <th>Alamat / Address</th>
-            </tr></thead>
-            <tbody>${members.map(m => `
-              <tr>
-                <td>${(m.name||"—").toUpperCase()}</td>
-                <td style="color:var(--marigold);font-family:var(--font-display);font-size:0.85rem;">${m.uid||"—"}</td>
-                ${isAbroad ? `<td>${m.country||"—"}</td>` : ""}
-                <td style="font-size:0.85rem;">${m.address||"—"}</td>
-              </tr>`).join("")}
-            </tbody>
-          </table>
-        </div>`;
-
-      openListModal(title, tableHTML);
+      openListModal(title, buildCityMemberTable(members, isAbroad, false), {
+        type: "city", city, members, isAbroad, allCities
+      });
     });
   });
 }
+
+// ── Build city member table (normal or selection mode) ──
+function buildCityMemberTable(members, isAbroad, selectionMode = false) {
+  return `
+    <div style="overflow-x:auto;">
+      <table class="stats-modal-table" style="min-width:${selectionMode ? "650px" : "600px"};">
+        <thead><tr>
+          ${selectionMode ? '<th style="width:36px;"></th>' : ""}
+          <th>Nama / Name</th>
+          <th>ID Unik / Unique ID</th>
+          ${isAbroad ? "<th>Negara Asal / Country of Origin</th>" : ""}
+          <th>Alamat / Address</th>
+        </tr></thead>
+        <tbody>${members.map(m => `
+          <tr>
+            ${selectionMode ? `
+              <td style="text-align:center;">
+                <input type="checkbox" class="city-move-chk" data-id="${m.id}"
+                  style="accent-color:var(--marigold);width:15px;height:15px;cursor:pointer;"/>
+              </td>` : ""}
+            <td>${(m.name||"—").toUpperCase()}</td>
+            <td style="color:var(--marigold);font-family:var(--font-display);font-size:0.85rem;">${m.uid||"—"}</td>
+            ${isAbroad ? `<td>${m.country||"—"}</td>` : ""}
+            <td style="font-size:0.85rem;">${m.address||"—"}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════
+// MOVE MEMBERS TO OTHER CITY
+// ══════════════════════════════════════════════
+let _cityMoveCtx = null; // stores current city modal context
+
+function initCityMoveMode(ctx) {
+  _cityMoveCtx = ctx;
+  const { members, isAbroad, allCities } = ctx;
+
+  // Re-render table with checkboxes
+  document.getElementById("listModalBody").innerHTML =
+    buildCityMemberTable(members, isAbroad, true);
+
+  // Wire checkboxes to update floating bar count
+  document.getElementById("listModalBody").querySelectorAll(".city-move-chk").forEach(chk => {
+    chk.addEventListener("change", updateCityMoveBar);
+  });
+
+  // Show floating bar
+  const bar = document.getElementById("cityMoveBar");
+  bar.style.display = "flex";
+
+  // Populate city dropdown with dynamic list
+  const sel = document.getElementById("cityMoveSelect");
+  sel.innerHTML = `<option value="">-- Pilih bandar / Select city --</option>` +
+    allCities
+      .filter(c => c !== "Lain-lain / Others")
+      .sort((a,b) => a.localeCompare(b, undefined, { numeric:true, sensitivity:"base" }))
+      .map(c => `<option value="${c}">${c}</option>`)
+      .join("") +
+    `<option value="__new__">+ Tambah bandar baharu / Add new city</option>`;
+
+  document.getElementById("cityMoveNewWrap").style.display = "none";
+  document.getElementById("cityMoveStatus").textContent = "";
+  updateCityMoveBar();
+}
+
+function updateCityMoveBar() {
+  const checked = document.querySelectorAll(".city-move-chk:checked").length;
+  document.getElementById("cityMoveSelCount").textContent =
+    `${checked} dipilih / selected`;
+}
+
+function exitCityMoveMode() {
+  if (!_cityMoveCtx) return;
+  const { members, isAbroad } = _cityMoveCtx;
+  document.getElementById("listModalBody").innerHTML =
+    buildCityMemberTable(members, isAbroad, false);
+  document.getElementById("cityMoveBar").style.display = "none";
+  document.getElementById("cityMoveModeBtn").style.display = "";
+  _cityMoveCtx = null;
+}
+
+// City dropdown change — show new city input if needed
+document.getElementById("cityMoveSelect")?.addEventListener("change", function() {
+  const newWrap = document.getElementById("cityMoveNewWrap");
+  newWrap.style.display = this.value === "__new__" ? "flex" : "none";
+  document.getElementById("cityMoveNewInput").value = "";
+  document.getElementById("cityMoveStatus").textContent = "";
+});
+
+// Confirm move button
+document.getElementById("btnCityMoveConfirm")?.addEventListener("click", async () => {
+  const sel      = document.getElementById("cityMoveSelect");
+  const statusEl = document.getElementById("cityMoveStatus");
+  let targetCity = sel.value;
+
+  if (!targetCity) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila pilih bandar. / Please select a city.";
+    return;
+  }
+
+  // Handle new city
+  if (targetCity === "__new__") {
+    const newCity = document.getElementById("cityMoveNewInput").value.trim();
+    if (!newCity) {
+      statusEl.style.color = "#E05555";
+      statusEl.textContent = "Sila masukkan nama bandar. / Please enter a city name.";
+      return;
+    }
+    // Confirmation step for new city
+    if (!document.getElementById("cityMoveNewInput").dataset.confirmed) {
+      statusEl.style.color = "var(--marigold)";
+      statusEl.textContent = `Tekan sekali lagi untuk menambah "${newCity}". / Press again to add "${newCity}".`;
+      document.getElementById("cityMoveNewInput").dataset.confirmed = "1";
+      return;
+    }
+    targetCity = newCity.toUpperCase();
+    delete document.getElementById("cityMoveNewInput").dataset.confirmed;
+  }
+
+  const checkedIds = [...document.querySelectorAll(".city-move-chk:checked")]
+    .map(c => c.dataset.id);
+
+  if (checkedIds.length === 0) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila pilih sekurang-kurangnya 1 ahli. / Please select at least 1 member.";
+    return;
+  }
+
+  const btn = document.getElementById("btnCityMoveConfirm");
+  btn.disabled = true;
+  btn.textContent = "⏳ Memindahkan...";
+  statusEl.style.color = "var(--text-muted)";
+  statusEl.textContent = "Mengemaskini... / Updating...";
+
+  try {
+    const batch = db.batch();
+    checkedIds.forEach(id => {
+      batch.update(db.collection("registrations").doc(id), { manualCity: targetCity });
+    });
+    await batch.commit();
+
+    // Update allData in memory
+    allData.forEach(reg => {
+      if (checkedIds.includes(reg.id)) reg.manualCity = targetCity;
+    });
+
+    // Refresh city table
+    renderCityTable();
+
+    statusEl.style.color = "#4CAF7D";
+    statusEl.textContent = `✅ ${checkedIds.length} ahli dipindahkan ke ${targetCity}. / ${checkedIds.length} member(s) moved to ${targetCity}.`;
+
+    // Update modal members list — remove moved members
+    if (_cityMoveCtx) {
+      _cityMoveCtx.members = _cityMoveCtx.members.filter(m => !checkedIds.includes(m.id));
+      document.getElementById("listModalBody").innerHTML =
+        buildCityMemberTable(_cityMoveCtx.members, _cityMoveCtx.isAbroad, true);
+      document.getElementById("listModalBody").querySelectorAll(".city-move-chk").forEach(chk => {
+        chk.addEventListener("change", updateCityMoveBar);
+      });
+      updateCityMoveBar();
+    }
+
+  } catch(e) {
+    console.error(e);
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Ralat semasa memindahkan. / Error while moving.";
+  }
+
+  btn.disabled = false;
+  btn.textContent = "✅ Pindah / Move";
+});
+
+// Cancel move mode
+document.getElementById("btnCityMoveCancel")?.addEventListener("click", () => {
+  exitCityMoveMode();
+});
 
 // ══════════════════════════════════════════════
 // LIST MODAL — shared
@@ -1243,6 +1412,11 @@ function renderCityTable() {
 function openListModal(title, bodyHTML, pdfCtx = null) {
   document.getElementById("listModalTitle").textContent = title;
   document.getElementById("listModalBody").innerHTML = bodyHTML;
+
+  // Hide floating move bar on open
+  const bar = document.getElementById("cityMoveBar");
+  if (bar) bar.style.display = "none";
+  _cityMoveCtx = null;
 
   // PDF export button — show only for KOMSEL lists
   let pdfBtn = document.getElementById("listModalPdfBtn");
@@ -1255,12 +1429,33 @@ function openListModal(title, bodyHTML, pdfCtx = null) {
     footer.insertBefore(pdfBtn, footer.firstChild);
   }
 
+  // Move members button — show only for city lists (not abroad)
+  let moveBtn = document.getElementById("cityMoveModeBtn");
+  if (!moveBtn) {
+    moveBtn = document.createElement("button");
+    moveBtn.id = "cityMoveModeBtn";
+    moveBtn.className = "btn btn-secondary";
+    const footer = document.querySelector("#listModal .modal-footer");
+    footer.insertBefore(moveBtn, footer.firstChild);
+  }
+
   if (pdfCtx?.type === "komsel") {
     pdfBtn.style.display = "";
     pdfBtn.textContent   = "📄 Eksport ke PDF / Export to PDF";
     pdfBtn.onclick = () => exportKomselPDF(pdfCtx.code, pdfCtx.members);
   } else {
     pdfBtn.style.display = "none";
+  }
+
+  if (pdfCtx?.type === "city" && !pdfCtx.isAbroad) {
+    moveBtn.style.display = "";
+    moveBtn.textContent   = "🔀 Alihkan jemaat / Move member(s)";
+    moveBtn.onclick = () => {
+      moveBtn.style.display = "none";
+      initCityMoveMode(pdfCtx);
+    };
+  } else {
+    moveBtn.style.display = "none";
   }
 
   document.getElementById("listModal").style.display = "flex";

@@ -138,6 +138,63 @@
       <div class="form-actions form-actions--end" style="margin-top:2rem;">
         <button type="button" class="btn btn-primary" id="btnNextA">Seterusnya / Next &rarr;</button>
       </div>
+
+      <!-- ══ COLLAPSIBLE CHECK CARD ══ -->
+      <div style="margin-top:2rem;">
+        <button type="button" id="btnToggleCheck"
+          style="width:100%;display:flex;align-items:center;justify-content:space-between;
+            background:rgba(255,140,0,0.06);border:1.5px solid rgba(255,140,0,0.2);
+            border-radius:var(--radius-lg);padding:1rem 1.2rem;cursor:pointer;
+            font-family:var(--font-display);font-size:0.85rem;letter-spacing:0.04em;
+            color:var(--text-primary);transition:all 0.2s ease;text-align:left;">
+          <span>
+            🔍 Semak rekod kematian / Check deceased record
+          </span>
+          <span id="checkCardChevron" style="font-size:1rem;transition:transform 0.25s;">▼</span>
+        </button>
+
+        <div id="checkCardBody" style="display:none;margin-top:0.5rem;
+          background:var(--bg-card);border:1px solid var(--border-card);
+          border-radius:var(--radius-lg);padding:1.5rem;">
+
+          <p style="font-size:0.88rem;color:var(--text-muted);margin-bottom:1.2rem;line-height:1.6;">
+            Semak sekiranya maklumat anggota yang telah meninggal sudah direkodkan di dalam pangkalan data.<br/>
+            <em>Check if the information of the deceased member has been recorded in the database.</em>
+          </p>
+
+          <div style="display:flex;gap:0.8rem;align-items:flex-end;flex-wrap:wrap;">
+            <div style="flex:1;min-width:200px;">
+              <label class="form-label" for="checkDeceasedInput" style="margin-bottom:0.4rem;display:block;">
+                Nama atau No. ID / Name or ID No.
+              </label>
+              <input type="text" id="checkDeceasedInput" class="form-input"
+                placeholder="cth/e.g. John Doe atau 901231-14-5678"/>
+            </div>
+            <button type="button" class="btn btn-secondary" id="btnCheckDeceased"
+              style="white-space:nowrap;">
+              🔍 Semak / Check
+            </button>
+          </div>
+
+          <div id="checkDeceasedStatus" style="margin-top:0.8rem;font-size:0.85rem;
+            color:var(--text-muted);font-style:italic;min-height:1.2rem;"></div>
+
+          <!-- Result card — hidden until found -->
+          <div id="checkDeceasedResult" style="display:none;margin-top:1rem;
+            background:rgba(255,140,0,0.06);border:1px solid rgba(255,140,0,0.2);
+            border-radius:var(--radius);padding:1.2rem 1.4rem;">
+            <div style="font-family:var(--font-display);font-size:0.78rem;
+              letter-spacing:0.06em;color:var(--marigold);margin-bottom:0.8rem;">
+              ✅ REKOD DIJUMPAI / RECORD FOUND
+            </div>
+            <div id="checkDeceasedResultBody"></div>
+          </div>
+
+        </div>
+      </div>
+
+        </div>
+      </div>
     </section>
 
     <!-- ══ SECTION B: Deceased's Information ══ -->

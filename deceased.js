@@ -464,3 +464,146 @@ document.getElementById("btnSubmitDeceased").addEventListener("click", async () 
     btn.textContent = "Hantar / Submit →";
   }
 });
+// ══════════════════════════════════════════════
+// CHECK DECEASED RECORD — Collapsible card
+// ══════════════════════════════════════════════
+
+// Toggle collapse
+document.getElementById("btnToggleCheck")?.addEventListener("click", () => {
+  const body    = document.getElementById("checkCardBody");
+  const chevron = document.getElementById("checkCardChevron");
+  const isOpen  = body.style.display !== "none";
+  body.style.display    = isOpen ? "none" : "block";
+  chevron.style.transform = isOpen ? "" : "rotate(180deg)";
+});
+
+// Check button
+document.getElementById("btnCheckDeceased")?.addEventListener("click", async () => {
+  const query    = document.getElementById("checkDeceasedInput").value.trim();
+  const statusEl = document.getElementById("checkDeceasedStatus");
+  const resultEl = document.getElementById("checkDeceasedResult");
+  const bodyEl   = document.getElementById("checkDeceasedResultBody");
+
+  if (!query) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila masukkan nama atau No. ID. / Please enter a name or ID number.";
+    resultEl.style.display = "none";
+    return;
+  }
+
+  statusEl.style.color = "var(--text-muted)";
+  statusEl.textContent = "Menyemak... / Checking...";
+  resultEl.style.display = "none";
+
+  try {
+    const results = [];
+
+    // Detect if input looks like an ID (contains digits, dashes, letters typical of IC/Passport)
+    const isIdLike = /\d/.test(query);
+
+    if (isIdLike) {
+      // Search by IC (digits only)
+      const icClean = query.replace(/[-\s]/g, "");
+      if (/^\d{12}$/.test(icClean)) {
+        const snap = await db.collection("deceased")
+          .where("deceasedIC", "==", icClean).get();
+        snap.docs.forEach(d => results.push({ id: d.id, ...d.data() }));
+      }
+      // Search by foreign ID / Passport (original and cleaned)
+      if (!results.length) {
+        const snapF = await db.collection("deceased")
+          .where("deceasedIC", "==", query.toUpperCase()).get();
+        snapF.docs.forEach(d => results.push({ id: d.id, ...d.data() }));
+      }
+    }
+
+    // Always also search by name (case-insensitive via uppercase)
+    if (!results.length) {
+      const nameUpper = query.toUpperCase();
+      const snapN = await db.collection("deceased")
+        .where("deceasedName", "==", nameUpper).get();
+      snapN.docs.forEach(d => {
+        if (!results.find(r => r.id === d.id)) results.push({ id: d.id, ...d.data() });
+      });
+
+      // Partial name fallback — get all and filter client-side
+      if (!snapN.docs.length) {
+        const snapAll = await db.collection("deceased").get();
+        snapAll.docs.forEach(d => {
+          const rec = { id: d.id, ...d.data() };
+          if ((rec.deceasedName || "").includes(nameUpper) &&
+              !results.find(r => r.id === rec.id)) {
+            results.push(rec);
+          }
+        });
+      }
+    }
+
+    if (!results.length) {
+      statusEl.style.color = "var(--text-muted)";
+      statusEl.textContent = "Tiada rekod dijumpai. / No record found.";
+      resultEl.style.display = "none";
+      return;
+    }
+
+    // Show result(s)
+    statusEl.textContent = "";
+    bodyEl.innerHTML = results.map(rec => {
+      const heir = rec.heirInfo || {};
+      const heirLabel =
+        heir.type === "registered"   ? "Ahli Berdaftar / Registered Member" :
+        heir.type === "unregistered" ? "Tidak Berdaftar / Unregistered" :
+                                       "Orang Luar / Outsider";
+      return `
+        <div style="${results.length > 1 ? "border-bottom:1px solid var(--border-card);padding-bottom:1rem;margin-bottom:1rem;" : ""}">
+          <div style="display:grid;gap:0.4rem;">
+            <div style="display:flex;gap:0.5rem;">
+              <span style="font-size:0.82rem;color:var(--text-muted);min-width:160px;">Nama si Mati / Deceased Name:</span>
+              <span style="font-weight:700;font-size:0.9rem;">${(rec.deceasedName || "—").toUpperCase()}</span>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+              <span style="font-size:0.82rem;color:var(--text-muted);min-width:160px;">Tarikh Meninggal / Date of Passing:</span>
+              <span style="font-size:0.9rem;">${formatDate(rec.dateOfPassing)}</span>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+              <span style="font-size:0.82rem;color:var(--text-muted);min-width:160px;">Tarikh Dikuburkan / Burial Date:</span>
+              <span style="font-size:0.9rem;">${formatDate(rec.burialDate)}</span>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+              <span style="font-size:0.82rem;color:var(--text-muted);min-width:160px;">Nombor Lot Kubur / Grave Lot:</span>
+              <span style="font-size:0.9rem;">${rec.graveLot || "—"}</span>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+              <span style="font-size:0.82rem;color:var(--text-muted);min-width:160px;">Waris / Heir:</span>
+              <span style="font-size:0.9rem;">${(heir.name || "—").toUpperCase()} (${heirLabel})</span>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+              <span style="font-size:0.82rem;color:var(--text-muted);min-width:160px;">Hubungan / Relationship:</span>
+              <span style="font-size:0.9rem;">${heir.relationship || "—"}</span>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+              <span style="font-size:0.82rem;color:var(--text-muted);min-width:160px;">Tarikh Dihantar / Submitted:</span>
+              <span style="font-size:0.9rem;">${formatDate(rec.submittedAt)}</span>
+            </div>
+          </div>
+        </div>`;
+    }).join("");
+
+    resultEl.style.display = "block";
+
+    if (results.length > 1) {
+      statusEl.style.color = "var(--marigold)";
+      statusEl.textContent = `${results.length} rekod dijumpai / ${results.length} records found.`;
+    }
+
+  } catch(e) {
+    console.error(e);
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Ralat semasa menyemak. / Error while checking.";
+  }
+});
+
+// Allow pressing Enter in the search field
+document.getElementById("checkDeceasedInput")?.addEventListener("keydown", function(e) {
+  if (e.key === "Enter") document.getElementById("btnCheckDeceased")?.click();
+});

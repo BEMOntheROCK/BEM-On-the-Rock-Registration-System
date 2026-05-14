@@ -1071,20 +1071,42 @@ function getCityFromAddress(reg) {
   if (reg.sectionA?.citizenship === "nonCitizen") return "__abroad__";
 
   const addr = reg.sectionA?.currentAddress || "";
+  if (!addr.trim()) return "Lain-lain / Others";
 
-  // ── Step 1: Match the LAST 5-digit number as postcode ──
-  const postcodeMatches = [...addr.matchAll(/\b(\d{5})\b/g)];
-  if (postcodeMatches.length > 0) {
-    const pc  = postcodeMatches[postcodeMatches.length - 1][1]; // last match
-    const pc3 = parseInt(pc.substring(0, 3), 10);
-    const pc2 = parseInt(pc.substring(0, 2), 10);
+  // ── Step 1: Smarter postcode detection ──
+  // Only match 5-digit numbers that are followed by a city/state name or
+  // preceded by a space/comma (not part of a lot number like "Lot 10060")
+  // Valid Malaysian postcodes: 01000–98900
+  const VALID_PC_MIN = 1000, VALID_PC_MAX = 98900;
+
+  // Find all 5-digit numbers with their positions
+  const pcPattern = /(?<![0-9])(\d{5})(?![0-9])/g;
+  let lastValidPostcode = null;
+  let match;
+  while ((match = pcPattern.exec(addr)) !== null) {
+    const num     = parseInt(match[1], 10);
+    const before  = addr.substring(0, match.index).trimEnd();
+    // Skip if preceded by "Lot", "No", "No.", "#" — likely a lot/unit number
+    const prevWord = before.split(/[\s,]+/).pop().toLowerCase();
+    if (["lot","no","no.","#","phase","phs","blok","block","unit"].includes(prevWord)) continue;
+    if (num < VALID_PC_MIN || num > VALID_PC_MAX) continue;
+    lastValidPostcode = match[1];
+  }
+
+  if (lastValidPostcode) {
+    const pc3 = parseInt(lastValidPostcode.substring(0, 3), 10);
+    const pc2 = parseInt(lastValidPostcode.substring(0, 2), 10);
     if (MY_POSTCODE_CITIES[pc3]) return MY_POSTCODE_CITIES[pc3];
     if (MY_POSTCODE_CITIES[pc2]) return MY_POSTCODE_CITIES[pc2];
   }
 
-  // ── Step 2: Keyword scan on last 10 words only ──
-  const words = addr.trim().split(/\s+/);
-  const tail  = words.slice(-10).join(" ").toLowerCase();
+  // ── Step 2: Keyword scan — last 5 words only, exclude street-name context ──
+  // Strip street prefixes so "Jalan Kuching" doesn't match "Kuching"
+  const streetPrefixes = /\b(jalan|jln|lorong|lrg|lebuhraya|lebuh|persiaran|taman|tmn|desa|kampung|kg|off|phs|phase|blok|block)\b/gi;
+  const stripped = addr.replace(streetPrefixes, " ").replace(/\s+/g, " ").trim();
+
+  const words = stripped.trim().split(/\s+/);
+  const tail  = words.slice(-5).join(" ").toLowerCase();
 
   const keywords = [
     ["Kota Samarahan",   "kota samarahan"],

@@ -82,11 +82,34 @@ auth.onAuthStateChanged(user => {
     document.getElementById("loginOverlay").style.display = "none";
     document.getElementById("adminPage").style.display    = "block";
     loadRegistrations();
+    loadPaymentBadge();
   } else {
     document.getElementById("adminPage").style.display    = "none";
     document.getElementById("loginOverlay").style.display = "flex";
   }
 });
+
+// ── Payment badge ──
+async function loadPaymentBadge() {
+  try {
+    const snap = await db.collection("registrations")
+      .where("paymentRequests", "!=", null).get();
+    let pending = 0;
+    snap.docs.forEach(doc => {
+      const reqs = doc.data().paymentRequests || [];
+      pending += reqs.filter(r => r.status === "pending").length;
+    });
+    const badge = document.getElementById("paymentBadge");
+    if (badge) {
+      if (pending > 0) {
+        badge.style.display = "flex";
+        badge.textContent   = pending > 99 ? "99+" : String(pending);
+      } else {
+        badge.style.display = "none";
+      }
+    }
+  } catch(e) { console.warn("Payment badge error:", e); }
+}
 
 // ── Login ──
 document.getElementById("btnLogin").addEventListener("click", async () => {
@@ -404,47 +427,25 @@ document.getElementById("btnDownloadOverallStatsXLSX")?.addEventListener("click"
       ];
     });
 
-    // Build deduplicated children list — same couple logic as stats.js
     const childrenRows = [];
-    const processedIds = new Set();
     registrations.forEach(reg => {
-      if (processedIds.has(reg.id)) return;
       const a = reg.sectionA || {};
-      const ms = a.maritalStatus || "";
-      const myName = (a.fullName || reg.name || "").toUpperCase().trim();
-      const partnerName = (a.partnerName || "").toUpperCase().trim();
-      let kids = (reg.sectionC?.children || []).filter(c => c.name?.trim() && c.gender);
-
-      // Try to find partner and use whichever has more children
-      if ((ms === "married" || ms === "engaged" || ms === "widowed") && partnerName) {
-        const partnerReg = registrations.find(r =>
-          r.id !== reg.id &&
-          !processedIds.has(r.id) &&
-          (r.sectionA?.fullName || r.name || "").toUpperCase().trim() === partnerName
-        );
-        if (partnerReg) {
-          const partnerKids = (partnerReg.sectionC?.children || []).filter(c => c.name?.trim() && c.gender);
-          if (partnerKids.length > kids.length) kids = partnerKids;
-          processedIds.add(partnerReg.id);
-        }
-      }
-
-      processedIds.add(reg.id);
-      kids.forEach(child => {
+      const parentName = (a.fullName || reg.name || "").toUpperCase().trim();
+      const parentPhone = a.phoneNumber || "—";
+      const children = (reg.sectionC?.children || []).filter(c => c.name?.trim() && c.gender);
+      children.forEach(child => {
         childrenRows.push([
           childrenRows.length + 1,
           child.name?.trim().toUpperCase() || "—",
-          child.myKid || "—"
+          child.myKid || "—",
+          parentPhone
         ]);
       });
     });
 
     const wsData = [];
-    const pushTitleRow = (title, cols = 4) => wsData.push([title, ...Array(cols - 1).fill("")]);
-    const pushHeader = (col3Label = "IC", includePhone = true) =>
-      includePhone
-        ? wsData.push(["NUM", "NAME", col3Label, "PHONE NUM"])
-        : wsData.push(["NUM", "NAME", col3Label]);
+    const pushTitleRow = title => wsData.push([title, "", "", ""]);
+    const pushHeader = (col3Label = "IC") => wsData.push(["NUM", "NAME", col3Label, "PHONE NUM"]);
 
     pushTitleRow("REGISTERED USERS");
     pushHeader("IC");
@@ -458,11 +459,11 @@ document.getElementById("btnDownloadOverallStatsXLSX")?.addEventListener("click"
     wsData.push(["TOTAL AFFILIATED MEMBER", "", "", affiliatedRows.length]);
     wsData.push(["", "", "", ""]);
 
-    pushTitleRow("CHILDREN", 3);
-    pushHeader("MyKID", false);
+    pushTitleRow("CHILDREN");
+    pushHeader("MyKID");
     wsData.push(...childrenRows);
-    wsData.push(["TOTAL CHILDREN", "", childrenRows.length]);
-    wsData.push(["", "", ""]);
+    wsData.push(["TOTAL CHILDREN", "", "", childrenRows.length]);
+    wsData.push(["", "", "", ""]);
 
     const overallTotal = registeredRows.length + affiliatedRows.length + childrenRows.length;
     wsData.push(["OVERALL TOTAL", "", "", overallTotal]);
@@ -482,8 +483,8 @@ document.getElementById("btnDownloadOverallStatsXLSX")?.addEventListener("click"
       XLSX.utils.decode_range(`A${registeredRows.length + 5}:C${registeredRows.length + 5}`),
       XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + 7}:C${registeredRows.length + affiliatedRows.length + 7}`),
       XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + 9}:C${registeredRows.length + affiliatedRows.length + 9}`),
-      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}:B${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}`),
-      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}:B${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}`)
+      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}:C${registeredRows.length + affiliatedRows.length + childrenRows.length + 11}`),
+      XLSX.utils.decode_range(`A${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}:C${registeredRows.length + affiliatedRows.length + childrenRows.length + 13}`)
     ];
 
     const wb = XLSX.utils.book_new();

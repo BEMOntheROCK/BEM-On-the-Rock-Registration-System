@@ -640,3 +640,18 @@
   .vf-grid { grid-template-columns: 1fr; }
   .admin-content-card { padding: 1rem; }
 }
+/* ── Payment admin filter buttons ── */
+.pay-filter-btn {
+  background: rgba(255,140,0,0.07);
+  border: 1px solid rgba(255,140,0,0.2);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pay-filter-btn:hover { background: rgba(255,140,0,0.14); border-color: var(--marigold); }
+.pay-filter-btn.active { background: var(--marigold); color: #000; border-color: var(--marigold); font-weight: 700; }

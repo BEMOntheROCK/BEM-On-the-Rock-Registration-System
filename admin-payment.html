@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="icon" type="image/png" href="Images/bemotr_favicon.png"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BEM On The Rock — Pengurusan Bayaran (Admin)</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="admin.css"/>
+</head>
+<body class="admin-body">
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo-wrap"><img src="Images/logo.jpg" alt="BEM On The Rock" class="logo-img"/></div>
+      <div class="header-text">
+        <h1 class="church-name"><span class="church-name-bem">BEM</span> <span class="church-name-rock">On the ROCK</span></h1>
+        <p class="church-subtitle">Pengurusan Bayaran / Payment Management</p>
+      </div>
+      <div class="logo-wrap logo-wrap-right"><img src="Images/logo_bem_sib.png" alt="B.E.M" class="logo-img logo-bem"/></div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="admin-content-card">
+
+      <!-- Top bar -->
+      <div class="admin-topbar" style="margin-bottom:1.5rem;">
+        <div class="admin-topbar-left">
+          <h2 class="admin-section-title">💳 Pengurusan Bayaran <span>/ Payment Management</span></h2>
+        </div>
+        <div class="admin-topbar-right">
+          <a href="admin.html" class="btn btn-secondary" style="text-decoration:none;">
+            &larr; Kembali ke Admin / Back to Admin
+          </a>
+        </div>
+      </div>
+
+      <!-- Summary cards -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
+        <div style="background:rgba(255,140,0,0.08);border:1px solid rgba(255,140,0,0.2);
+          border-radius:var(--radius);padding:1rem;text-align:center;">
+          <div style="font-family:var(--font-display);font-size:2rem;font-weight:700;
+            color:var(--marigold-bright);line-height:1;" id="countPending">—</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem;">
+            Menunggu Pengesahan<br/><em>Pending Confirmation</em>
+          </div>
+        </div>
+        <div style="background:rgba(76,175,125,0.08);border:1px solid rgba(76,175,125,0.2);
+          border-radius:var(--radius);padding:1rem;text-align:center;">
+          <div style="font-family:var(--font-display);font-size:2rem;font-weight:700;
+            color:#4CAF7D;line-height:1;" id="countConfirmed">—</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem;">
+            Disahkan Hari Ini<br/><em>Confirmed Today</em>
+          </div>
+        </div>
+        <div style="background:rgba(224,85,85,0.08);border:1px solid rgba(224,85,85,0.2);
+          border-radius:var(--radius);padding:1rem;text-align:center;">
+          <div style="font-family:var(--font-display);font-size:2rem;font-weight:700;
+            color:#E05555;line-height:1;" id="countRejected">—</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem;">
+            Ditolak Hari Ini<br/><em>Rejected Today</em>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter tabs -->
+      <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+        <button class="pay-filter-btn active" data-filter="pending">
+          ⏳ Menunggu / Pending
+        </button>
+        <button class="pay-filter-btn" data-filter="confirmed">
+          ✅ Disahkan / Confirmed
+        </button>
+        <button class="pay-filter-btn" data-filter="rejected">
+          ❌ Ditolak / Rejected
+        </button>
+        <button class="pay-filter-btn" data-filter="all">
+          📋 Semua / All
+        </button>
+      </div>
+
+      <!-- Search -->
+      <div class="admin-controls" style="margin-bottom:1rem;">
+        <input type="text" id="payAdminSearch" class="form-input admin-search-input"
+          placeholder="🔍 Cari nama atau ID ahli / Search member name or ID..."/>
+      </div>
+
+      <!-- Table -->
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th class="col-num">Bil.<br/><em class="th-en">No.</em></th>
+              <th>Nama Ahli<br/><em class="th-en">Member Name</em></th>
+              <th>ID Unik<br/><em class="th-en">Unique ID</em></th>
+              <th>Kaedah<br/><em class="th-en">Method</em></th>
+              <th>Tahun<br/><em class="th-en">Year(s)</em></th>
+              <th style="text-align:right;">Jumlah<br/><em class="th-en">Amount</em></th>
+              <th>Tarikh Dihantar<br/><em class="th-en">Submitted</em></th>
+              <th style="text-align:center;">Status</th>
+              <th class="col-action">Tindakan<br/><em class="th-en">Action</em></th>
+            </tr>
+          </thead>
+          <tbody id="payAdminTableBody"></tbody>
+        </table>
+        <div class="admin-empty" id="payAdminEmpty" style="display:none;">
+          <p>Tiada rekod bayaran. / No payment records found.</p>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Confirm/Reject Modal -->
+  <div class="modal-overlay" id="payActionModal" style="display:none;">
+    <div class="modal-card modal-card--sm">
+      <div class="modal-header">
+        <h3 class="modal-title" id="payActionModalTitle">Tindakan Bayaran / Payment Action</h3>
+        <button class="modal-close" id="closePayActionModal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:1.2rem 1.5rem;">
+        <!-- Member info -->
+        <div style="background:rgba(255,140,0,0.06);border:1px solid rgba(255,140,0,0.15);
+          border-radius:var(--radius);padding:0.9rem 1rem;margin-bottom:1.2rem;">
+          <div style="font-weight:700;font-size:0.95rem;" id="modalMemberName"></div>
+          <div style="font-size:0.82rem;color:var(--marigold);font-family:var(--font-display);"
+            id="modalMemberUID"></div>
+          <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.3rem;"
+            id="modalPayMethod"></div>
+        </div>
+
+        <!-- Year selection -->
+        <div style="margin-bottom:1rem;">
+          <label style="font-family:var(--font-display);font-size:0.82rem;
+            color:var(--text-muted);display:block;margin-bottom:0.5rem;">
+            Pilih tahun untuk ditandakan / Select years to mark:
+          </label>
+          <div id="modalYearCheckboxes" style="display:flex;flex-direction:column;gap:0.4rem;"></div>
+        </div>
+
+        <div id="payActionStatus" style="font-size:0.85rem;min-height:1rem;"></div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="btn btn-secondary" id="closePayActionModalBtn">Batal / Cancel</button>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn" id="btnRejectPayment"
+            style="background:rgba(224,85,85,0.15);border:1px solid #E05555;color:#E05555;">
+            ❌ Tolak / Reject
+          </button>
+          <button class="btn btn-primary" id="btnConfirmPayment">
+            ✅ Sahkan / Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <p>&copy; <span id="payAdminFooterYear"></span> BEM On The Rock. Hak Cipta Terpelihara / All Rights Reserved.</p>
+  </footer>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="theme.js"></script>
+  <script src="admin-payment.js"></script>
+</body>
+</html>

@@ -361,7 +361,211 @@ document.getElementById("actionBtnDelete")?.addEventListener("click", () => {
   document.getElementById("deleteModal").style.display = "flex";
 });
 
-// ── XLSX Download ──
+document.getElementById("actionBtnPayment")?.addEventListener("click", () => {
+  document.getElementById("actionModal").style.display = "none";
+  openAdminPaymentModal(currentActionId);
+});
+
+// ══════════════════════════════════════════════
+// ADMIN PAYMENT MODAL
+// ══════════════════════════════════════════════
+const ANNUAL_FEE = 10;
+let adminPayDocId   = null;
+let adminPayMethod  = "cash";
+let adminPayData    = null;
+
+async function openAdminPaymentModal(docId) {
+  adminPayDocId = docId;
+  adminPayMethod = "cash";
+  document.getElementById("adminPayStatus").textContent = "";
+
+  const snap = await db.collection("registrations").doc(docId).get();
+  adminPayData = snap.data();
+  const reg = adminPayData;
+
+  // Title
+  document.getElementById("adminPayModalName").textContent =
+    (reg.name || reg.sectionA?.fullName || "—").toUpperCase();
+
+  // Calculate pending fees
+  const currentYear  = new Date().getFullYear();
+  const approvedAt   = reg.approvedAt?.toDate ? reg.approvedAt.toDate() : null;
+  const paidYears    = reg.paidYears || [];
+  const startYear    = approvedAt ? approvedAt.getFullYear() : currentYear;
+  const pendingYears = [];
+  for (let y = startYear; y <= currentYear; y++) {
+    if (!paidYears.includes(y)) pendingYears.push(y);
+  }
+
+  // Render pending fees
+  const pendingBody = document.getElementById("adminPayPendingBody");
+  const allPaidMsg  = document.getElementById("adminPayAllPaid");
+  const markWrap    = document.getElementById("adminPayMarkWrap");
+
+  if (pendingYears.length === 0) {
+    pendingBody.innerHTML = "";
+    allPaidMsg.style.display  = "block";
+    markWrap.style.display    = "none";
+    document.getElementById("adminPayPendingWrap").style.display = "none";
+  } else {
+    allPaidMsg.style.display  = "none";
+    markWrap.style.display    = "block";
+    document.getElementById("adminPayPendingWrap").style.display = "block";
+
+    pendingBody.innerHTML = pendingYears.map((y, i) => {
+      const bg = i % 2 !== 0 ? "background:rgba(255,255,255,0.02);" : "";
+      return `<tr style="border-bottom:1px solid var(--border-card);${bg}">
+        <td style="padding:0.6rem 0.9rem;font-weight:600;">${y} Yuran Tahunan / Annual Fee</td>
+        <td style="padding:0.6rem 0.9rem;text-align:right;color:var(--marigold-bright);font-weight:700;">
+          RM ${ANNUAL_FEE}.00
+        </td>
+        <td style="padding:0.6rem 0.9rem;text-align:center;">
+          <input type="checkbox" class="admin-pay-year-chk" value="${y}" checked
+            style="accent-color:var(--marigold);width:15px;height:15px;cursor:pointer;"/>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  // Render payment history
+  const historyBody = document.getElementById("adminPayHistoryBody");
+  const noHistory   = document.getElementById("adminPayNoHistory");
+  const historyWrap = document.getElementById("adminPayHistoryWrap");
+  const history     = reg.paymentHistory || [];
+
+  if (history.length === 0) {
+    historyWrap.style.display = "none";
+    noHistory.style.display   = "block";
+  } else {
+    historyWrap.style.display = "block";
+    noHistory.style.display   = "none";
+    historyBody.innerHTML = [...history].sort((a,b) => b.year - a.year).map((h, i) => {
+      const bg     = i % 2 !== 0 ? "background:rgba(255,255,255,0.02);" : "";
+      const method = h.method === "cash"     ? "💵 Tunai / Cash"
+                   : h.method === "transfer" ? "🏦 Pindahan / Transfer" : "—";
+      const date   = h.confirmedAt
+        ? new Date(h.confirmedAt).toLocaleDateString("en-GB") : "—";
+      return `<tr style="border-bottom:1px solid var(--border-card);${bg}">
+        <td style="padding:0.6rem 0.9rem;font-weight:700;">${h.year}</td>
+        <td style="padding:0.6rem 0.9rem;text-align:center;">${method}</td>
+        <td style="padding:0.6rem 0.9rem;text-align:center;color:var(--text-muted);">${date}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  // Render user-submitted requests
+  const reqs     = (reg.paymentRequests || []).filter(r => r.status === "pending");
+  const reqsWrap = document.getElementById("adminPayRequestsWrap");
+  const reqsList = document.getElementById("adminPayRequestsList");
+
+  if (reqs.length > 0) {
+    reqsWrap.style.display = "block";
+    reqsList.innerHTML = reqs.map(r => {
+      const method = r.method === "cash" ? "💵 Tunai / Cash" : "🏦 Pindahan / Transfer";
+      const date   = r.submittedAt ? new Date(r.submittedAt).toLocaleDateString("en-GB") : "—";
+      return `<div style="background:rgba(255,140,0,0.06);border:1px solid rgba(255,140,0,0.2);
+        border-radius:var(--radius);padding:0.75rem 1rem;margin-bottom:0.5rem;
+        display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:600;font-size:0.88rem;">${method} — Tahun: ${(r.years||[]).join(", ")}</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);">Dihantar: ${date}</div>
+        </div>
+        <span style="font-size:0.75rem;color:var(--marigold);font-family:var(--font-display);
+          letter-spacing:0.04em;">⏳ Menunggu / Pending</span>
+      </div>`;
+    }).join("");
+  } else {
+    reqsWrap.style.display = "none";
+  }
+
+  // Reset method buttons
+  document.querySelectorAll(".pay-method-btn").forEach(btn => {
+    const active = btn.dataset.method === "cash";
+    btn.style.background   = active ? "rgba(255,140,0,0.12)" : "rgba(255,255,255,0.03)";
+    btn.style.border       = active ? "1.5px solid var(--marigold)" : "1px solid var(--border-card)";
+  });
+
+  document.getElementById("adminPaymentModal").style.display = "flex";
+}
+
+// Method toggle
+document.querySelectorAll(".pay-method-btn").forEach(btn => {
+  btn.addEventListener("click", function() {
+    adminPayMethod = this.dataset.method;
+    document.querySelectorAll(".pay-method-btn").forEach(b => {
+      const active = b.dataset.method === adminPayMethod;
+      b.style.background = active ? "rgba(255,140,0,0.12)" : "rgba(255,255,255,0.03)";
+      b.style.border     = active ? "1.5px solid var(--marigold)" : "1px solid var(--border-card)";
+    });
+  });
+});
+
+// Mark as paid
+document.getElementById("btnAdminMarkPaid")?.addEventListener("click", async () => {
+  const selectedYears = [...document.querySelectorAll(".admin-pay-year-chk:checked")]
+    .map(c => parseInt(c.value));
+  const statusEl = document.getElementById("adminPayStatus");
+
+  if (!selectedYears.length) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila pilih sekurang-kurangnya 1 tahun. / Please select at least 1 year.";
+    return;
+  }
+
+  const btn = document.getElementById("btnAdminMarkPaid");
+  btn.disabled = true; btn.textContent = "Menyimpan...";
+  statusEl.textContent = "";
+
+  try {
+    const docRef      = db.collection("registrations").doc(adminPayDocId);
+    const snap        = await docRef.get();
+    const data        = snap.data();
+    const paidYears   = data.paidYears || [];
+    const history     = data.paymentHistory || [];
+    const reqs        = data.paymentRequests || [];
+    const confirmedAt = new Date().toISOString();
+
+    // Add to paidYears
+    const newPaidYears = [...new Set([...paidYears, ...selectedYears])];
+
+    // Add to paymentHistory
+    const newHistory = [
+      ...history,
+      ...selectedYears.map(y => ({
+        year: y, method: adminPayMethod, confirmedAt,
+      }))
+    ];
+
+    // Auto-resolve any pending paymentRequests for the same years
+    const updatedReqs = reqs.map(r => {
+      if (r.status !== "pending") return r;
+      const overlap = (r.years || []).some(y => selectedYears.includes(y));
+      if (overlap) return { ...r, status:"confirmed", confirmedAt, confirmedBy:"admin" };
+      return r;
+    });
+
+    await docRef.update({
+      paidYears:       newPaidYears,
+      paymentHistory:  newHistory,
+      paymentRequests: updatedReqs,
+    });
+
+    statusEl.style.color = "#4CAF7D";
+    statusEl.textContent = `✅ Tahun ${selectedYears.join(", ")} telah ditandakan sebagai dibayar. / Year(s) ${selectedYears.join(", ")} marked as paid.`;
+
+    // Refresh modal
+    setTimeout(() => openAdminPaymentModal(adminPayDocId), 1200);
+
+  } catch(e) {
+    console.error(e);
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Ralat. / Error.";
+  }
+  btn.disabled = false; btn.textContent = "✅ Tandakan Dibayar / Mark as Paid";
+});
+
+document.getElementById("closeAdminPayModal")?.addEventListener("click",    () => document.getElementById("adminPaymentModal").style.display = "none");
+document.getElementById("closeAdminPayModalBtn")?.addEventListener("click", () => document.getElementById("adminPaymentModal").style.display = "none");
 document.getElementById("btnDownloadXLSX")?.addEventListener("click", () => {
   const rows = registrations.map(reg => {
     const a = reg.sectionA || {};

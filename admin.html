@@ -182,7 +182,124 @@
       </div><!-- /admin-content-card -->
     </main>
 
-    <footer class="site-footer">
+    <!-- ══ PAYMENT MODAL ══ -->
+  <div class="modal-overlay" id="adminPaymentModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;">
+    <div class="modal-card" style="max-width:620px;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="modal-header">
+        <h3 class="modal-title">💳 Bayaran / Payment — <span id="adminPayModalName"></span></h3>
+        <button class="modal-close" id="closeAdminPayModal">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto;flex:1;padding:1.2rem 1.5rem;">
+
+        <!-- Pending fees -->
+        <div style="font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.05em;
+          color:var(--marigold);margin-bottom:0.8rem;">📋 BAYARAN TERTUNGGAK / PENDING FEES</div>
+        <div id="adminPayPendingWrap">
+          <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border-card);margin-bottom:1rem;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+              <thead>
+                <tr style="background:var(--bg-header);">
+                  <th style="padding:0.6rem 0.9rem;text-align:left;color:var(--marigold-bright);
+                    font-family:var(--font-display);font-size:0.75rem;letter-spacing:0.04em;
+                    border-bottom:2px solid var(--marigold-dim);">Tahun / Year</th>
+                  <th style="padding:0.6rem 0.9rem;text-align:right;color:var(--marigold-bright);
+                    font-family:var(--font-display);font-size:0.75rem;letter-spacing:0.04em;
+                    border-bottom:2px solid var(--marigold-dim);">Jumlah / Amount</th>
+                  <th style="padding:0.6rem 0.9rem;text-align:center;color:var(--marigold-bright);
+                    font-family:var(--font-display);font-size:0.75rem;letter-spacing:0.04em;
+                    border-bottom:2px solid var(--marigold-dim);">Pilih / Select</th>
+                </tr>
+              </thead>
+              <tbody id="adminPayPendingBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="adminPayAllPaid" style="display:none;font-size:0.9rem;color:#4CAF7D;
+          padding:0.8rem;text-align:center;background:rgba(76,175,125,0.08);
+          border:1px solid rgba(76,175,125,0.2);border-radius:var(--radius);margin-bottom:1rem;">
+          ✅ Tiada bayaran tertunggak. / No pending fees.
+        </div>
+
+        <!-- Mark as paid controls -->
+        <div id="adminPayMarkWrap" style="display:none;margin-bottom:1.2rem;">
+          <div style="font-family:var(--font-display);font-size:0.78rem;letter-spacing:0.04em;
+            color:var(--text-muted);margin-bottom:0.5rem;">Kaedah Bayaran / Payment Method:</div>
+          <div style="display:flex;gap:0.5rem;">
+            <button class="pay-method-btn active" data-method="cash"
+              style="flex:1;padding:0.5rem;border-radius:var(--radius);cursor:pointer;
+                font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.04em;
+                background:rgba(255,140,0,0.12);border:1.5px solid var(--marigold);color:var(--text-primary);">
+              💵 Tunai / Cash
+            </button>
+            <button class="pay-method-btn" data-method="transfer"
+              style="flex:1;padding:0.5rem;border-radius:var(--radius);cursor:pointer;
+                font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.04em;
+                background:rgba(255,255,255,0.03);border:1px solid var(--border-card);color:var(--text-primary);">
+              🏦 Pindahan Bank / Transfer
+            </button>
+          </div>
+          <div style="margin-top:0.8rem;display:flex;justify-content:flex-end;">
+            <button class="btn btn-primary" id="btnAdminMarkPaid">
+              ✅ Tandakan Dibayar / Mark as Paid
+            </button>
+          </div>
+        </div>
+
+        <div id="adminPayStatus" style="font-size:0.85rem;min-height:1rem;margin-bottom:1rem;"></div>
+
+        <!-- Separator -->
+        <div style="display:flex;align-items:center;gap:0.8rem;margin:1rem 0;">
+          <div style="flex:1;height:1px;background:var(--border-card);"></div>
+          <span style="font-family:var(--font-display);font-size:0.73rem;letter-spacing:0.05em;
+            color:var(--text-muted);white-space:nowrap;">REKOD PEMBAYARAN / PAYMENT HISTORY</span>
+          <div style="flex:1;height:1px;background:var(--border-card);"></div>
+        </div>
+
+        <!-- Payment history -->
+        <div id="adminPayHistoryWrap">
+          <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border-card);">
+            <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
+              <thead>
+                <tr style="background:var(--bg-header);">
+                  <th style="padding:0.6rem 0.9rem;text-align:left;color:var(--marigold-bright);
+                    font-family:var(--font-display);font-size:0.75rem;letter-spacing:0.04em;
+                    border-bottom:2px solid var(--marigold-dim);">Tahun / Year</th>
+                  <th style="padding:0.6rem 0.9rem;text-align:center;color:var(--marigold-bright);
+                    font-family:var(--font-display);font-size:0.75rem;letter-spacing:0.04em;
+                    border-bottom:2px solid var(--marigold-dim);">Kaedah / Method</th>
+                  <th style="padding:0.6rem 0.9rem;text-align:center;color:var(--marigold-bright);
+                    font-family:var(--font-display);font-size:0.75rem;letter-spacing:0.04em;
+                    border-bottom:2px solid var(--marigold-dim);">Tarikh Disahkan / Confirmed</th>
+                </tr>
+              </thead>
+              <tbody id="adminPayHistoryBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="adminPayNoHistory" style="display:none;font-size:0.85rem;color:var(--text-muted);
+          font-style:italic;text-align:center;padding:0.8rem;">
+          Tiada rekod pembayaran. / No payment history.
+        </div>
+
+        <!-- Pending requests from user -->
+        <div id="adminPayRequestsWrap" style="margin-top:1.2rem;display:none;">
+          <div style="display:flex;align-items:center;gap:0.8rem;margin:0.5rem 0 0.8rem;">
+            <div style="flex:1;height:1px;background:var(--border-card);"></div>
+            <span style="font-family:var(--font-display);font-size:0.73rem;letter-spacing:0.05em;
+              color:var(--text-muted);white-space:nowrap;">PERMOHONAN PENGGUNA / USER REQUESTS</span>
+            <div style="flex:1;height:1px;background:var(--border-card);"></div>
+          </div>
+          <div id="adminPayRequestsList"></div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="closeAdminPayModalBtn">Tutup / Close</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
       <p>&copy; <span id="adminFooterYear"></span> BEM On The Rock. Hak Cipta Terpelihara / All Rights Reserved.</p>
     </footer>
 
@@ -370,6 +487,7 @@
         <button class="action-dropdown-item" id="actionBtnView"   style="width:100%;text-align:left;"><span class="action-icon">📄</span> Lihat / View</button>
         <button class="action-dropdown-item" id="actionBtnPrint"  style="width:100%;text-align:left;"><span class="action-icon">🖨️</span> Cetak / Print</button>
         <button class="action-dropdown-item" id="actionBtnStatus" style="width:100%;text-align:left;"><span class="action-icon">🔄</span> Tukar Status / Change Status</button>
+        <button class="action-dropdown-item" id="actionBtnPayment" style="width:100%;text-align:left;"><span class="action-icon">💳</span> Bayaran / Payment</button>
         <button class="action-dropdown-item" id="actionBtnCard"   style="width:100%;text-align:left;"><span class="action-icon">🪪</span> Kad Keanggotaan / Membership Card</button>
         <button class="action-dropdown-item delete" id="actionBtnDelete" style="width:100%;text-align:left;"><span class="action-icon">🗑️</span> Padam / Delete</button>
       </div>

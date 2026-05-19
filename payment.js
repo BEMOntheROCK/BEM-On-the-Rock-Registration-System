@@ -160,18 +160,22 @@ function populatePaymentScreen() {
 
     pendingFees.forEach((fee, i) => {
       const tr = document.createElement("tr");
+      tr.style.borderBottom = "1px solid var(--border-card)";
+      if (i % 2 !== 0) tr.style.background = "rgba(255,255,255,0.02)";
       const rejectedBanner = fee.rejected ? `
-        <div style="margin-top:0.35rem;font-size:0.76rem;color:#E05555;line-height:1.5;">
+        <div style="margin-top:0.4rem;font-size:0.78rem;color:#E05555;line-height:1.5;">
           ⚠️ Kami tidak dapat pastikan sekiranya anda benar-benar sudah membayar. /
           We couldn't verify if you actually paid.<br/>
-          <em style="color:var(--text-muted);">Jika anda berpendapat bahawa ini adalah salah, sila maklumkan kepada mana-mana staf gereja. /
-          If you think this is false, please inform any of the church staff.</em>
+          <em style="color:var(--text-muted);">Jika anda berpendapat bahawa ini adalah salah, sila maklumkan
+          kepada mana-mana staf gereja. / If you think this is false, please inform any of the church staff.</em>
         </div>` : "";
       tr.innerHTML = `
-        <td class="col-num">${i+1}</td>
-        <td>${fee.label}${rejectedBanner}</td>
-        <td style="text-align:right;font-weight:700;color:var(--marigold-bright);">RM ${fee.amount.toFixed(2)}</td>
-        <td style="text-align:center;">
+        <td style="padding:0.7rem 1rem;color:var(--text-muted);font-size:0.85rem;">${i+1}</td>
+        <td style="padding:0.7rem 1rem;color:var(--text-primary);">${fee.label}${rejectedBanner}</td>
+        <td style="padding:0.7rem 1rem;text-align:right;font-weight:700;color:var(--marigold-bright);">
+          RM ${fee.amount.toFixed(2)}
+        </td>
+        <td style="padding:0.7rem 1rem;text-align:center;">
           <span style="color:#E05555;font-size:0.78rem;font-family:var(--font-display);letter-spacing:0.05em;">
             Belum Dibayar / Unpaid
           </span>
@@ -192,7 +196,7 @@ function populatePaymentScreen() {
 
   if (paidYears.length > 0) {
     historyWrap.style.display = "block";
-    historyBody.innerHTML = [...paidYears].sort((a,b) => b - a).map(year => {
+    historyBody.innerHTML = [...paidYears].sort((a,b) => b - a).map((year, i) => {
       const record = paymentHistory.find(h => h.year === year);
       const method = record?.method === "cash"     ? "💵 Tunai / Cash"
                    : record?.method === "transfer" ? "🏦 Pindahan Bank / Bank Transfer"
@@ -200,10 +204,11 @@ function populatePaymentScreen() {
       const date   = record?.confirmedAt
         ? new Date(record.confirmedAt).toLocaleDateString("en-GB")
         : "—";
-      return `<tr>
-        <td style="font-weight:700;">${year}</td>
-        <td style="text-align:center;">${method}</td>
-        <td style="text-align:center;">${date}</td>
+      const rowBg  = i % 2 !== 0 ? "background:rgba(255,255,255,0.02);" : "";
+      return `<tr style="border-bottom:1px solid var(--border-card);${rowBg}">
+        <td style="padding:0.7rem 1rem;font-weight:700;color:var(--text-primary);">${year}</td>
+        <td style="padding:0.7rem 1rem;text-align:center;color:var(--text-primary);">${method}</td>
+        <td style="padding:0.7rem 1rem;text-align:center;color:var(--text-muted);">${date}</td>
       </tr>`;
     }).join("");
   } else {

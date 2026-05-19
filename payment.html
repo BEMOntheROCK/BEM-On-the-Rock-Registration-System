@@ -72,14 +72,30 @@
 
       <!-- Pending fees table -->
       <div class="pay-section-title">📋 Bayaran Tertunggak / Pending Payments</div>
-      <div class="admin-table-wrap" style="margin-bottom:1.5rem;">
-        <table class="admin-table" id="paymentTable">
+      <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border-card);margin-bottom:1.5rem;">
+        <table style="width:100%;border-collapse:collapse;font-family:var(--font-body);font-size:0.95rem;">
           <thead>
-            <tr>
-              <th class="col-num">Bil.<br/><em class="th-en">No.</em></th>
-              <th>Perkara<br/><em class="th-en">Item</em></th>
-              <th style="text-align:right;">Harga<br/><em class="th-en">Cost</em></th>
-              <th style="text-align:center;">Status</th>
+            <tr style="background:var(--bg-header);">
+              <th style="padding:0.75rem 1rem;text-align:left;color:var(--marigold-bright);
+                font-family:var(--font-display);font-size:0.78rem;font-weight:600;
+                letter-spacing:0.04em;border-bottom:2px solid var(--marigold-dim);width:48px;">
+                Bil.<br/><em style="font-weight:400;color:var(--text-muted);">No.</em>
+              </th>
+              <th style="padding:0.75rem 1rem;text-align:left;color:var(--marigold-bright);
+                font-family:var(--font-display);font-size:0.78rem;font-weight:600;
+                letter-spacing:0.04em;border-bottom:2px solid var(--marigold-dim);">
+                Perkara<br/><em style="font-weight:400;color:var(--text-muted);">Item</em>
+              </th>
+              <th style="padding:0.75rem 1rem;text-align:right;color:var(--marigold-bright);
+                font-family:var(--font-display);font-size:0.78rem;font-weight:600;
+                letter-spacing:0.04em;border-bottom:2px solid var(--marigold-dim);width:120px;">
+                Harga<br/><em style="font-weight:400;color:var(--text-muted);">Cost</em>
+              </th>
+              <th style="padding:0.75rem 1rem;text-align:center;color:var(--marigold-bright);
+                font-family:var(--font-display);font-size:0.78rem;font-weight:600;
+                letter-spacing:0.04em;border-bottom:2px solid var(--marigold-dim);width:140px;">
+                Status
+              </th>
             </tr>
           </thead>
           <tbody id="paymentTableBody"></tbody>
@@ -92,16 +108,35 @@
         <span class="pay-total-amount" id="payTotalAmount">RM 0.00</span>
       </div>
 
-      <!-- Payment history -->
-      <div id="payHistoryWrap" style="display:none;margin-top:1.5rem;">
-        <div class="pay-section-title">✅ Rekod Pembayaran / Payment History</div>
-        <div class="admin-table-wrap">
-          <table class="admin-table">
+      <!-- Separator -->
+      <div id="payHistoryWrap" style="display:none;margin-top:2rem;">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+          <div style="flex:1;height:1px;background:var(--border-card);"></div>
+          <span style="font-family:var(--font-display);font-size:0.78rem;letter-spacing:0.06em;
+            color:var(--text-muted);white-space:nowrap;">REKOD PEMBAYARAN / PAYMENT HISTORY</span>
+          <div style="flex:1;height:1px;background:var(--border-card);"></div>
+        </div>
+
+        <!-- Payment history table -->
+        <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border-card);">
+          <table style="width:100%;border-collapse:collapse;font-family:var(--font-body);font-size:0.95rem;">
             <thead>
-              <tr>
-                <th>Tahun / Year</th>
-                <th style="text-align:center;">Kaedah / Method</th>
-                <th style="text-align:center;">Tarikh Disahkan / Date Confirmed</th>
+              <tr style="background:var(--bg-header);">
+                <th style="padding:0.75rem 1rem;text-align:left;color:var(--marigold-bright);
+                  font-family:var(--font-display);font-size:0.78rem;font-weight:600;
+                  letter-spacing:0.04em;border-bottom:2px solid var(--marigold-dim);">
+                  Tahun / Year
+                </th>
+                <th style="padding:0.75rem 1rem;text-align:center;color:var(--marigold-bright);
+                  font-family:var(--font-display);font-size:0.78rem;font-weight:600;
+                  letter-spacing:0.04em;border-bottom:2px solid var(--marigold-dim);">
+                  Kaedah / Method
+                </th>
+                <th style="padding:0.75rem 1rem;text-align:center;color:var(--marigold-bright);
+                  font-family:var(--font-display);font-size:0.78rem;font-weight:600;
+                  letter-spacing:0.04em;border-bottom:2px solid var(--marigold-dim);">
+                  Tarikh Disahkan / Date Confirmed
+                </th>
               </tr>
             </thead>
             <tbody id="payHistoryBody"></tbody>

@@ -687,3 +687,52 @@
 @media (min-width: 641px) {
   .burger-mobile-only { display: none !important; }
 }
+
+/* ── Admin button grid layout ── */
+.admin-btn-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.admin-btn-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.admin-btn-right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+
+.admin-full-btn {
+  display: block;
+  text-align: center;
+}
+
+/* ── Mobile overrides ── */
+@media (max-width: 640px) {
+  .admin-mobile-only  { display: flex !important; }
+  .admin-desktop-only { display: none !important; }
+
+  /* Stack all buttons full width */
+  .admin-btn-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-btn-right {
+    align-items: stretch;
+  }
+  .admin-full-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (min-width: 641px) {
+  .admin-mobile-only  { display: none !important; }
+  .admin-desktop-only { display: flex !important; }
+}

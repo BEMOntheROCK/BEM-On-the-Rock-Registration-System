@@ -66,44 +66,46 @@
 
         <!-- ══ TOP BAR ══ -->
         <div style="display:flex;align-items:center;justify-content:space-between;
-          margin-bottom:1.2rem;flex-wrap:wrap;gap:0.75rem;">
-          <h2 class="admin-section-title" style="margin:0;">
+          margin-bottom:1.2rem;flex-wrap:nowrap;gap:0.75rem;">
+          <h2 class="admin-section-title" style="margin:0;white-space:nowrap;">
             Senarai Pendaftaran <span>/ Registration List</span>
           </h2>
-          <div style="display:flex;align-items:center;gap:0.5rem;">
-            <!-- Burger menu (mobile: all; desktop: export + logout) -->
-            <div style="position:relative;" id="burgerWrap">
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+            <!-- Burger menu — mobile only -->
+            <div style="position:relative;" id="burgerWrap" class="admin-mobile-only">
               <button id="btnBurger" style="background:rgba(255,255,255,0.06);
                 border:1px solid var(--border-card);border-radius:var(--radius);
-                padding:0.45rem 0.75rem;cursor:pointer;font-size:1.1rem;color:var(--text-primary);
+                padding:0.45rem 0.75rem;cursor:pointer;color:var(--text-primary);
                 display:flex;align-items:center;gap:0.4rem;font-family:var(--font-display);
                 font-size:0.8rem;letter-spacing:0.04em;">
                 ☰ Menu
               </button>
               <div id="burgerDropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);
-                background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-lg);
-                box-shadow:0 8px 32px rgba(0,0,0,0.4);min-width:240px;z-index:500;overflow:hidden;">
+                background:var(--bg-elevated, #1a1510);border:1px solid var(--border-card);
+                border-radius:var(--radius-lg);box-shadow:0 8px 32px rgba(0,0,0,0.85);
+                min-width:260px;z-index:500;overflow:hidden;
+                backdrop-filter:none;-webkit-backdrop-filter:none;">
 
                 <!-- Export group -->
                 <div style="padding:0.5rem 0.75rem;font-family:var(--font-display);font-size:0.7rem;
                   letter-spacing:0.06em;color:var(--text-muted);border-bottom:1px solid var(--border-card);
-                  background:rgba(255,255,255,0.02);">
+                  background:#1a1510;">
                   📊 EKSPORT / EXPORT
                 </div>
-                <button class="burger-item" id="btnDownloadXLSX">
+                <button class="burger-item" id="btnDownloadXLSX" style="background:#1a1510;">
                   📋 Jemaat Berdaftar Sahaja / Registered Members Only
                 </button>
-                <button class="burger-item" id="btnDownloadOverallStatsXLSX">
+                <button class="burger-item" id="btnDownloadOverallStatsXLSX" style="background:#1a1510;">
                   📋 Kesemua Jemaat (Berdaftar + Bersekutu + Anak-Anak)
                 </button>
 
-                <!-- Mobile-only items -->
-                <div class="burger-mobile-only" style="border-top:1px solid var(--border-card);">
+                <!-- Mobile-only: Payment -->
+                <div style="border-top:1px solid var(--border-card);background:#1a1510;">
                   <div style="padding:0.5rem 0.75rem;font-family:var(--font-display);font-size:0.7rem;
-                    letter-spacing:0.06em;color:var(--text-muted);background:rgba(255,255,255,0.02);">
+                    letter-spacing:0.06em;color:var(--text-muted);background:#1a1510;">
                     ⚙️ PENGURUSAN / MANAGEMENT
                   </div>
-                  <a href="admin-payment.html" class="burger-item" style="text-decoration:none;position:relative;">
+                  <a href="admin-payment.html" class="burger-item" style="text-decoration:none;background:#1a1510;">
                     💳 Bayaran / Payment
                     <span id="paymentBadgeMobile" style="display:none;background:#E05555;color:#fff;
                       border-radius:50%;width:16px;height:16px;font-size:0.6rem;font-weight:700;
@@ -112,9 +114,9 @@
                   </a>
                 </div>
 
-                <!-- Logout (always in burger) -->
-                <div style="border-top:1px solid var(--border-card);">
-                  <button class="burger-item burger-item--danger" id="btnLogout">
+                <!-- Logout -->
+                <div style="border-top:1px solid var(--border-card);background:#1a1510;">
+                  <button class="burger-item burger-item--danger" id="btnLogout" style="background:#1a1510;">
                     🔴 Log Keluar / Logout
                   </button>
                 </div>
@@ -122,73 +124,72 @@
             </div>
 
             <!-- Desktop-only logout button -->
-            <button id="btnLogoutDesktop" style="display:flex;align-items:center;gap:0.4rem;
-              background:rgba(224,85,85,0.12);border:1.5px solid #E05555;color:#E05555;
-              border-radius:var(--radius);padding:0.45rem 1rem;cursor:pointer;
-              font-family:var(--font-display);font-size:0.78rem;letter-spacing:0.04em;
-              white-space:nowrap;" class="admin-desktop-only">
+            <button id="btnLogoutDesktop" class="admin-desktop-only"
+              style="display:flex;align-items:center;gap:0.4rem;
+                background:rgba(224,85,85,0.12);border:1.5px solid #E05555;color:#E05555;
+                border-radius:var(--radius);padding:0.45rem 1rem;cursor:pointer;
+                font-family:var(--font-display);font-size:0.78rem;letter-spacing:0.04em;
+                white-space:nowrap;">
               🔴 Log Keluar / Logout
             </button>
           </div>
         </div>
 
         <!-- ══ BUTTON ROWS ══ -->
-        <div style="display:grid;grid-template-columns:1fr auto;gap:0.75rem;margin-bottom:1.2rem;
-          align-items:start;">
+        <!-- Desktop: two-column grid. Mobile: single column, all full-width stacked -->
+        <div class="admin-btn-grid" style="margin-bottom:1.2rem;">
 
           <!-- Left column: Affiliated + Deceased + Payment -->
-          <div style="display:flex;flex-direction:column;gap:0.6rem;">
-            <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
-              <a href="affiliated-admin-view.html" class="btn btn-secondary admin-stats-btn"
-                style="text-decoration:none;">
-                🤲 Jemaat Bersekutu / Affiliated Members
-              </a>
-              <a href="deceased-admin-view.html" class="btn btn-secondary admin-stats-btn"
-                style="text-decoration:none;">
-                🕊️ Rekod Kematian / Record of the Deceased
-              </a>
-            </div>
-            <div>
-              <a href="admin-payment.html" class="btn admin-stats-btn admin-desktop-only"
-                style="text-decoration:none;position:relative;
-                  background:rgba(52,152,219,0.12);border:1.5px solid rgba(52,152,219,0.4);
-                  color:#5DADE2;">
-                💳 Bayaran / Payment
-                <span id="paymentBadge" style="display:none;position:absolute;top:-6px;right:-6px;
-                  background:#E05555;color:#fff;border-radius:50%;width:18px;height:18px;
-                  font-size:0.65rem;font-weight:700;align-items:center;
-                  justify-content:center;font-family:var(--font-display);">0</span>
-              </a>
-            </div>
+          <div class="admin-btn-left">
+            <a href="affiliated-admin-view.html" class="btn btn-secondary admin-stats-btn admin-full-btn"
+              style="text-decoration:none;">
+              🤲 Jemaat Bersekutu / Affiliated Members
+            </a>
+            <a href="deceased-admin-view.html" class="btn btn-secondary admin-stats-btn admin-full-btn"
+              style="text-decoration:none;">
+              🕊️ Rekod Kematian / Record of the Deceased
+            </a>
+            <a href="admin-payment.html" class="btn admin-stats-btn admin-full-btn admin-desktop-only"
+              style="text-decoration:none;position:relative;
+                background:rgba(52,152,219,0.12);border:1.5px solid rgba(52,152,219,0.4);
+                color:#5DADE2;">
+              💳 Bayaran / Payment
+              <span id="paymentBadge" style="display:none;position:absolute;top:-6px;right:-6px;
+                background:#E05555;color:#fff;border-radius:50%;width:18px;height:18px;
+                font-size:0.65rem;font-weight:700;align-items:center;
+                justify-content:center;font-family:var(--font-display);">0</span>
+            </a>
           </div>
 
-          <!-- Right column: Statistics + Export dropdown -->
-          <div style="display:flex;flex-direction:column;gap:0.6rem;align-items:flex-end;">
-            <a href="stats.html" class="btn admin-stats-btn"
+          <!-- Right column: Statistics + Export -->
+          <div class="admin-btn-right">
+            <a href="stats.html" class="btn admin-stats-btn admin-full-btn"
               style="text-decoration:none;white-space:nowrap;
-                background:rgba(41,128,185,0.15);border:1.5px solid rgba(41,128,185,0.5);
-                color:#3498DB;">
+                background:rgba(212,172,0,0.15);border:1.5px solid rgba(212,172,0,0.5);
+                color:#D4AC00;">
               📊 Statistik / Statistics
             </a>
-            <!-- Export dropdown -->
-            <div style="position:relative;" id="exportWrap">
-              <button id="btnExportDropdown" class="btn admin-stats-btn admin-desktop-only"
-                style="white-space:nowrap;
+            <!-- Export dropdown — desktop only -->
+            <div style="position:relative;" id="exportWrap" class="admin-desktop-only">
+              <button id="btnExportDropdown" class="btn admin-stats-btn admin-full-btn"
+                style="white-space:nowrap;width:100%;
                   background:rgba(39,174,96,0.12);border:1.5px solid rgba(39,174,96,0.4);
                   color:#27AE60;">
-                📥 Eksport ke Sheets.xlsx / Export to Sheets.xlsx ▾
+                📥 Eksport ke Sheets.xlsx ▾
               </button>
               <div id="exportDropdown" style="display:none;position:absolute;right:0;top:calc(100% + 4px);
-                background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-lg);
-                box-shadow:0 8px 24px rgba(0,0,0,0.35);min-width:260px;z-index:400;overflow:hidden;">
-                <button class="burger-item" id="btnDownloadXLSXDesktop">
+                background:var(--bg-elevated, #1a1510);border:1px solid var(--border-card);
+                border-radius:var(--radius-lg);box-shadow:0 8px 24px rgba(0,0,0,0.85);
+                min-width:280px;z-index:400;overflow:hidden;">
+                <button class="burger-item" id="btnDownloadXLSXDesktop" style="background:#1a1510;">
                   📋 Jemaat Berdaftar Sahaja / Registered Members Only
                 </button>
-                <button class="burger-item" id="btnDownloadOverallStatsXLSXDesktop">
+                <button class="burger-item" id="btnDownloadOverallStatsXLSXDesktop" style="background:#1a1510;">
                   📋 Kesemua Jemaat (Berdaftar + Bersekutu + Anak-Anak)
                 </button>
               </div>
             </div>
+            <!-- Mobile: Statistik only in right (no export) -->
           </div>
         </div>
 
@@ -218,8 +219,9 @@
             </select>
           </div>
           <div class="admin-sort-group">
-            <button class="btn btn-secondary admin-select" id="btnToggleSelect"
-              style="white-space:nowrap;font-size:0.82rem;padding:0 0.75rem;">
+            <label class="admin-control-label" style="visibility:hidden;">_</label>
+            <button class="btn btn-secondary form-input form-select admin-select" id="btnToggleSelect"
+              style="white-space:nowrap;cursor:pointer;text-align:left;">
               ☑ Pilih Berbilang / Multi-Select
             </button>
           </div>

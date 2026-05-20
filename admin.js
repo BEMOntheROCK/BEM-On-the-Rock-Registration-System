@@ -99,15 +99,17 @@ async function loadPaymentBadge() {
       const reqs = doc.data().paymentRequests || [];
       pending += reqs.filter(r => r.status === "pending").length;
     });
-    const badge = document.getElementById("paymentBadge");
-    if (badge) {
+    const countStr = pending > 99 ? "99+" : String(pending);
+    ["paymentBadge","paymentBadgeMobile"].forEach(id => {
+      const badge = document.getElementById(id);
+      if (!badge) return;
       if (pending > 0) {
         badge.style.display = "flex";
-        badge.textContent   = pending > 99 ? "99+" : String(pending);
+        badge.textContent   = countStr;
       } else {
         badge.style.display = "none";
       }
-    }
+    });
   } catch(e) { console.warn("Payment badge error:", e); }
 }
 
@@ -135,6 +137,45 @@ document.getElementById("btnLogin").addEventListener("click", async () => {
 );
 
 // ── Logout ──
+// ── Burger menu toggle ──
+document.getElementById("btnBurger")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const dd = document.getElementById("burgerDropdown");
+  dd.style.display = dd.style.display === "none" ? "block" : "none";
+  document.getElementById("exportDropdown").style.display = "none";
+});
+
+// ── Export dropdown toggle ──
+document.getElementById("btnExportDropdown")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const dd = document.getElementById("exportDropdown");
+  dd.style.display = dd.style.display === "none" ? "block" : "none";
+  document.getElementById("burgerDropdown").style.display = "none";
+});
+
+// ── Close dropdowns on outside click ──
+document.addEventListener("click", () => {
+  const bd = document.getElementById("burgerDropdown");
+  const ed = document.getElementById("exportDropdown");
+  if (bd) bd.style.display = "none";
+  if (ed) ed.style.display = "none";
+});
+
+// ── Desktop logout ──
+document.getElementById("btnLogoutDesktop")?.addEventListener("click", () => {
+  auth.signOut().then(() => window.location.href = "admin.html");
+});
+
+// ── Desktop export buttons mirror mobile ones ──
+document.getElementById("btnDownloadXLSXDesktop")?.addEventListener("click", () => {
+  document.getElementById("exportDropdown").style.display = "none";
+  document.getElementById("btnDownloadXLSX")?.click();
+});
+document.getElementById("btnDownloadOverallStatsXLSXDesktop")?.addEventListener("click", () => {
+  document.getElementById("exportDropdown").style.display = "none";
+  document.getElementById("btnDownloadOverallStatsXLSX")?.click();
+});
+
 document.getElementById("btnLogout").addEventListener("click", () => auth.signOut());
 
 // ── Load ──

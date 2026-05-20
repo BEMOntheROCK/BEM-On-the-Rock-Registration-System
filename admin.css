@@ -655,3 +655,35 @@
 }
 .pay-filter-btn:hover { background: rgba(255,140,0,0.14); border-color: var(--marigold); }
 .pay-filter-btn.active { background: var(--marigold); color: #000; border-color: var(--marigold); font-weight: 700; }
+
+/* ── Burger menu items ── */
+.burger-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-decoration: none;
+}
+.burger-item:hover { background: rgba(255,140,0,0.08); }
+.burger-item--danger { color: #E05555; }
+.burger-item--danger:hover { background: rgba(224,85,85,0.08); }
+
+/* ── Desktop only / mobile only ── */
+@media (max-width: 640px) {
+  .admin-desktop-only { display: none !important; }
+  .burger-mobile-only { display: block !important; }
+  /* Stack button rows on mobile */
+  #exportWrap { display: none !important; }
+}
+@media (min-width: 641px) {
+  .burger-mobile-only { display: none !important; }
+}

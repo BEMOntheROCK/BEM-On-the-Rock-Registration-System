@@ -277,16 +277,16 @@ body {
   font-weight: 700;
 }
 
-/* "BEM" — Britannic Bold (Windows) with Impact fallback */
+/* "BEM" — Britannic Bold */
 .church-name-bem {
-  font-family: "Britannic Bold", "Impact", "Arial Black", sans-serif;
+  font-family: "Britannic Bold", Impact, sans-serif;
   font-weight: 700;
   letter-spacing: 0.12em;
 }
 
-/* "On the ROCK" — Forte (Windows) with Georgia italic fallback */
+/* "On the ROCK" — Forte */
 .church-name-rock {
-  font-family: "Forte", "Palatino Linotype", "Book Antiqua", "Georgia", serif;
+  font-family: 'Forte', 'Comic Sans MS', cursive;
   font-weight: 400;
   font-style: italic;
   letter-spacing: 0.06em;

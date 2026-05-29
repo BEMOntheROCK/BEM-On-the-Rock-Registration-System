@@ -2079,7 +2079,12 @@ async function exportEmploymentXLSX() {
   btn.textContent = "⏳ Menjana...";
 
   try {
-    const XLSX = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mjs");
+    if (typeof XLSX === "undefined") {
+      alert("XLSX library tidak tersedia. / XLSX library not available.");
+      btn.disabled = false;
+      btn.textContent = "📊 Eksport ke Sheets / Export to Sheets";
+      return;
+    }
 
     const categories = [
       { key:"working",    label:"BEKERJA / WORKING" },

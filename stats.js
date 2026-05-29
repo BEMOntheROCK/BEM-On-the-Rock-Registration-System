@@ -44,6 +44,7 @@ async function loadStats() {
     renderKomselTable();
     renderChildrenChart();
     renderCityTable();
+    renderEmploymentTable();
   } catch(e) {
     console.error("Stats error:", e);
   }
@@ -2085,3 +2086,266 @@ function barOpts() {
     }
   };
 }
+// ══════════════════════════════════════════════
+// EMPLOYMENT STATUS
+// ══════════════════════════════════════════════
+
+const EMPLOYMENT_LABELS = {
+  working:    "💼 Bekerja / Working",
+  notWorking: "🏠 Tidak Bekerja / Not Working",
+  studying:   "📚 Pelajar / Studying",
+  unknown:    "❓ Tidak Diketahui / Unknown",
+};
+
+// ── Keyword classifier ──
+function classifyEmployment(reg) {
+  if (reg.manualEmploymentStatus) return reg.manualEmploymentStatus;
+  const occ = (reg.sectionA?.occupation || "").toLowerCase().trim();
+  if (!occ) return "unknown";
+
+  const studyingKw = ["pelajar","student","belajar","sekolah","school","universiti","university",
+    "kolej","college","ipg","uitm","unimas","upsi","upm","utm","uum","ukm","um ","politeknik",
+    "polytechnic","diploma","degree","phd","master","ijazah","matriculation","matrikulasi",
+    "asasi","foundation","sek ","smk","sk "];
+  const notWorkingKw = ["tidak bekerja","unemployed","penganggur","surirumah","suri rumah",
+    "housewife","homemaker","pesara","retired","pencen","bersara","oku","cacat",
+    "tidak bekerja","tiada pekerjaan","no job","unemploy"];
+  const workingKw = ["guru","teacher","nurse","jururawat","doktor","doctor","engineer","jurutera",
+    "polis","police","tentera","army","askar","bomba","fireman","kakitangan","staff","officer",
+    "pegawai","pengurus","manager","kerani","clerk","pemandu","driver","ahli perniagaan",
+    "businessman","businesswoman","bekerja","employed","swasta","kerajaan","goverment",
+    "government","self employed","bekerja sendiri","freelance","wiraswasta","usahawan",
+    "entrepreneur","jualan","sales","operator","technician","juruteknik","pengajar","lecturer",
+    "pensyarah","farmasi","pharmacist","akauntan","accountant","lawyer","peguam","arkitek",
+    "architect","dentist","doktor gigi","pilot","kapten","pastor","pendeta","pembantu"];
+
+  if (studyingKw.some(k => occ.includes(k))) return "studying";
+  if (notWorkingKw.some(k => occ.includes(k))) return "notWorking";
+  if (workingKw.some(k => occ.includes(k))) return "working";
+  // If occupation has content but no keyword match, assume working
+  if (occ.length > 1) return "working";
+  return "unknown";
+}
+
+// ── Render table + chart ──
+function renderEmploymentTable() {
+  const map = { working:[], notWorking:[], studying:[], unknown:[] };
+  allData.forEach(r => {
+    const status = classifyEmployment(r);
+    if (!map[status]) map[status] = [];
+    map[status].push({
+      id:   r.id,
+      name: (r.name || r.sectionA?.fullName || "—"),
+      uid:  r.uniqueID || "—",
+      occ:  r.sectionA?.occupation || "—",
+    });
+  });
+
+  // Sort members within each category
+  Object.values(map).forEach(arr =>
+    arr.sort((a,b) => (a.name||"").localeCompare(b.name||"", undefined, { sensitivity:"base" }))
+  );
+
+  // Chart
+  const CHART_COLORS = ["#F39C12","#E05555","#3498DB","#7F8C8D"];
+  const ctx = document.getElementById("chartEmployment");
+  if (ctx) {
+    if (allCharts["chartEmployment"]) {
+      allCharts["chartEmployment"].destroy();
+      delete allCharts["chartEmployment"];
+    }
+    allCharts["chartEmployment"] = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: Object.keys(map).map(k => EMPLOYMENT_LABELS[k]),
+        datasets: [{
+          data: Object.values(map).map(v => v.length),
+          backgroundColor: CHART_COLORS,
+          borderWidth: 2,
+          borderColor: "rgba(0,0,0,0.3)",
+        }]
+      },
+      options: {
+        ...pieOpts(),
+        plugins: {
+          ...pieOpts().plugins,
+          legend: {
+            labels: {
+              color: chartText(),
+              font: { family:"Crimson Pro, serif", size:13 },
+              padding: 16,
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Table
+  const tbody = document.getElementById("employmentTableBody");
+  if (!tbody) return;
+  tbody.innerHTML = Object.entries(map).map(([key, members]) => `
+    <tr>
+      <td style="font-weight:700;">${EMPLOYMENT_LABELS[key]}</td>
+      <td style="text-align:center;font-weight:700;color:var(--marigold-bright);">${members.length}</td>
+      <td style="text-align:center;">
+        <button class="stats-view-btn emp-view-btn" data-key="${key}">
+          👁 Lihat / View
+        </button>
+      </td>
+      <td style="text-align:center;">
+        <button class="stats-view-btn emp-set-btn" data-key="${key}"
+          style="background:rgba(52,152,219,0.08);border-color:rgba(52,152,219,0.3);color:#5DADE2;">
+          ✏️ Tetapkan / Set
+        </button>
+      </td>
+    </tr>`).join("");
+
+  // View buttons
+  tbody.querySelectorAll(".emp-view-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key     = btn.dataset.key;
+      const members = map[key];
+      const title   = EMPLOYMENT_LABELS[key];
+      openListModal(title, `
+        <div style="overflow-x:auto;">
+          <table class="stats-modal-table" style="min-width:520px;">
+            <thead><tr>
+              <th>Nama / Name</th>
+              <th>ID Unik / Unique ID</th>
+              <th>Pekerjaan / Occupation</th>
+            </tr></thead>
+            <tbody>${members.map(m => `
+              <tr>
+                <td>${(m.name||"—").toUpperCase()}</td>
+                <td style="color:var(--marigold);font-family:var(--font-display);font-size:0.85rem;">${m.uid}</td>
+                <td style="font-size:0.85rem;color:var(--text-muted);">${m.occ}</td>
+              </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>`);
+    });
+  });
+
+  // Set buttons — open move modal
+  tbody.querySelectorAll(".emp-set-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      openEmploymentMoveModal(btn.dataset.key, map);
+    });
+  });
+}
+
+// ── Employment move modal ──
+let _empMoveMap      = null;
+let _empMoveFromKey  = null;
+let _empMoveSelected = new Set();
+
+function openEmploymentMoveModal(fromKey, map) {
+  _empMoveMap      = map;
+  _empMoveFromKey  = fromKey;
+  _empMoveSelected = new Set();
+
+  document.getElementById("employmentMoveTitle").textContent =
+    `✏️ Tetapkan Status — ${EMPLOYMENT_LABELS[fromKey]}`;
+  document.getElementById("employmentMoveSearch").value = "";
+  document.getElementById("employmentMoveTarget").value = "";
+  document.getElementById("employmentMoveStatus").textContent = "";
+  document.getElementById("employmentMoveSelCount").textContent = "0 dipilih / selected";
+
+  renderEmploymentMoveList("");
+  document.getElementById("employmentMoveModal").style.display = "flex";
+}
+
+function renderEmploymentMoveList(filter) {
+  const members = (_empMoveMap[_empMoveFromKey] || [])
+    .filter(m => !filter || (m.name||"").toUpperCase().includes(filter.toUpperCase()));
+  const list = document.getElementById("employmentMoveList");
+
+  list.innerHTML = members.map(m => {
+    const checked = _empMoveSelected.has(m.id);
+    return `
+      <label style="display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0.75rem;
+        border-radius:var(--radius);cursor:pointer;margin-bottom:0.3rem;
+        background:${checked ? "rgba(255,140,0,0.12)" : "rgba(255,255,255,0.02)"};
+        border:1px solid ${checked ? "var(--marigold)" : "var(--border-card)"};
+        transition:all 0.15s ease;">
+        <input type="checkbox" class="emp-move-chk" data-id="${m.id}"
+          ${checked ? "checked" : ""} style="accent-color:var(--marigold);width:16px;height:16px;flex-shrink:0;"/>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.9rem;">${(m.name||"—").toUpperCase()}</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);">${m.uid} — ${m.occ}</div>
+        </div>
+      </label>`;
+  }).join("") || `<p style="color:var(--text-muted);font-style:italic;text-align:center;padding:1rem;">
+    Tiada ahli dijumpai. / No members found.</p>`;
+
+  list.querySelectorAll(".emp-move-chk").forEach(chk => {
+    chk.addEventListener("change", () => {
+      if (chk.checked) _empMoveSelected.add(chk.dataset.id);
+      else _empMoveSelected.delete(chk.dataset.id);
+      renderEmploymentMoveList(document.getElementById("employmentMoveSearch").value);
+      document.getElementById("employmentMoveSelCount").textContent =
+        `${_empMoveSelected.size} dipilih / selected`;
+    });
+  });
+}
+
+document.getElementById("employmentMoveSearch")?.addEventListener("input", function() {
+  renderEmploymentMoveList(this.value);
+});
+document.getElementById("btnEmploymentMoveClear")?.addEventListener("click", () => {
+  _empMoveSelected = new Set();
+  renderEmploymentMoveList(document.getElementById("employmentMoveSearch").value);
+  document.getElementById("employmentMoveSelCount").textContent = "0 dipilih / selected";
+});
+document.getElementById("closeEmploymentMoveModal")?.addEventListener("click", () => {
+  document.getElementById("employmentMoveModal").style.display = "none";
+});
+
+document.getElementById("btnEmploymentMoveConfirm")?.addEventListener("click", async () => {
+  const target   = document.getElementById("employmentMoveTarget").value;
+  const statusEl = document.getElementById("employmentMoveStatus");
+
+  if (!target) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila pilih status sasaran. / Please select a target status.";
+    return;
+  }
+  if (_empMoveSelected.size === 0) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Sila pilih sekurang-kurangnya 1 ahli. / Please select at least 1 member.";
+    return;
+  }
+
+  const btn = document.getElementById("btnEmploymentMoveConfirm");
+  btn.disabled = true; btn.textContent = "⏳ Mengemaskini...";
+  statusEl.style.color = "var(--text-muted)";
+  statusEl.textContent = "Mengemaskini rekod... / Updating records...";
+
+  try {
+    const batch = db.batch();
+    _empMoveSelected.forEach(id => {
+      batch.update(db.collection("registrations").doc(id), {
+        manualEmploymentStatus: target
+      });
+    });
+    await batch.commit();
+
+    // Update allData in memory
+    allData.forEach(r => {
+      if (_empMoveSelected.has(r.id)) r.manualEmploymentStatus = target;
+    });
+
+    renderEmploymentTable();
+    statusEl.style.color = "#4CAF7D";
+    statusEl.textContent = `✅ ${_empMoveSelected.size} ahli ditetapkan ke ${EMPLOYMENT_LABELS[target]}. / ${_empMoveSelected.size} member(s) set to ${EMPLOYMENT_LABELS[target]}.`;
+    _empMoveSelected = new Set();
+    renderEmploymentMoveList(document.getElementById("employmentMoveSearch").value);
+    document.getElementById("employmentMoveSelCount").textContent = "0 dipilih / selected";
+  } catch(e) {
+    console.error(e);
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Ralat semasa mengemaskini. / Error while updating.";
+  }
+  btn.disabled = false; btn.textContent = "✅ Tetapkan / Set";
+});

@@ -49,6 +49,7 @@
               <option value="section-komsel">Bilangan Ahli dalam KOMSEL / Members by Cell Group</option>
               <option value="section-children">Statistik Anggota dengan Anak / Members with Children</option>
               <option value="section-city">Bilangan Anggota Mengikut Bandar / Members by City</option>
+              <option value="section-employment">Status Pekerjaan Anggota / Members' Employment Status</option>
             </select>
           </div>
 
@@ -202,6 +203,31 @@
               </tr>
             </thead>
             <tbody id="cityTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══ 9. EMPLOYMENT STATUS ══ -->
+      <div class="stats-section-card" id="section-employment">
+        <div class="stats-section-header">
+          <h3 class="stats-section-title">💼 Status Pekerjaan Anggota / Members' Employment Status</h3>
+        </div>
+        <!-- Chart -->
+        <div style="max-width:420px;margin:0 auto 1.5rem;">
+          <canvas id="chartEmployment"></canvas>
+        </div>
+        <!-- Table -->
+        <div class="stats-table-wrap">
+          <table class="stats-data-table">
+            <thead>
+              <tr>
+                <th>Status Pekerjaan / Employment Status</th>
+                <th style="text-align:center">Jumlah Ahli / Total Members</th>
+                <th style="text-align:center">Senarai Ahli / View List</th>
+                <th style="text-align:center">Tetapkan / Set</th>
+              </tr>
+            </thead>
+            <tbody id="employmentTableBody"></tbody>
           </table>
         </div>
       </div>
@@ -374,6 +400,41 @@
           </div>
           <div id="unmergeStatus" style="font-size:0.85rem;min-height:1.2rem;"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Employment Status Move Modal -->
+  <div class="modal-overlay" id="employmentMoveModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;">
+    <div class="modal-card" style="max-width:680px;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="employmentMoveTitle">👔 Tetapkan Status Pekerjaan / Set Employment Status</h3>
+        <button class="modal-close" id="closeEmploymentMoveModal">&times;</button>
+      </div>
+      <div style="padding:0.8rem 1.5rem;border-bottom:1px solid var(--border-card);">
+        <input type="text" id="employmentMoveSearch" class="form-input"
+          placeholder="🔍 Cari nama ahli / Search member name..." style="width:100%;"/>
+      </div>
+      <div id="employmentMoveList" style="flex:1;overflow-y:auto;padding:0.8rem 1.5rem;"></div>
+      <div style="padding:1rem 1.5rem;border-top:2px solid var(--marigold-dim);
+        background:rgba(255,140,0,0.04);display:flex;flex-direction:column;gap:0.75rem;">
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+          <label style="font-family:var(--font-display);font-size:0.82rem;color:var(--text-muted);white-space:nowrap;">
+            Pindah ke / Move to:
+          </label>
+          <select id="employmentMoveTarget" class="form-input form-select" style="flex:1;min-width:180px;">
+            <option value="">-- Pilih status / Select status --</option>
+            <option value="working">💼 Bekerja / Working</option>
+            <option value="notWorking">🏠 Tidak Bekerja / Not Working</option>
+            <option value="studying">📚 Pelajar / Studying</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap;">
+          <span id="employmentMoveSelCount" style="font-size:0.83rem;color:var(--text-muted);">0 dipilih / selected</span>
+          <button class="btn btn-secondary" id="btnEmploymentMoveClear">Nyahpilih / Clear</button>
+          <button class="btn btn-primary"   id="btnEmploymentMoveConfirm">✅ Tetapkan / Set</button>
+        </div>
+        <div id="employmentMoveStatus" style="font-size:0.85rem;min-height:1rem;"></div>
       </div>
     </div>
   </div>

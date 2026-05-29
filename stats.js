@@ -1733,19 +1733,20 @@ async function exportStatsPDF() {
 
   // ── Add chart image with dark-text override for legible legends ──
   const CHART_HEIGHTS = {
-    chartGender:   85,
-    chartAge:      90,
-    chartTime:     65,
-    chartMarital:  70,
-    chartChildren: 65,
+    chartGender:      85,
+    chartAge:         90,
+    chartTime:        65,
+    chartMarital:     70,
+    chartChildren:    65,
+    chartEmployment:  85,
   };
-  // Pie/donut charts render better constrained to a square-ish width
   const CHART_WIDTHS = {
-    chartGender:   100,
-    chartAge:      170,
-    chartTime:     CONTENT_W,
-    chartMarital:  CONTENT_W,
-    chartChildren: CONTENT_W,
+    chartGender:      100,
+    chartAge:         170,
+    chartTime:        CONTENT_W,
+    chartMarital:     CONTENT_W,
+    chartChildren:    CONTENT_W,
+    chartEmployment:  120,
   };
 
   async function addChart(canvasId) {
@@ -2037,6 +2038,25 @@ async function exportStatsPDF() {
   });
   drawTable(["Bandar / City", "Jumlah Ahli / Total Members"], cityRows, [CONTENT_W - 40, 40]);
 
+  // ════════════════════════════
+  // 9. EMPLOYMENT STATUS
+  // ════════════════════════════
+  sectionHeadingWithChart("Status Pekerjaan Anggota", "Members' Employment Status", "chartEmployment");
+  await addChart("chartEmployment");
+
+  // Employment count table
+  const empCategories = [
+    { key:"working",    label:"Bekerja / Working" },
+    { key:"notWorking", label:"Tidak Bekerja / Not Working" },
+    { key:"studying",   label:"Pelajar / Studying" },
+    { key:"unknown",    label:"Tidak Diketahui / Unknown" },
+  ];
+  const empRows = empCategories.map(cat => {
+    const count = allData.filter(r => classifyEmployment(r) === cat.key).length;
+    return [cat.label, count];
+  });
+  drawCountTable(["Status Pekerjaan / Employment Status", "Jumlah / Total"], empRows, [CONTENT_W - 40, 40]);
+
   // ── Footer on last page ──
   drawFooter();
 
@@ -2046,6 +2066,73 @@ async function exportStatsPDF() {
 
   btn.disabled = false;
   btn.textContent = "📄 Eksport PDF / Export PDF";
+}
+
+// ══════════════════════════════════════════════
+// EMPLOYMENT STATUS — EXPORT TO XLSX
+// ══════════════════════════════════════════════
+document.getElementById("btnExportEmploymentXLSX")?.addEventListener("click", exportEmploymentXLSX);
+
+async function exportEmploymentXLSX() {
+  const btn = document.getElementById("btnExportEmploymentXLSX");
+  btn.disabled = true;
+  btn.textContent = "⏳ Menjana...";
+
+  try {
+    const XLSX = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mjs");
+
+    const categories = [
+      { key:"working",    label:"BEKERJA / WORKING" },
+      { key:"notWorking", label:"TIDAK BEKERJA / NOT WORKING" },
+      { key:"studying",   label:"PELAJAR / STUDYING" },
+      { key:"unknown",    label:"TIDAK DIKETAHUI / UNKNOWN" },
+    ];
+
+    const wsData = [];
+    let grandTotal = 0;
+
+    categories.forEach(cat => {
+      const members = allData
+        .filter(r => classifyEmployment(r) === cat.key)
+        .sort((a,b) => (a.name||"").localeCompare(b.name||"", undefined, { sensitivity:"base" }));
+
+      // Category title
+      wsData.push([cat.label, "", ""]);
+      // Header
+      wsData.push(["Nama Ahli / Member Name", "ID Unik / Unique ID", "Pekerjaan / Occupation"]);
+      // Rows
+      members.forEach(r => {
+        wsData.push([
+          (r.name || r.sectionA?.fullName || "—").toUpperCase(),
+          r.uniqueID || "—",
+          r.sectionA?.occupation || "—",
+        ]);
+      });
+      // Subtotal
+      wsData.push([`JUMLAH ${cat.label} / TOTAL`, "", members.length]);
+      wsData.push(["", "", ""]);
+      grandTotal += members.length;
+    });
+
+    // Grand total
+    wsData.push(["JUMLAH KESELURUHAN / GRAND TOTAL", "", grandTotal]);
+
+    const ws   = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [{ wch: 40 }, { wch: 18 }, { wch: 30 }];
+    const wb   = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Employment Status");
+
+    const now  = new Date();
+    const filename = `BEM_OTR_Employment_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}.xlsx`;
+    XLSX.writeFile(wb, filename);
+
+  } catch(e) {
+    console.error("XLSX export error:", e);
+    alert("Ralat semasa mengeksport. / Error during export.");
+  }
+
+  btn.disabled = false;
+  btn.textContent = "📊 Eksport ke Sheets / Export to Sheets";
 }
 document.getElementById("gotoSelect")?.addEventListener("change", function() {
   const id = this.value;

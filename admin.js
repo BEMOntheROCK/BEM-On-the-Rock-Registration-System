@@ -1298,3 +1298,178 @@ document.getElementById("confirmDeleteBtn").addEventListener("click", async () =
 });
 document.getElementById("cancelDeleteBtn").addEventListener("click",  () => { pendingDeleteId = null; document.getElementById("deleteModal").style.display = "none"; });
 document.getElementById("closeDeleteModal").addEventListener("click", () => { pendingDeleteId = null; document.getElementById("deleteModal").style.display = "none"; });
+// ══════════════════════════════════════════════
+// MEMBER LIST PDF EXPORT
+// ══════════════════════════════════════════════
+document.getElementById("btnExportMemberPDF")?.addEventListener("click", exportMemberListPDF);
+
+async function exportMemberListPDF() {
+  const btn = document.getElementById("btnExportMemberPDF");
+  btn.disabled = true;
+  btn.textContent = "⏳ Menjana PDF...";
+
+  const { jsPDF } = window.jspdf;
+  const doc     = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const PAGE_W  = 210, PAGE_H = 297, MARGIN = 14;
+  const CONTENT_W = PAGE_W - MARGIN * 2;
+  let y = MARGIN;
+
+  const BLACK  = [0, 0, 0];
+  const MUTED  = [100, 100, 100];
+  const BORDER = [0, 0, 0];
+
+  // Column widths: Bil | Komsel | Nama | Jantina
+  const COLS   = [12, 30, 110, 30];
+  const tableW = COLS.reduce((a,b) => a+b, 0);
+  const HEAD_H = 8, ROW_H = 6.5;
+
+  function checkPage() {
+    if (y + ROW_H > PAGE_H - 14) {
+      drawFooter();
+      doc.addPage();
+      y = MARGIN + 4;
+      drawTableHeader();
+    }
+  }
+
+  function drawFooter() {
+    const p = doc.getNumberOfPages();
+    doc.setDrawColor(...MUTED);
+    doc.setLineWidth(0.3);
+    doc.line(MARGIN, PAGE_H - 11, PAGE_W - MARGIN, PAGE_H - 11);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.text("BEM On The Rock — Senarai Ahli / Member List", MARGIN, PAGE_H - 6);
+    doc.text(String(p), PAGE_W - MARGIN, PAGE_H - 6, { align:"right" });
+  }
+
+  function drawTableHeader() {
+    doc.setFillColor(220, 220, 220);
+    doc.rect(MARGIN, y, tableW, HEAD_H, "F");
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.rect(MARGIN, y, tableW, HEAD_H, "S");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...BLACK);
+    const headers = ["Bil.", "Komsel", "Nama / Name", "Jantina / Gender"];
+    let x = MARGIN;
+    headers.forEach((h, i) => {
+      doc.text(h, x + 2, y + 5.5);
+      if (i < headers.length - 1) doc.line(x + COLS[i], y, x + COLS[i], y + HEAD_H);
+      x += COLS[i];
+    });
+    y += HEAD_H;
+  }
+
+  // ── Cover header ──
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(...BLACK);
+  doc.text("BEM ON THE ROCK", PAGE_W / 2, y + 6, { align:"center" });
+  y += 10;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...MUTED);
+  doc.text("Senarai Ahli Berdaftar / Registered Member List", PAGE_W / 2, y, { align:"center" });
+  y += 5;
+
+  const now = new Date();
+  doc.setFontSize(8);
+  doc.text(`Dijana pada / Generated on: ${now.toLocaleDateString("en-GB")} ${now.toLocaleTimeString("en-GB", {hour:"2-digit",minute:"2-digit"})}`, PAGE_W / 2, y, { align:"center" });
+  y += 4;
+
+  doc.setDrawColor(...BLACK);
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+  y += 6;
+
+  // ── Filter and sort members ──
+  const members = allRegistrations
+    .filter(r => !r.transferred && !r.deceased)
+    .sort((a, b) => {
+      const ka = normaliseAdminKomsel(a.sectionA?.komselCode || "");
+      const kb = normaliseAdminKomsel(b.sectionA?.komselCode || "");
+      const komselCmp = ka.localeCompare(kb, undefined, { numeric:true, sensitivity:"base" });
+      if (komselCmp !== 0) return komselCmp;
+      const na = (a.name || a.sectionA?.fullName || "").toUpperCase();
+      const nb = (b.name || b.sectionA?.fullName || "").toUpperCase();
+      return na.localeCompare(nb, undefined, { sensitivity:"base" });
+    });
+
+  // ── Draw header row ──
+  drawTableHeader();
+
+  // ── Draw data rows ──
+  // ── Pastel colour palette — cycles through cell groups ──
+  const PASTELS = [
+    [255, 243, 220], // warm cream
+    [220, 237, 255], // light blue
+    [220, 255, 234], // mint green
+    [255, 220, 240], // soft pink
+    [240, 220, 255], // lavender
+    [255, 235, 210], // peach
+    [210, 248, 248], // pale cyan
+    [255, 255, 210], // pale yellow
+  ];
+
+  let paletteIdx   = 0;
+  let currentGroup = null;
+
+  members.forEach((reg, i) => {
+    checkPage();
+
+    const komsel  = normaliseAdminKomsel(reg.sectionA?.komselCode || "");
+    const name    = (reg.name || reg.sectionA?.fullName || "—").toUpperCase();
+    const gRaw    = reg.sectionA?.gender;
+    const gender  = gRaw === "male" ? "Lelaki" : gRaw === "female" ? "Perempuan" : "—";
+
+    // Advance palette when cell group changes — ensure not same as previous
+    if (komsel !== currentGroup) {
+      if (currentGroup !== null) {
+        paletteIdx = (paletteIdx + 1) % PASTELS.length;
+      }
+      currentGroup = komsel;
+    }
+
+    const bg = PASTELS[paletteIdx % PASTELS.length];
+    doc.setFillColor(...bg);
+    doc.rect(MARGIN, y, tableW, ROW_H, "F");
+
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.2);
+    doc.rect(MARGIN, y, tableW, ROW_H, "S");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...BLACK);
+
+    const cells = [String(i + 1), komsel, name, gender];
+    let x = MARGIN;
+    cells.forEach((cell, ci) => {
+      doc.text(cell, x + 2, y + 4.5, { maxWidth: COLS[ci] - 3 });
+      if (ci < cells.length - 1) doc.line(x + COLS[ci], y, x + COLS[ci], y + ROW_H);
+      x += COLS[ci];
+    });
+    y += ROW_H;
+  });
+
+  // ── Total row ──
+  if (y + 8 > PAGE_H - 14) {
+    drawFooter(); doc.addPage(); y = MARGIN + 4;
+  }
+  y += 3;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...BLACK);
+  doc.text(`Jumlah Ahli / Total Members: ${members.length}`, MARGIN, y);
+
+  drawFooter();
+
+  const filename = `BEM_OTR_MemberList_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}.pdf`;
+  doc.save(filename);
+
+  btn.disabled = false;
+  btn.textContent = "📄 Senarai Ahli PDF / Member List PDF";
+}

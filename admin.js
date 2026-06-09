@@ -1387,7 +1387,7 @@ async function exportMemberListPDF() {
   y += 6;
 
   // ── Filter and sort members ──
-  const members = allRegistrations
+  const members = registrations
     .filter(r => !r.transferred && !r.deceased)
     .sort((a, b) => {
       const ka = normaliseAdminKomsel(a.sectionA?.komselCode || "");

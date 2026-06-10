@@ -55,7 +55,7 @@ async function loadStats() {
 // SUMMARY CARDS
 // ══════════════════════════════════════════════
 function renderSummary() {
-  const total      = allData.length;
+  const total      = allData.filter(r => !r.transferred && !r.deceased).length;
   const active     = allData.filter(r => r.approved && !r.transferred && !r.deceased).length;
   const inactive   = allData.filter(r => !r.approved && !r.transferred && !r.deceased).length;
   const transferred= allData.filter(r => r.transferred).length;

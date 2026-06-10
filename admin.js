@@ -608,7 +608,7 @@ document.getElementById("btnAdminMarkPaid")?.addEventListener("click", async () 
 document.getElementById("closeAdminPayModal")?.addEventListener("click",    () => document.getElementById("adminPaymentModal").style.display = "none");
 document.getElementById("closeAdminPayModalBtn")?.addEventListener("click", () => document.getElementById("adminPaymentModal").style.display = "none");
 document.getElementById("btnDownloadXLSX")?.addEventListener("click", () => {
-  const rows = registrations.map(reg => {
+  const rows = registrations.filter(r => !r.transferred && !r.deceased).map(reg => {
     const a = reg.sectionA || {};
     const b = reg.sectionB || {};
     const c = reg.sectionC || {};

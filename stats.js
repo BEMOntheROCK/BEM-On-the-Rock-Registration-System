@@ -2445,6 +2445,10 @@ document.getElementById("btnEmploymentMoveConfirm")?.addEventListener("click", a
 // ══════════════════════════════════════════════
 // EXPORT CHILDREN LIST PDF
 // ══════════════════════════════════════════════
+
+// ══════════════════════════════════════════════
+// EXPORT CHILDREN LIST PDF
+// ══════════════════════════════════════════════
 function getAgeFromMyKidLocal(myKid) {
   const clean = (myKid || "").replace(/\D/g, "");
   if (clean.length < 6) return null;
@@ -2475,29 +2479,57 @@ function exportChildrenPDF() {
     const { jsPDF } = window.jspdf;
     const doc    = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const PAGE_W = 210, PAGE_H = 297, MARGIN = 14;
-    const CW     = PAGE_W - MARGIN * 2;  // 182mm
-    let y        = MARGIN;
+    const CW     = PAGE_W - MARGIN * 2; // 182mm
 
     const BLACK  = [0, 0, 0];
     const MUTED  = [110, 110, 110];
     const BORDER = [180, 180, 180];
+    const BANNER_BG   = [255, 248, 220];
+    const BANNER_BORD = [200, 160, 60];
 
     // Column widths: Bil | Nama Anak | Umur | Berdaftar di bawah
     const COLS   = [12, 72, 18, 80];
     const HEAD_H = 9;
     const ROW_H  = 7;
 
-    // Pastel group colours (RGB), cycling through groups
     const GROUP_COLORS = [
-      [255, 245, 220],
-      [220, 240, 255],
-      [220, 255, 230],
-      [255, 225, 225],
-      [240, 220, 255],
-      [255, 240, 210],
-      [210, 250, 250],
-      [255, 230, 245],
+      [255, 235, 205],
+      [210, 235, 255],
+      [210, 248, 220],
+      [255, 215, 215],
+      [238, 218, 255],
+      [255, 235, 195],
+      [200, 245, 245],
+      [255, 220, 240],
     ];
+
+    // Banner lines
+    const BANNER_LINES = [
+      "- Sekiranya nama anak anda tidak dipaparkan, sila kemas kini maklumat kanak-kanak anda di sistem keanggotaan BEM On The Rock.",
+      "  [Rujuk ketua KOMSEL anda untuk link sistem keanggotaan]",
+      "- Senarai ini untuk anak-anak berumur 12 tahun dan kebawah sahaja, sila jangan masukkan maklumat anak anda sekiranya mereka berumur",
+      "  13 tahun keatas. Digalakkan supaya mereka menyertai KOMSEL atau mendaftar sebagai jemaat bersekutu.",
+    ];
+
+    let y = MARGIN;
+
+    // ── Draw banner (call with isFirstPage to decide top offset) ──
+    function drawBanner() {
+      const lineH  = 4.2;
+      const padV   = 3.5;
+      const bannerH = BANNER_LINES.length * lineH + padV * 2;
+      doc.setFillColor(...BANNER_BG);
+      doc.setDrawColor(...BANNER_BORD);
+      doc.setLineWidth(0.4);
+      doc.rect(MARGIN, y, CW, bannerH, "FD");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.8);
+      doc.setTextColor(100, 70, 0);
+      BANNER_LINES.forEach((line, i) => {
+        doc.text(line, MARGIN + 3, y + padV + (i + 0.85) * lineH);
+      });
+      y += bannerH + 4;
+    }
 
     function drawFooter() {
       const p = doc.getNumberOfPages();
@@ -2513,7 +2545,7 @@ function exportChildrenPDF() {
 
     function drawTableHeader() {
       const headers = ["Bil.\nNum.", "Nama Anak / Child's Name", "Umur\nAge", "Berdaftar di bawah / Registered Under"];
-      doc.setFillColor(220, 220, 220);
+      doc.setFillColor(210, 210, 210);
       doc.setDrawColor(...BORDER);
       doc.setLineWidth(0.3);
       doc.rect(MARGIN, y, CW, HEAD_H, "FD");
@@ -2522,7 +2554,6 @@ function exportChildrenPDF() {
       doc.setTextColor(...BLACK);
       let x = MARGIN;
       headers.forEach((h, i) => {
-        // Two-line header support
         const lines = h.split("\n");
         if (lines.length > 1) {
           doc.text(lines[0], x + 2, y + 3.5);
@@ -2539,7 +2570,7 @@ function exportChildrenPDF() {
       y += HEAD_H;
     }
 
-    // ── Page header ──
+    // ── Page 1 header ──
     const now = new Date();
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
@@ -2550,13 +2581,13 @@ function exportChildrenPDF() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(...BLACK);
-    doc.text("Senarai Kanak-kanak Berdaftar", MARGIN, y);
+    doc.text("Senarai Kanak-kanak Berdaftar (di bawah 12 tahun)", MARGIN, y);
     y += 6;
 
     doc.setFont("helvetica", "italic");
     doc.setFontSize(10);
     doc.setTextColor(...MUTED);
-    doc.text("Registered Children List", MARGIN, y);
+    doc.text("Registered Children List (12 Years & Below)", MARGIN, y);
     y += 4;
 
     doc.setDrawColor(...BLACK);
@@ -2571,84 +2602,90 @@ function exportChildrenPDF() {
       `Dijana pada / Generated on: ${now.toLocaleDateString("ms-MY", { day: "2-digit", month: "long", year: "numeric" })}, ${now.toLocaleTimeString("ms-MY", { hour: "2-digit", minute: "2-digit" })}`,
       MARGIN, y
     );
-    y += 8;
+    y += 6;
 
-    // ── Table header (first page) ──
+    // Banner on page 1 (below title)
+    drawBanner();
+
+    // Table header on page 1
     drawTableHeader();
 
-    let globalBil = 1;
+    let globalBil    = 1;
     let totalChildren = 0;
 
     groups.forEach((group, gIdx) => {
-      const groupColor = GROUP_COLORS[gIdx % GROUP_COLORS.length];
+      const groupColor  = GROUP_COLORS[gIdx % GROUP_COLORS.length];
       const parentLabel = group.parents.map(p => p.name).join(" & ");
-      const children = group.children;
-
-      // Process children row by row, handling page breaks mid-group
-      let childIdx = 0;
+      const children    = group.children;
+      let childIdx      = 0;
 
       while (childIdx < children.length) {
-        const child = children[childIdx];
-        const age   = child.age ?? getAgeFromMyKidLocal(child.myKid);
-        const ageDisplay = age !== null && age !== undefined ? String(age) : "—";
 
-        // Check if we need a new page for this row
+        // New page check
         if (y + ROW_H > PAGE_H - 16) {
           drawFooter();
           doc.addPage();
-          y = MARGIN + 6;
+          y = MARGIN + 4;
+          drawBanner();       // banner above table header on subsequent pages
           drawTableHeader();
-          // After page break, this child starts a fresh span for the parent label
         }
 
-        // How many remaining children fit on this page?
-        const spaceLeft     = PAGE_H - 16 - y;
-        const rowsFitOnPage = Math.floor(spaceLeft / ROW_H);
+        // How many rows fit on this page?
+        const spaceLeft      = PAGE_H - 16 - y;
+        const rowsFitOnPage  = Math.floor(spaceLeft / ROW_H);
         const remainingChildren = children.length - childIdx;
-        const rowsThisSpan  = Math.min(rowsFitOnPage, remainingChildren);
-        const spanH         = rowsThisSpan * ROW_H;
+        const rowsThisSpan   = Math.min(rowsFitOnPage, remainingChildren);
+        const spanH          = rowsThisSpan * ROW_H;
 
-        // Draw the "Berdaftar di bawah" spanning cell for this page segment
-        // Background fill for the entire span block
+        const parentColX = MARGIN + COLS[0] + COLS[1] + COLS[2];
+
+        // ── Draw "Berdaftar di bawah" spanning cell (no internal horizontal lines) ──
         doc.setFillColor(...groupColor);
         doc.setDrawColor(...BORDER);
         doc.setLineWidth(0.2);
-        const parentColX = MARGIN + COLS[0] + COLS[1] + COLS[2];
         doc.rect(parentColX, y, COLS[3], spanH, "FD");
 
-        // Parent label — vertically centred in the span
+        // Parent label — vertically centred
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7.5);
         doc.setTextColor(...BLACK);
-        const labelLines = doc.splitTextToSize(parentLabel, COLS[3] - 4);
+        const labelLines  = doc.splitTextToSize(parentLabel, COLS[3] - 4);
         const labelBlockH = labelLines.length * 4;
-        const labelY = y + spanH / 2 - labelBlockH / 2 + 3.5;
+        const labelY      = y + spanH / 2 - labelBlockH / 2 + 3.5;
         doc.text(labelLines, parentColX + 2, labelY);
 
-        // Draw each child row in this span
+        // ── Draw each child row ──
         for (let r = 0; r < rowsThisSpan; r++) {
           const c       = children[childIdx + r];
           const cAge    = c.age ?? getAgeFromMyKidLocal(c.myKid);
-          const cAgeStr = cAge !== null && cAge !== undefined ? String(cAge) : "—";
+          // Fix #3: always show dash if age unknown
+          const cAgeStr = (cAge !== null && cAge !== undefined && !isNaN(cAge)) ? String(cAge) : "—";
           const rowY    = y + r * ROW_H;
 
-          // Row background (alternating within group)
-          const rowFill = r % 2 === 0 ? groupColor : groupColor.map(v => Math.min(255, v + 12));
-          doc.setFillColor(...rowFill);
-          // Fill only the first 3 cols (parent col already drawn)
+          // Fix #1: uniform group colour for all rows, no alternating
+          doc.setFillColor(...groupColor);
           doc.rect(MARGIN, rowY, COLS[0] + COLS[1] + COLS[2], ROW_H, "F");
 
-          // Row border
+          // Row outer border (3 left cols only — parent col border already drawn by span rect)
           doc.setDrawColor(...BORDER);
           doc.setLineWidth(0.2);
-          doc.rect(MARGIN, rowY, CW, ROW_H, "S");
+          // Top line
+          doc.line(MARGIN, rowY, parentColX, rowY);
+          // Bottom line
+          doc.line(MARGIN, rowY + ROW_H, parentColX, rowY + ROW_H);
+          // Left border
+          doc.line(MARGIN, rowY, MARGIN, rowY + ROW_H);
+          // Right border of col 2 (= left border of parent col, already the rect edge)
+          doc.line(parentColX, rowY, parentColX, rowY + ROW_H);
 
-          // Vertical dividers for cols 0-2
+          // Fix #2: vertical dividers only within the 3 left cols — NO horizontal lines on parent col
           let cx = MARGIN;
-          [0, 1, 2].forEach(ci => {
+          [0, 1].forEach(ci => {
             doc.line(cx + COLS[ci], rowY, cx + COLS[ci], rowY + ROW_H);
             cx += COLS[ci];
           });
+          // Right edge of the whole row (right side of parent col)
+          doc.line(MARGIN + CW, rowY, MARGIN + CW, rowY + ROW_H);
 
           // Cell text
           doc.setFont("helvetica", "normal");
@@ -2663,10 +2700,10 @@ function exportChildrenPDF() {
           });
         }
 
-        globalBil  += rowsThisSpan;
+        globalBil     += rowsThisSpan;
         totalChildren += rowsThisSpan;
-        childIdx   += rowsThisSpan;
-        y          += spanH;
+        childIdx      += rowsThisSpan;
+        y             += spanH;
       }
     });
 

@@ -184,9 +184,16 @@
       <div class="stats-section-card" id="section-children">
         <div class="stats-section-header">
           <h3 class="stats-section-title">👶 Statistik Anggota dengan Anak / Members with Children</h3>
-          <button class="btn btn-secondary" id="btnChildrenList" style="white-space:nowrap;font-size:0.82rem;">
-            📋 Senarai Anggota / View List
-          </button>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button class="btn btn-secondary" id="btnChildrenList" style="white-space:nowrap;font-size:0.82rem;">
+              📋 Senarai Anggota / View List
+            </button>
+            <button class="btn btn-secondary" id="btnExportChildrenPDF"
+              style="white-space:nowrap;font-size:0.82rem;
+                background:rgba(224,85,85,0.1);border-color:rgba(224,85,85,0.35);color:#E05555;">
+              📄 Eksport Senarai Kanak-kanak / Export Children List
+            </button>
+          </div>
         </div>
         <canvas id="chartChildren"></canvas>
       </div>

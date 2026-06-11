@@ -2441,3 +2441,258 @@ document.getElementById("btnEmploymentMoveConfirm")?.addEventListener("click", a
   }
   btn.disabled = false; btn.textContent = "✅ Tetapkan / Set";
 });
+
+// ══════════════════════════════════════════════
+// EXPORT CHILDREN LIST PDF
+// ══════════════════════════════════════════════
+function getAgeFromMyKidLocal(myKid) {
+  const clean = (myKid || "").replace(/\D/g, "");
+  if (clean.length < 6) return null;
+  const yy = parseInt(clean.substring(0, 2), 10);
+  const mm = parseInt(clean.substring(2, 4), 10);
+  const dd = parseInt(clean.substring(4, 6), 10);
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+  const fullYear = yy + (yy <= new Date().getFullYear() % 100 ? 2000 : 1900);
+  const dob = new Date(fullYear, mm - 1, dd);
+  if (isNaN(dob)) return null;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  if (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate())) age--;
+  return age;
+}
+
+document.getElementById("btnExportChildrenPDF")?.addEventListener("click", exportChildrenPDF);
+
+function exportChildrenPDF() {
+  const btn = document.getElementById("btnExportChildrenPDF");
+  if (btn) { btn.disabled = true; btn.textContent = "Menjana... / Generating..."; }
+
+  try {
+    const groups = buildCoupleGroups(allData)
+      .filter(g => g.children.length > 0)
+      .sort((a, b) => a.parents[0].name.localeCompare(b.parents[0].name));
+
+    const { jsPDF } = window.jspdf;
+    const doc    = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const PAGE_W = 210, PAGE_H = 297, MARGIN = 14;
+    const CW     = PAGE_W - MARGIN * 2;  // 182mm
+    let y        = MARGIN;
+
+    const BLACK  = [0, 0, 0];
+    const MUTED  = [110, 110, 110];
+    const BORDER = [180, 180, 180];
+
+    // Column widths: Bil | Nama Anak | Umur | Berdaftar di bawah
+    const COLS   = [12, 72, 18, 80];
+    const HEAD_H = 9;
+    const ROW_H  = 7;
+
+    // Pastel group colours (RGB), cycling through groups
+    const GROUP_COLORS = [
+      [255, 245, 220],
+      [220, 240, 255],
+      [220, 255, 230],
+      [255, 225, 225],
+      [240, 220, 255],
+      [255, 240, 210],
+      [210, 250, 250],
+      [255, 230, 245],
+    ];
+
+    function drawFooter() {
+      const p = doc.getNumberOfPages();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...MUTED);
+      doc.setDrawColor(...MUTED);
+      doc.setLineWidth(0.3);
+      doc.line(MARGIN, PAGE_H - 11, PAGE_W - MARGIN, PAGE_H - 11);
+      doc.text("BEM On The Rock — Senarai Kanak-kanak / Children List", MARGIN, PAGE_H - 6);
+      doc.text(String(p), PAGE_W - MARGIN, PAGE_H - 6, { align: "right" });
+    }
+
+    function drawTableHeader() {
+      const headers = ["Bil.\nNum.", "Nama Anak / Child's Name", "Umur\nAge", "Berdaftar di bawah / Registered Under"];
+      doc.setFillColor(220, 220, 220);
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.3);
+      doc.rect(MARGIN, y, CW, HEAD_H, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...BLACK);
+      let x = MARGIN;
+      headers.forEach((h, i) => {
+        // Two-line header support
+        const lines = h.split("\n");
+        if (lines.length > 1) {
+          doc.text(lines[0], x + 2, y + 3.5);
+          doc.text(lines[1], x + 2, y + 7);
+        } else {
+          doc.text(h, x + 2, y + 5.5);
+        }
+        if (i < headers.length - 1) {
+          doc.setDrawColor(...BORDER);
+          doc.line(x + COLS[i], y, x + COLS[i], y + HEAD_H);
+        }
+        x += COLS[i];
+      });
+      y += HEAD_H;
+    }
+
+    // ── Page header ──
+    const now = new Date();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...MUTED);
+    doc.text("BEM On The Rock  |  Sistem Keanggotaan / Membership System", MARGIN, y);
+    y += 6;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(...BLACK);
+    doc.text("Senarai Kanak-kanak Berdaftar", MARGIN, y);
+    y += 6;
+
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(10);
+    doc.setTextColor(...MUTED);
+    doc.text("Registered Children List", MARGIN, y);
+    y += 4;
+
+    doc.setDrawColor(...BLACK);
+    doc.setLineWidth(0.5);
+    doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+    y += 5;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text(
+      `Dijana pada / Generated on: ${now.toLocaleDateString("ms-MY", { day: "2-digit", month: "long", year: "numeric" })}, ${now.toLocaleTimeString("ms-MY", { hour: "2-digit", minute: "2-digit" })}`,
+      MARGIN, y
+    );
+    y += 8;
+
+    // ── Table header (first page) ──
+    drawTableHeader();
+
+    let globalBil = 1;
+    let totalChildren = 0;
+
+    groups.forEach((group, gIdx) => {
+      const groupColor = GROUP_COLORS[gIdx % GROUP_COLORS.length];
+      const parentLabel = group.parents.map(p => p.name).join(" & ");
+      const children = group.children;
+
+      // Process children row by row, handling page breaks mid-group
+      let childIdx = 0;
+
+      while (childIdx < children.length) {
+        const child = children[childIdx];
+        const age   = child.age ?? getAgeFromMyKidLocal(child.myKid);
+        const ageDisplay = age !== null && age !== undefined ? String(age) : "—";
+
+        // Check if we need a new page for this row
+        if (y + ROW_H > PAGE_H - 16) {
+          drawFooter();
+          doc.addPage();
+          y = MARGIN + 6;
+          drawTableHeader();
+          // After page break, this child starts a fresh span for the parent label
+        }
+
+        // How many remaining children fit on this page?
+        const spaceLeft     = PAGE_H - 16 - y;
+        const rowsFitOnPage = Math.floor(spaceLeft / ROW_H);
+        const remainingChildren = children.length - childIdx;
+        const rowsThisSpan  = Math.min(rowsFitOnPage, remainingChildren);
+        const spanH         = rowsThisSpan * ROW_H;
+
+        // Draw the "Berdaftar di bawah" spanning cell for this page segment
+        // Background fill for the entire span block
+        doc.setFillColor(...groupColor);
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.2);
+        const parentColX = MARGIN + COLS[0] + COLS[1] + COLS[2];
+        doc.rect(parentColX, y, COLS[3], spanH, "FD");
+
+        // Parent label — vertically centred in the span
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(...BLACK);
+        const labelLines = doc.splitTextToSize(parentLabel, COLS[3] - 4);
+        const labelBlockH = labelLines.length * 4;
+        const labelY = y + spanH / 2 - labelBlockH / 2 + 3.5;
+        doc.text(labelLines, parentColX + 2, labelY);
+
+        // Draw each child row in this span
+        for (let r = 0; r < rowsThisSpan; r++) {
+          const c       = children[childIdx + r];
+          const cAge    = c.age ?? getAgeFromMyKidLocal(c.myKid);
+          const cAgeStr = cAge !== null && cAge !== undefined ? String(cAge) : "—";
+          const rowY    = y + r * ROW_H;
+
+          // Row background (alternating within group)
+          const rowFill = r % 2 === 0 ? groupColor : groupColor.map(v => Math.min(255, v + 12));
+          doc.setFillColor(...rowFill);
+          // Fill only the first 3 cols (parent col already drawn)
+          doc.rect(MARGIN, rowY, COLS[0] + COLS[1] + COLS[2], ROW_H, "F");
+
+          // Row border
+          doc.setDrawColor(...BORDER);
+          doc.setLineWidth(0.2);
+          doc.rect(MARGIN, rowY, CW, ROW_H, "S");
+
+          // Vertical dividers for cols 0-2
+          let cx = MARGIN;
+          [0, 1, 2].forEach(ci => {
+            doc.line(cx + COLS[ci], rowY, cx + COLS[ci], rowY + ROW_H);
+            cx += COLS[ci];
+          });
+
+          // Cell text
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(...BLACK);
+
+          cx = MARGIN;
+          const cells = [String(globalBil + r), (c.name || "—").toUpperCase(), cAgeStr];
+          cells.forEach((val, ci) => {
+            doc.text(val, cx + 2, rowY + 4.8, { maxWidth: COLS[ci] - 3 });
+            cx += COLS[ci];
+          });
+        }
+
+        globalBil  += rowsThisSpan;
+        totalChildren += rowsThisSpan;
+        childIdx   += rowsThisSpan;
+        y          += spanH;
+      }
+    });
+
+    // ── Totals ──
+    y += 6;
+    if (y + 10 > PAGE_H - 16) {
+      drawFooter();
+      doc.addPage();
+      y = MARGIN + 6;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...BLACK);
+    doc.text(`Jumlah Kanak-kanak / Total Children: ${totalChildren}`, MARGIN, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text(`Jumlah Keluarga / Total Families: ${groups.length}`, MARGIN, y);
+
+    drawFooter();
+
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+    doc.save(`BEM_OTR_Senarai_Kanak-kanak_${dateStr}.pdf`);
+
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "📄 Eksport Senarai Kanak-kanak / Export Children List"; }
+  }
+}

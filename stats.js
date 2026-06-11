@@ -2523,7 +2523,7 @@ function exportChildrenPDF() {
       doc.setLineWidth(0.4);
       doc.rect(MARGIN, y, CW, bannerH, "FD");
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(6.8);
+      doc.setFontSize(7.5);
       doc.setTextColor(100, 70, 0);
       BANNER_LINES.forEach((line, i) => {
         doc.text(line, MARGIN + 3, y + padV + (i + 0.85) * lineH);

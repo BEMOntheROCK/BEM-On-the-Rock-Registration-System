@@ -2239,22 +2239,6 @@ function bindSectionCEvents() {
       return;
     }
 
-    // ── Check for children aged 13+ ──
-    const overAgeChildren = [];
-    document.querySelectorAll(".child-card").forEach(card => {
-      const name   = card.querySelector(`[id^="childName-"]`)?.value?.trim() || "";
-      const ageEl  = card.querySelector(`[id^="childAge-"]`);
-      const age    = ageEl ? parseInt(ageEl.value) : NaN;
-      if (name && !isNaN(age) && age >= 13) {
-        overAgeChildren.push({ name, age });
-      }
-    });
-
-    if (overAgeChildren.length > 0) {
-      showOverAgeModal(overAgeChildren);
-      return;
-    }
-
     navigateTo("d");
   });
 }
@@ -2295,54 +2279,6 @@ function showPartialChildModal(partialList) {
         The ${c.missing.join(", ")} of Child ${c.num} is yet to be filled, please fill them to proceed.
       </span>
     </div>`).join("");
-
-  modal.style.display = "flex";
-}
-
-// ── Over-age children modal ──
-function showOverAgeModal(children) {
-  let modal = document.getElementById("overAgeModal");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "overAgeModal";
-    modal.className = "modal-overlay";
-    modal.style.display = "flex";
-    modal.innerHTML = `
-      <div class="modal-card modal-card--sm">
-        <div class="modal-header">
-          <h3 class="modal-title" style="color:#E8A000;">⚠️ Umur Anak Melebihi Had / Child Over Age Limit</h3>
-        </div>
-        <div class="modal-body" style="padding:1.2rem 1.5rem;">
-          <p style="font-size:0.92rem;color:var(--text-primary);line-height:1.7;margin-bottom:0.8rem;">
-            Bahagian ini adalah untuk kanak-kanak berumur 12 tahun dan ke bawah sahaja. Kanak-kanak berikut tidak memenuhi kriteria kerana mereka berumur 13 tahun ke atas. Kami menggalakkan supaya mereka mendaftarkan diri sebagai anggota gereja atau sebagai ahli bersekutu jika mereka tidak menyertai mana-mana KOMSEL. Sila padam maklumat kanak-kanak anda yang berumur 13 tahun dan ke atas.
-          </p>
-          <p style="font-size:0.82rem;color:var(--text-muted);font-style:italic;line-height:1.6;margin-bottom:1rem;">
-            This section is for children aged 12 and below only. The following children do not meet the criteria since they're aged 13 and above. We recommend registering them as a member on their own or as an affiliated member if they don't have any cell group. Please remove the children information that's aged 13 and above.
-          </p>
-          <div id="overAgeList" style="background:rgba(232,160,0,0.08);border:1px solid rgba(232,160,0,0.25);
-            border-radius:var(--radius);padding:0.8rem 1rem;margin-bottom:0.5rem;"></div>
-        </div>
-        <div class="modal-footer" style="justify-content:center;">
-          <button class="btn btn-primary" id="btnOverAgeOk">Saya Faham / I Understand</button>
-        </div>
-      </div>`;
-    document.body.appendChild(modal);
-    document.getElementById("btnOverAgeOk").addEventListener("click", () => {
-      modal.style.display = "none";
-    });
-  }
-
-  // Populate the list of over-age children
-  const list = document.getElementById("overAgeList");
-  list.innerHTML = children.map(c =>
-    `<div style="display:flex;justify-content:space-between;padding:0.3rem 0;
-      border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.9rem;">
-      <span style="color:var(--text-primary);font-weight:600;">${c.name}</span>
-      <span style="color:#E8A000;font-family:var(--font-display);font-size:0.82rem;">
-        ${c.age} tahun / years old
-      </span>
-    </div>`
-  ).join("");
 
   modal.style.display = "flex";
 }

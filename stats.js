@@ -2505,10 +2505,8 @@ function exportChildrenPDF() {
 
     // Banner lines
     const BANNER_LINES = [
-      "- Sekiranya nama anak anda tidak dipaparkan, sila kemas kini maklumat kanak-kanak anda di sistem keanggotaan BEM On The Rock.",
-      "  [Rujuk ketua KOMSEL anda untuk link sistem keanggotaan]",
-      "- Senarai ini untuk anak-anak berumur 12 tahun dan kebawah sahaja, sila jangan masukkan maklumat anak anda sekiranya mereka berumur",
-      "  13 tahun keatas. Digalakkan supaya mereka menyertai KOMSEL atau mendaftar sebagai jemaat bersekutu.",
+      "Sekiranya terdapat sebarang kesilapan, sila semak dan kemas kini maklumat anda di sistem keanggotaan On The Rock.",
+      "[Rujuk kepada Ketua Komsel anda untuk mendapatkan link ke sistem keanggotaan]",
     ];
 
     let y = MARGIN;
@@ -2523,7 +2521,7 @@ function exportChildrenPDF() {
       doc.setLineWidth(0.4);
       doc.rect(MARGIN, y, CW, bannerH, "FD");
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
+      doc.setFontSize(6.8);
       doc.setTextColor(100, 70, 0);
       BANNER_LINES.forEach((line, i) => {
         doc.text(line, MARGIN + 3, y + padV + (i + 0.85) * lineH);
@@ -2581,13 +2579,13 @@ function exportChildrenPDF() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(...BLACK);
-    doc.text("Senarai Kanak-kanak Berdaftar (di bawah 12 tahun)", MARGIN, y);
+    doc.text("Senarai Ahli Keluarga Berdaftar di Bawah Ahli BEM On The Rock", MARGIN, y);
     y += 6;
 
     doc.setFont("helvetica", "italic");
     doc.setFontSize(10);
     doc.setTextColor(...MUTED);
-    doc.text("Registered Children List (12 Years & Below)", MARGIN, y);
+    doc.text("Registered Family Members Under BEM On The Rock Members", MARGIN, y);
     y += 4;
 
     doc.setDrawColor(...BLACK);

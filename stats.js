@@ -2071,6 +2071,9 @@ async function exportStatsPDF() {
 // ══════════════════════════════════════════════
 // EMPLOYMENT STATUS — EXPORT TO XLSX
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// EMPLOYMENT STATUS — EXPORT TO XLSX
+// ══════════════════════════════════════════════
 document.getElementById("btnExportEmploymentXLSX")?.addEventListener("click", exportEmploymentXLSX);
 
 async function exportEmploymentXLSX() {
@@ -2081,8 +2084,6 @@ async function exportEmploymentXLSX() {
   try {
     if (typeof XLSX === "undefined") {
       alert("XLSX library tidak tersedia. / XLSX library not available.");
-      btn.disabled = false;
-      btn.textContent = "📊 Eksport ke Sheets / Export to Sheets";
       return;
     }
 
@@ -2094,42 +2095,43 @@ async function exportEmploymentXLSX() {
     ];
 
     const wsData = [];
+    let globalBil = 1;
     let grandTotal = 0;
+    const colWidths = [6, 30, 20, 20];
 
     categories.forEach(cat => {
       const members = allData
         .filter(r => classifyEmployment(r) === cat.key)
         .sort((a,b) => (a.name||"").localeCompare(b.name||"", undefined, { sensitivity:"base" }));
 
-      // Category title
-      wsData.push([cat.label, "", ""]);
-      // Header
-      wsData.push(["Nama Ahli / Member Name", "ID Unik / Unique ID", "Pekerjaan / Occupation"]);
-      // Rows
+      wsData.push([cat.label, "", "", ""]);
+      wsData.push(["Bil. / No.", "Nama Ahli / Member Name", "No. KP / IC No.", "Pekerjaan / Occupation"]);
+
       members.forEach(r => {
-        wsData.push([
-          (r.name || r.sectionA?.fullName || "—").toUpperCase(),
-          r.uniqueID || "—",
-          r.sectionA?.occupation || "—",
-        ]);
+        const name = (r.name || r.sectionA?.fullName || "—").toUpperCase();
+        const ic   = r.icNo || r.sectionA?.foreignID || "—";
+        const occ  = (r.sectionA?.occupation || "").trim() || "Tidak Dinyatakan";
+        wsData.push([globalBil, name, ic, occ]);
+        colWidths[1] = Math.max(colWidths[1], name.length);
+        colWidths[2] = Math.max(colWidths[2], ic.length);
+        colWidths[3] = Math.max(colWidths[3], occ.length);
+        globalBil++;
       });
-      // Subtotal
-      wsData.push([`JUMLAH ${cat.label} / TOTAL`, "", members.length]);
-      wsData.push(["", "", ""]);
+
+      wsData.push([`JUMLAH ${cat.label}`, "", "", members.length]);
+      wsData.push(["", "", "", ""]);
       grandTotal += members.length;
     });
 
-    // Grand total
-    wsData.push(["JUMLAH KESELURUHAN / GRAND TOTAL", "", grandTotal]);
+    wsData.push(["JUMLAH KESELURUHAN / GRAND TOTAL", "", "", grandTotal]);
 
-    const ws   = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!cols"] = [{ wch: 40 }, { wch: 18 }, { wch: 30 }];
-    const wb   = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = colWidths.map(w => ({ wch: Math.min(w + 2, 60) }));
+    const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Employment Status");
 
-    const now  = new Date();
-    const filename = `BEM_OTR_Employment_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}.xlsx`;
-    XLSX.writeFile(wb, filename);
+    const now = new Date();
+    XLSX.writeFile(wb, `BEM_OTR_Employment_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}.xlsx`);
 
   } catch(e) {
     console.error("XLSX export error:", e);
@@ -2138,6 +2140,253 @@ async function exportEmploymentXLSX() {
 
   btn.disabled = false;
   btn.textContent = "📊 Eksport ke Sheets / Export to Sheets";
+}
+
+// ══════════════════════════════════════════════
+// EMPLOYMENT STATUS — EXPORT TO PDF
+// ══════════════════════════════════════════════
+document.getElementById("btnExportEmploymentPDF")?.addEventListener("click", exportEmploymentPDF);
+
+function exportEmploymentPDF() {
+  const btn = document.getElementById("btnExportEmploymentPDF");
+  if (btn) { btn.disabled = true; btn.textContent = "Menjana... / Generating..."; }
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc    = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
+    const PAGE_W = 210, PAGE_H = 297, MARGIN = 14;
+    const CW     = PAGE_W - MARGIN * 2;
+
+    const BLACK  = [0, 0, 0];
+    const MUTED  = [110, 110, 110];
+    const BORDER = [180, 180, 180];
+
+    // Group colours per category
+    const CAT_COLORS = {
+      working:    [210, 240, 220],
+      notWorking: [255, 230, 210],
+      studying:   [210, 230, 255],
+      unknown:    [235, 235, 235],
+    };
+
+    const categories = [
+      { key:"working",    label:"Bekerja / Working",              labelUpper:"BEKERJA / WORKING" },
+      { key:"notWorking", label:"Tidak Bekerja / Not Working",    labelUpper:"TIDAK BEKERJA / NOT WORKING" },
+      { key:"studying",   label:"Pelajar / Studying",             labelUpper:"PELAJAR / STUDYING" },
+      { key:"unknown",    label:"Tidak Diketahui / Unknown",      labelUpper:"TIDAK DIKETAHUI / UNKNOWN" },
+    ];
+
+    // Col widths: Bil | Nama | No. KP | Pekerjaan
+    const COLS   = [12, 68, 36, 66];
+    const HEAD_H = 8;
+    const ROW_H  = 7;
+
+    const now = new Date();
+    let y = MARGIN;
+
+    function drawFooter() {
+      const p = doc.getNumberOfPages();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...MUTED);
+      doc.setDrawColor(...MUTED);
+      doc.setLineWidth(0.3);
+      doc.line(MARGIN, PAGE_H - 11, PAGE_W - MARGIN, PAGE_H - 11);
+      doc.text("BEM On The Rock — Status Pekerjaan Anggota / Members Employment Status", MARGIN, PAGE_H - 6);
+      doc.text(String(p), PAGE_W - MARGIN, PAGE_H - 6, { align:"right" });
+    }
+
+    function checkPage(neededH) {
+      if (y + neededH > PAGE_H - 16) {
+        drawFooter();
+        doc.addPage();
+        y = MARGIN + 6;
+      }
+    }
+
+    function drawTableHeader() {
+      const headers = ["Bil.\nNo.", "Nama Ahli / Member Name", "No. KP / IC No.", "Pekerjaan / Occupation"];
+      doc.setFillColor(210, 210, 210);
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.3);
+      doc.rect(MARGIN, y, CW, HEAD_H, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...BLACK);
+      let x = MARGIN;
+      headers.forEach((h, i) => {
+        const lines = h.split("\n");
+        if (lines.length > 1) {
+          doc.text(lines[0], x + 2, y + 3);
+          doc.text(lines[1], x + 2, y + 6.5);
+        } else {
+          doc.text(h, x + 2, y + 5);
+        }
+        if (i < headers.length - 1) doc.line(x + COLS[i], y, x + COLS[i], y + HEAD_H);
+        x += COLS[i];
+      });
+      y += HEAD_H;
+    }
+
+    // ── Page 1 header ──
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...MUTED);
+    doc.text("BEM On The Rock  |  Sistem Keanggotaan / Membership System", MARGIN, y);
+    y += 6;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(...BLACK);
+    doc.text("Senarai Ahli Mengikut Status Pekerjaan", MARGIN, y);
+    y += 6;
+
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(10);
+    doc.setTextColor(...MUTED);
+    doc.text("Members List by Employment Status", MARGIN, y);
+    y += 4;
+
+    doc.setDrawColor(...BLACK);
+    doc.setLineWidth(0.5);
+    doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+    y += 5;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text(
+      `Dijana pada / Generated on: ${now.toLocaleDateString("ms-MY", { day:"2-digit", month:"long", year:"numeric" })}, ${now.toLocaleTimeString("ms-MY", { hour:"2-digit", minute:"2-digit" })}`,
+      MARGIN, y
+    );
+    y += 8;
+
+    // ── Summary table ──
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...BLACK);
+    doc.text("Ringkasan / Summary", MARGIN, y);
+    y += 5;
+
+    const SUM_COLS = [120, 62];
+    // Summary header
+    doc.setFillColor(210, 210, 210);
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.rect(MARGIN, y, SUM_COLS[0] + SUM_COLS[1], 8, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...BLACK);
+    doc.text("Kategori / Category", MARGIN + 2, y + 5.5);
+    doc.line(MARGIN + SUM_COLS[0], y, MARGIN + SUM_COLS[0], y + 8);
+    doc.text("Jumlah Ahli / Total Members", MARGIN + SUM_COLS[0] + 2, y + 5.5);
+    y += 8;
+
+    let grandTotal = 0;
+    categories.forEach((cat, ci) => {
+      const count = allData.filter(r => classifyEmployment(r) === cat.key).length;
+      grandTotal += count;
+      const rowColor = CAT_COLORS[cat.key];
+      doc.setFillColor(...rowColor);
+      doc.setDrawColor(...BORDER);
+      doc.rect(MARGIN, y, SUM_COLS[0] + SUM_COLS[1], ROW_H, "FD");
+      doc.line(MARGIN + SUM_COLS[0], y, MARGIN + SUM_COLS[0], y + ROW_H);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...BLACK);
+      doc.text(cat.label, MARGIN + 2, y + 4.8);
+      doc.text(String(count), MARGIN + SUM_COLS[0] + 2, y + 4.8);
+      y += ROW_H;
+    });
+    // Grand total row
+    doc.setFillColor(220, 220, 220);
+    doc.setDrawColor(...BORDER);
+    doc.rect(MARGIN, y, SUM_COLS[0] + SUM_COLS[1], ROW_H, "FD");
+    doc.line(MARGIN + SUM_COLS[0], y, MARGIN + SUM_COLS[0], y + ROW_H);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...BLACK);
+    doc.text("JUMLAH KESELURUHAN / GRAND TOTAL", MARGIN + 2, y + 4.8);
+    doc.text(String(grandTotal), MARGIN + SUM_COLS[0] + 2, y + 4.8);
+    y += ROW_H + 10;
+
+    // ── Member list by category ──
+    let globalBil = 1;
+
+    categories.forEach(cat => {
+      const members = allData
+        .filter(r => classifyEmployment(r) === cat.key)
+        .sort((a,b) => (a.name||"").localeCompare(b.name||"", undefined, { sensitivity:"base" }));
+
+      if (!members.length) return;
+
+      // Category heading
+      checkPage(HEAD_H + ROW_H + 10);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...BLACK);
+      doc.text(cat.labelUpper, MARGIN, y);
+      y += 6;
+
+      drawTableHeader();
+
+      members.forEach(r => {
+        checkPage(ROW_H);
+        const name = (r.name || r.sectionA?.fullName || "—").toUpperCase();
+        const ic   = r.icNo || r.sectionA?.foreignID || "—";
+        const occ  = (r.sectionA?.occupation || "").trim() || "Tidak Dinyatakan";
+        const rowColor = CAT_COLORS[cat.key];
+
+        doc.setFillColor(...rowColor);
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.2);
+        doc.rect(MARGIN, y, CW, ROW_H, "FD");
+
+        // Vertical dividers
+        let cx = MARGIN;
+        [0,1,2].forEach(ci => {
+          doc.line(cx + COLS[ci], y, cx + COLS[ci], y + ROW_H);
+          cx += COLS[ci];
+        });
+        // Top + bottom + outer borders
+        doc.line(MARGIN, y, MARGIN + CW, y);
+        doc.line(MARGIN, y + ROW_H, MARGIN + CW, y + ROW_H);
+        doc.line(MARGIN, y, MARGIN, y + ROW_H);
+        doc.line(MARGIN + CW, y, MARGIN + CW, y + ROW_H);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(...BLACK);
+        cx = MARGIN;
+        [String(globalBil), name, ic, occ].forEach((val, ci) => {
+          doc.text(val, cx + 2, y + 4.8, { maxWidth: COLS[ci] - 3 });
+          cx += COLS[ci];
+        });
+
+        globalBil++;
+        y += ROW_H;
+      });
+
+      // Subtotal row
+      checkPage(ROW_H + 6);
+      doc.setFillColor(200, 200, 200);
+      doc.setDrawColor(...BORDER);
+      doc.rect(MARGIN, y, CW, ROW_H, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...BLACK);
+      doc.text(`Jumlah ${cat.label}: ${members.length}`, MARGIN + 2, y + 4.8);
+      y += ROW_H + 8;
+    });
+
+    drawFooter();
+
+    const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}`;
+    doc.save(`BEM_OTR_Employment_${dateStr}.pdf`);
+
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "📄 Eksport PDF / Export PDF"; }
+  }
 }
 document.getElementById("gotoSelect")?.addEventListener("change", function() {
   const id = this.value;

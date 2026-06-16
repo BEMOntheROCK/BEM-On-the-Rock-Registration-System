@@ -184,16 +184,9 @@
       <div class="stats-section-card" id="section-children">
         <div class="stats-section-header">
           <h3 class="stats-section-title">👶 Statistik Anggota dengan Anak / Members with Children</h3>
-          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-            <button class="btn btn-secondary" id="btnChildrenList" style="white-space:nowrap;font-size:0.82rem;">
-              📋 Senarai Anggota / View List
-            </button>
-            <button class="btn btn-secondary" id="btnExportChildrenPDF"
-              style="white-space:nowrap;font-size:0.82rem;
-                background:rgba(224,85,85,0.1);border-color:rgba(224,85,85,0.35);color:#E05555;">
-              📄 Eksport Senarai Kanak-kanak / Export Children List
-            </button>
-          </div>
+          <button class="btn btn-secondary" id="btnChildrenList" style="white-space:nowrap;font-size:0.82rem;">
+            📋 Senarai Anggota / View List
+          </button>
         </div>
         <canvas id="chartChildren"></canvas>
       </div>
@@ -219,11 +212,18 @@
       <div class="stats-section-card" id="section-employment">
         <div class="stats-section-header">
           <h3 class="stats-section-title">💼 Status Pekerjaan Anggota / Members' Employment Status</h3>
-          <button class="btn btn-secondary" id="btnExportEmploymentXLSX"
-            style="white-space:nowrap;font-size:0.82rem;
-              background:rgba(39,174,96,0.1);border-color:rgba(39,174,96,0.35);color:#27AE60;">
-            📊 Eksport ke Sheets / Export to Sheets
-          </button>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button class="btn btn-secondary" id="btnExportEmploymentPDF"
+              style="white-space:nowrap;font-size:0.82rem;
+                background:rgba(224,85,85,0.1);border-color:rgba(224,85,85,0.35);color:#E05555;">
+              📄 Eksport PDF / Export PDF
+            </button>
+            <button class="btn btn-secondary" id="btnExportEmploymentXLSX"
+              style="white-space:nowrap;font-size:0.82rem;
+                background:rgba(39,174,96,0.1);border-color:rgba(39,174,96,0.35);color:#27AE60;">
+              📊 Eksport ke Sheets / Export to Sheets
+            </button>
+          </div>
         </div>
         <!-- Chart -->
         <div style="max-width:420px;margin:0 auto 1.5rem;">

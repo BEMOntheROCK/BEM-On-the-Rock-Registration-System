@@ -2444,13 +2444,11 @@ function classifyEmployment(reg) {
   const occ = (reg.sectionA?.occupation || "").toLowerCase().trim();
   if (!occ) return "unknown";
 
-  const studyingKw = ["pelajar","student","belajar","sekolah","school","universiti","university",
-    "kolej","college","ipg","uitm","unimas","upsi","upm","utm","uum","ukm","um ","politeknik",
-    "polytechnic","diploma","degree","phd","master","ijazah","matriculation","matrikulasi",
-    "asasi","foundation","sek ","smk","sk "];
+  const studyingKw = ["pelajar","student","belajar","undergraduate","postgraduate",
+    "phd","master","ijazah","matriculation","matrikulasi","asasi","foundation"];
   const notWorkingKw = ["tidak bekerja","unemployed","penganggur","surirumah","suri rumah",
     "housewife","homemaker","pesara","retired","pencen","bersara","oku","cacat",
-    "tidak bekerja","tiada pekerjaan","no job","unemploy"];
+    "tiada pekerjaan","no job","unemploy","tiada"];
   const workingKw = ["guru","teacher","nurse","jururawat","doktor","doctor","engineer","jurutera",
     "polis","police","tentera","army","askar","bomba","fireman","kakitangan","staff","officer",
     "pegawai","pengurus","manager","kerani","clerk","pemandu","driver","ahli perniagaan",
@@ -2478,7 +2476,7 @@ function renderEmploymentTable() {
       id:   r.id,
       name: (r.name || r.sectionA?.fullName || "—"),
       uid:  r.uniqueID || "—",
-      occ:  r.sectionA?.occupation || "—",
+      occ:  (r.sectionA?.occupation || "").trim() || "Tidak Dinyatakan",
     });
   });
 

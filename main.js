@@ -930,14 +930,25 @@ function collectCurrentFormData() {
     if (name && gender) newChildren.push({ name, gender, myKid, age });
   });
 
-  return { newA, newServices, newChildren };
+  // Section E — read from live confession fields
+  const oldE = editOriginalData?.sectionE || {};
+  const newE = {
+    komsel: document.getElementById("confessionKomsel")?.value || oldE.komsel || "",
+    since:  document.getElementById("confessionSince")?.value  || oldE.since  || "",
+    leader: document.getElementById("confessionLeader")?.value || oldE.leader || "",
+    name:   document.getElementById("confessionName")?.value   || oldE.name   || "",
+    date:   document.getElementById("confessionDate")?.value   || oldE.date   || "",
+  };
+
+  return { newA, newServices, newChildren, newE };
 }
 
 async function submitEditMode() {
-  const { newA, newServices, newChildren } = collectCurrentFormData();
+  const { newA, newServices, newChildren, newE } = collectCurrentFormData();
   const oldA = editOriginalData?.sectionA || {};
   const oldB = editOriginalData?.sectionB || {};
   const oldC = editOriginalData?.sectionC || {};
+  const oldE = editOriginalData?.sectionE || {};
 
   // Build diff
   const changes = [];
@@ -974,11 +985,25 @@ async function submitEditMode() {
     changes.push({ section:"A — Peribadi", field:"Gambar / Photo", before:"(gambar lama)", after:"(gambar baru)" });
   }
 
+  // Section E diff
+  const E_FIELD_LABELS = {
+    komsel: "Komsel Pengakuan Iman",
+    since:  "Sejak Bila / Since",
+    leader: "Ketua Komsel / Komsel Leader",
+    name:   "Nama Semasa Pengakuan / Name at Confession",
+    date:   "Tarikh Pengakuan / Confession Date",
+  };
+  Object.keys(E_FIELD_LABELS).forEach(key => {
+    const before = String(oldE[key] || "").trim();
+    const after  = String(newE[key]  || "").trim();
+    if (before !== after) changes.push({ section:"E — Pengakuan Iman", field:E_FIELD_LABELS[key], before:before||"—", after:after||"—" });
+  });
+
   // Show diff modal
-  showEditDiffModal(changes, newA, newSvcs, newKids);
+  showEditDiffModal(changes, newA, newSvcs, newKids, newE);
 }
 
-function showEditDiffModal(changes, newA, newSvcs, newKids) {
+function showEditDiffModal(changes, newA, newSvcs, newKids, newE) {
   // Create modal if not present
   let modal = document.getElementById("editDiffModal");
   if (!modal) {
@@ -1048,6 +1073,7 @@ function showEditDiffModal(changes, newA, newSvcs, newKids) {
         sectionA:            { ...(editOriginalData?.sectionA||{}), ...newA },
         "sectionB.services": newSvcs,
         "sectionC.children": newKids,
+        sectionE:            { ...(editOriginalData?.sectionE||{}), ...newE },
         manualCity:          firebase.firestore.FieldValue.delete(),
         lastUpdated:         firebase.firestore.FieldValue.serverTimestamp(),
       };

@@ -113,13 +113,22 @@ function renderTable(rows) {
       `<span style="color:#E05555;font-family:var(--font-display);font-size:0.75rem;letter-spacing:0.04em;">❌ Ditolak / Rejected</span>`;
 
     const actionBtn = req.status === "pending"
-      ? `<button class="btn-action-dots pay-action-btn"
-           style="background:rgba(255,140,0,0.1);border:1px solid var(--marigold-dim);
-           border-radius:var(--radius);padding:0.3rem 0.8rem;cursor:pointer;
-           color:var(--marigold);font-family:var(--font-display);font-size:0.75rem;"
-           data-idx="${allPaymentRows.indexOf(row)}">
-           ⚖️ Tindakan / Action
-         </button>`
+      ? `<div style="display:flex;gap:0.4rem;align-items:center;">
+           <button class="btn-action-dots pay-action-btn"
+             style="background:rgba(255,140,0,0.1);border:1px solid var(--marigold-dim);
+             border-radius:var(--radius);padding:0.3rem 0.8rem;cursor:pointer;
+             color:var(--marigold);font-family:var(--font-display);font-size:0.75rem;"
+             data-idx="${allPaymentRows.indexOf(row)}">
+             ⚖️ Tindakan / Action
+           </button>
+           <button class="pay-delete-btn"
+             style="background:rgba(224,85,85,0.1);border:1px solid #E05555;
+             border-radius:var(--radius);padding:0.3rem 0.7rem;cursor:pointer;
+             color:#E05555;font-family:var(--font-display);font-size:0.75rem;"
+             data-idx="${allPaymentRows.indexOf(row)}">
+             🗑️
+           </button>
+         </div>`
       : `<span style="font-size:0.78rem;color:var(--text-muted);">${formatDate(req.confirmedAt || req.rejectedAt)}</span>`;
 
     const tr = document.createElement("tr");
@@ -141,6 +150,14 @@ function renderTable(rows) {
     btn.addEventListener("click", () => {
       const row = allPaymentRows[parseInt(btn.dataset.idx)];
       openActionModal(row);
+    });
+  });
+
+  // Wire delete buttons
+  document.querySelectorAll(".pay-delete-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const row = allPaymentRows[parseInt(btn.dataset.idx)];
+      openDeleteModal(row);
     });
   });
 }
@@ -295,4 +312,54 @@ document.getElementById("btnRejectPayment")?.addEventListener("click", async () 
     document.getElementById("payActionStatus").textContent = "Ralat. / Error.";
   }
   btn.disabled = false; btn.textContent = "❌ Tolak / Reject";
+});
+// ── Delete payment request ──
+let pendingDelete = null;
+
+function openDeleteModal(row) {
+  pendingDelete = row;
+  document.getElementById("deletePayMemberName").textContent = row.memberName;
+  document.getElementById("deletePayMemberUID").textContent  = row.memberUID;
+  document.getElementById("deletePayYears").textContent      = (row.request.years || []).join(", ");
+  document.getElementById("deletePayMethod").textContent     =
+    row.request.method === "cash" ? "💵 Tunai / Cash" : "🏦 Pindahan Bank / Transfer";
+  document.getElementById("deletePayStatus").textContent     = "";
+  document.getElementById("payDeleteModal").style.display    = "flex";
+}
+
+document.getElementById("closePayDeleteModal")?.addEventListener("click",    () => document.getElementById("payDeleteModal").style.display = "none");
+document.getElementById("closePayDeleteModalBtn")?.addEventListener("click", () => document.getElementById("payDeleteModal").style.display = "none");
+
+document.getElementById("btnConfirmDelete")?.addEventListener("click", async () => {
+  if (!pendingDelete) return;
+  const btn    = document.getElementById("btnConfirmDelete");
+  const status = document.getElementById("deletePayStatus");
+  btn.disabled = true;
+  btn.textContent = "Memadam... / Deleting...";
+
+  try {
+    const docRef = db.collection("registrations").doc(pendingDelete.docId);
+    const snap   = await docRef.get();
+    const reqs   = snap.data().paymentRequests || [];
+
+    const updatedReqs = reqs.filter(r => r.id !== pendingDelete.request.id);
+    await docRef.update({ paymentRequests: updatedReqs });
+
+    status.style.color   = "#4CAF7D";
+    status.textContent   = "✅ Rekod berjaya dipadam. / Record successfully deleted.";
+
+    setTimeout(() => {
+      document.getElementById("payDeleteModal").style.display = "none";
+      pendingDelete = null;
+      loadPaymentRequests();
+    }, 1200);
+
+  } catch(e) {
+    console.error(e);
+    status.style.color   = "#E05555";
+    status.textContent   = "Ralat semasa memadam. / Error while deleting.";
+  }
+
+  btn.disabled    = false;
+  btn.textContent = "🗑️ Padam / Delete";
 });

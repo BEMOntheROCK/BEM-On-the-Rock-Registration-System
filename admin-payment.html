@@ -113,6 +113,39 @@
     </div>
   </main>
 
+  <!-- Delete Modal -->
+  <div class="modal-overlay" id="payDeleteModal" style="display:none;">
+    <div class="modal-card modal-card--sm">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color:#E05555;">🗑️ Padam Rekod Bayaran / Delete Payment Record</h3>
+        <button class="modal-close" id="closePayDeleteModal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:1.2rem 1.5rem;">
+        <p style="font-size:0.9rem;color:var(--text-primary);margin-bottom:1rem;line-height:1.6;">
+          Anda akan memadam rekod bayaran berikut secara kekal. Tindakan ini tidak boleh dibatalkan.<br/>
+          <em style="color:var(--text-muted);font-size:0.82rem;">You are about to permanently delete the following payment record. This action cannot be undone.</em>
+        </p>
+        <div style="background:rgba(224,85,85,0.06);border:1px solid rgba(224,85,85,0.2);
+          border-radius:var(--radius);padding:0.9rem 1rem;margin-bottom:1rem;">
+          <div style="font-weight:700;font-size:0.95rem;" id="deletePayMemberName"></div>
+          <div style="font-size:0.82rem;color:var(--marigold);font-family:var(--font-display);margin-top:0.2rem;" id="deletePayMemberUID"></div>
+          <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.3rem;" id="deletePayMethod"></div>
+          <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.2rem;">
+            Tahun / Year(s): <span id="deletePayYears" style="font-weight:700;color:var(--text-primary);"></span>
+          </div>
+        </div>
+        <div id="deletePayStatus" style="font-size:0.85rem;min-height:1rem;"></div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="btn btn-secondary" id="closePayDeleteModalBtn">Batal / Cancel</button>
+        <button class="btn" id="btnConfirmDelete"
+          style="background:rgba(224,85,85,0.15);border:1px solid #E05555;color:#E05555;">
+          🗑️ Padam / Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Confirm/Reject Modal -->
   <div class="modal-overlay" id="payActionModal" style="display:none;">
     <div class="modal-card modal-card--sm">

@@ -119,7 +119,7 @@ function renderTable(rows) {
              border-radius:var(--radius);padding:0.3rem 0.8rem;cursor:pointer;
              color:var(--marigold);font-family:var(--font-display);font-size:0.75rem;"
              data-idx="${allPaymentRows.indexOf(row)}">
-             ⚖️ Tindakan / Action
+             •••
            </button>
            <button class="pay-delete-btn"
              style="background:rgba(224,85,85,0.1);border:1px solid #E05555;

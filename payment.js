@@ -236,8 +236,22 @@ document.getElementById("btnConfirmCash").addEventListener("click", async () => 
   notice.textContent = "";
 
   try {
-    const years = pendingFees.map(f => f.year);
-    const req   = {
+    const years    = pendingFees.map(f => f.year);
+    const existing = memberData.paymentRequests || [];
+
+    // Duplicate guard — block if a pending request already covers any of the same years
+    const hasDuplicate = existing.some(r =>
+      r.status === "pending" && (r.years || []).some(y => years.includes(y))
+    );
+    if (hasDuplicate) {
+      notice.style.color   = "#E05555";
+      notice.textContent   = "⚠️ Anda sudah menghantar permohonan yang sedang menunggu pengesahan. Sila tunggu pentadbir mengesahkan atau menolak permohonan anda terlebih dahulu. / You already have a pending request for these year(s). Please wait for admin to confirm or reject it first.";
+      btn.disabled   = false;
+      btn.textContent = "✅ Saya Sudah Membayar / I Have Paid";
+      return;
+    }
+
+    const req = {
       id:        db.collection("_").doc().id,
       method:    "cash",
       status:    "pending",
@@ -245,7 +259,6 @@ document.getElementById("btnConfirmCash").addEventListener("click", async () => 
       amount:    pendingFees.reduce((s,f) => s+f.amount, 0),
       submittedAt: new Date().toISOString(),
     };
-    const existing = memberData.paymentRequests || [];
     await db.collection("registrations").doc(memberDocId).update({
       paymentRequests: [...existing, req],
     });
@@ -289,8 +302,22 @@ document.getElementById("btnConfirmTransfer").addEventListener("click", async ()
   notice.textContent = "";
 
   try {
-    const years = pendingFees.map(f => f.year);
-    const req   = {
+    const years    = pendingFees.map(f => f.year);
+    const existing = memberData.paymentRequests || [];
+
+    // Duplicate guard — block if a pending request already covers any of the same years
+    const hasDuplicate = existing.some(r =>
+      r.status === "pending" && (r.years || []).some(y => years.includes(y))
+    );
+    if (hasDuplicate) {
+      notice.style.color   = "#E05555";
+      notice.textContent   = "⚠️ Anda sudah menghantar permohonan yang sedang menunggu pengesahan. Sila tunggu pentadbir mengesahkan atau menolak permohonan anda terlebih dahulu. / You already have a pending request for these year(s). Please wait for admin to confirm or reject it first.";
+      btn.disabled    = false;
+      btn.textContent = "✅ Saya Sudah Membuat Pindahan / I Have Transferred";
+      return;
+    }
+
+    const req = {
       id:          db.collection("_").doc().id,
       method:      "transfer",
       status:      "pending",
@@ -298,7 +325,6 @@ document.getElementById("btnConfirmTransfer").addEventListener("click", async ()
       amount:      pendingFees.reduce((s,f) => s+f.amount, 0),
       submittedAt: new Date().toISOString(),
     };
-    const existing = memberData.paymentRequests || [];
     await db.collection("registrations").doc(memberDocId).update({
       paymentRequests: [...existing, req],
     });

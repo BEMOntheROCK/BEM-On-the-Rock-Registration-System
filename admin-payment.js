@@ -192,8 +192,7 @@ function openActionModal(row) {
   document.getElementById("payActionModal").style.display = "flex";
 }
 
-document.getElementById("closePayActionModal")?.addEventListener("click",    () => document.getElementById("payActionModal").style.display="none");
-document.getElementById("closePayActionModalBtn")?.addEventListener("click", () => document.getElementById("payActionModal").style.display="none");
+document.getElementById("closePayActionModal")?.addEventListener("click", () => document.getElementById("payActionModal").style.display="none");
 
 // ── Confirm ──
 document.getElementById("btnConfirmPayment")?.addEventListener("click", async () => {

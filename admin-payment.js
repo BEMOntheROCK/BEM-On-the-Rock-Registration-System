@@ -131,8 +131,17 @@ function renderTable(rows) {
          </div>`
       : `<span style="font-size:0.78rem;color:var(--text-muted);">${formatDate(req.confirmedAt || req.rejectedAt)}</span>`;
 
+    const checkboxCell = req.status === "pending"
+      ? `<td style="text-align:center;">
+           <input type="checkbox" class="pay-row-chk"
+             style="accent-color:var(--marigold);width:15px;height:15px;cursor:pointer;"
+             data-idx="${allPaymentRows.indexOf(row)}"/>
+         </td>`
+      : `<td></td>`;
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
+      ${checkboxCell}
       <td class="col-num">${i+1}</td>
       <td style="font-weight:700;">${row.memberName}</td>
       <td style="color:var(--marigold);font-family:var(--font-display);font-size:0.82rem;">${row.memberUID}</td>
@@ -160,6 +169,23 @@ function renderTable(rows) {
       openDeleteModal(row);
     });
   });
+
+  // Wire row checkboxes
+  document.querySelectorAll(".pay-row-chk").forEach(chk => {
+    chk.addEventListener("change", updateBulkBar);
+  });
+
+  // Select all
+  const selectAll = document.getElementById("selectAllPending");
+  if (selectAll) {
+    selectAll.checked = false;
+    selectAll.addEventListener("change", function() {
+      document.querySelectorAll(".pay-row-chk").forEach(chk => {
+        chk.checked = this.checked;
+      });
+      updateBulkBar();
+    });
+  }
 }
 
 // ── Action modal ──
@@ -361,4 +387,195 @@ document.getElementById("btnConfirmDelete")?.addEventListener("click", async () 
 
   btn.disabled    = false;
   btn.textContent = "🗑️ Padam / Delete";
+});
+
+// ══════════════════════════════════════════════
+// BULK ACTION
+// ══════════════════════════════════════════════
+let bulkMode = null; // "approve" or "reject"
+
+function getSelectedRows() {
+  return [...document.querySelectorAll(".pay-row-chk:checked")]
+    .map(chk => allPaymentRows[parseInt(chk.dataset.idx)])
+    .filter(Boolean);
+}
+
+function updateBulkBar() {
+  const selected = getSelectedRows();
+  const bar      = document.getElementById("bulkActionBar");
+  const countEl  = document.getElementById("bulkSelectedCount");
+  if (selected.length > 0) {
+    bar.style.display    = "block";
+    countEl.textContent  = selected.length;
+  } else {
+    bar.style.display    = "none";
+  }
+}
+
+// Cancel bulk
+document.getElementById("btnBulkCancel")?.addEventListener("click", () => {
+  document.querySelectorAll(".pay-row-chk").forEach(chk => chk.checked = false);
+  const selectAll = document.getElementById("selectAllPending");
+  if (selectAll) selectAll.checked = false;
+  updateBulkBar();
+});
+
+// Open bulk approve modal
+document.getElementById("btnBulkApprove")?.addEventListener("click", () => {
+  bulkMode = "approve";
+  openBulkModal();
+});
+
+// Open bulk reject modal
+document.getElementById("btnBulkReject")?.addEventListener("click", () => {
+  bulkMode = "reject";
+  openBulkModal();
+});
+
+function openBulkModal() {
+  const selected = getSelectedRows();
+  const isApprove = bulkMode === "approve";
+
+  document.getElementById("bulkActionModalTitle").textContent = isApprove
+    ? "✅ Luluskan Pembayaran Berganda / Bulk Approve Payments"
+    : "❌ Tolak Pembayaran Berganda / Bulk Reject Payments";
+
+  document.getElementById("bulkActionDesc").textContent = isApprove
+    ? `Semak dan pilih tahun untuk diluluskan bagi setiap ahli berikut. / Review and select years to approve for each member below.`
+    : `Semak dan pilih tahun untuk ditolak bagi setiap ahli berikut. / Review and select years to reject for each member below.`;
+
+  const confirmBtn = document.getElementById("btnBulkConfirm");
+  confirmBtn.textContent = isApprove ? "✅ Luluskan Semua / Approve All" : "❌ Tolak Semua / Reject All";
+  confirmBtn.style.background   = isApprove ? "" : "rgba(224,85,85,0.15)";
+  confirmBtn.style.border       = isApprove ? "" : "1px solid #E05555";
+  confirmBtn.style.color        = isApprove ? "" : "#E05555";
+  confirmBtn.className          = isApprove ? "btn btn-primary" : "btn";
+
+  // Build list of members with year checkboxes
+  const list = document.getElementById("bulkRequestList");
+  list.innerHTML = selected.map((row, i) => {
+    const req    = row.request;
+    const years  = req.years || [];
+    const method = req.method === "cash" ? "💵 Tunai / Cash" : "🏦 Pindahan Bank / Transfer";
+    return `
+      <div style="background:rgba(255,140,0,0.05);border:1px solid var(--border-card);
+        border-radius:var(--radius);padding:0.9rem 1rem;">
+        <div style="font-weight:700;font-size:0.9rem;margin-bottom:0.2rem;">${row.memberName}</div>
+        <div style="font-size:0.78rem;color:var(--marigold);font-family:var(--font-display);">${row.memberUID}</div>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.6rem;">${method}</div>
+        <div style="display:flex;flex-direction:column;gap:0.3rem;">
+          ${years.map(y => `
+            <label style="display:flex;align-items:center;gap:0.6rem;cursor:pointer;
+              padding:0.35rem 0.6rem;border-radius:var(--radius);
+              background:rgba(255,255,255,0.03);border:1px solid var(--border-card);">
+              <input type="checkbox" class="bulk-year-chk"
+                data-row-idx="${allPaymentRows.indexOf(row)}" data-year="${y}" checked
+                style="accent-color:var(--marigold);width:14px;height:14px;"/>
+              <span style="font-size:0.85rem;font-weight:600;">${y} Yuran Tahunan / Annual Fee
+                <span style="color:var(--text-muted);font-size:0.78rem;">(RM 10.00)</span>
+              </span>
+            </label>`).join("")}
+        </div>
+      </div>`;
+  }).join("");
+
+  document.getElementById("bulkActionStatus").textContent = "";
+  document.getElementById("bulkActionModal").style.display = "flex";
+}
+
+document.getElementById("closeBulkActionModal")?.addEventListener("click",    () => document.getElementById("bulkActionModal").style.display = "none");
+document.getElementById("closeBulkActionModalBtn")?.addEventListener("click", () => document.getElementById("bulkActionModal").style.display = "none");
+
+// Bulk confirm
+document.getElementById("btnBulkConfirm")?.addEventListener("click", async () => {
+  const btn    = document.getElementById("btnBulkConfirm");
+  const status = document.getElementById("bulkActionStatus");
+  btn.disabled = true;
+  btn.textContent = "Memproses... / Processing...";
+  status.textContent = "";
+
+  try {
+    // Gather selected years per row
+    const rowYearMap = new Map();
+    document.querySelectorAll(".bulk-year-chk:checked").forEach(chk => {
+      const rowIdx = parseInt(chk.dataset.rowIdx);
+      const year   = parseInt(chk.dataset.year);
+      if (!rowYearMap.has(rowIdx)) rowYearMap.set(rowIdx, []);
+      rowYearMap.get(rowIdx).push(year);
+    });
+
+    if (rowYearMap.size === 0) {
+      status.style.color   = "#E05555";
+      status.textContent   = "Sila pilih sekurang-kurangnya 1 tahun. / Please select at least 1 year.";
+      btn.disabled = false;
+      btn.textContent = bulkMode === "approve" ? "✅ Luluskan Semua / Approve All" : "❌ Tolak Semua / Reject All";
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const promises = [];
+
+    rowYearMap.forEach((selectedYears, rowIdx) => {
+      const row    = allPaymentRows[rowIdx];
+      if (!row) return;
+      const docRef = db.collection("registrations").doc(row.docId);
+
+      promises.push((async () => {
+        const snap = await docRef.get();
+        const data = snap.data();
+        const reqs = data.paymentRequests || [];
+
+        if (bulkMode === "approve") {
+          const paidYears      = data.paidYears || [];
+          const paymentHistory = data.paymentHistory || [];
+          const updatedReqs    = reqs.map(r =>
+            r.id === row.request.id
+              ? { ...r, status:"confirmed", confirmedAt:now, confirmedYears:selectedYears }
+              : r
+          );
+          const newPaidYears = [...new Set([...paidYears, ...selectedYears])];
+          const newHistory   = [
+            ...paymentHistory,
+            ...selectedYears.map(y => ({ year:y, method:row.request.method, confirmedAt:now }))
+          ];
+          await docRef.update({
+            paymentRequests: updatedReqs,
+            paidYears:       newPaidYears,
+            paymentHistory:  newHistory,
+          });
+        } else {
+          const updatedReqs = reqs.map(r =>
+            r.id === row.request.id
+              ? { ...r, status:"rejected", rejectedAt:now, rejectedYears:selectedYears }
+              : r
+          );
+          await docRef.update({ paymentRequests: updatedReqs });
+        }
+      })());
+    });
+
+    await Promise.all(promises);
+
+    const actionWord = bulkMode === "approve" ? "diluluskan / approved" : "ditolak / rejected";
+    status.style.color   = bulkMode === "approve" ? "#4CAF7D" : "#E05555";
+    status.textContent   = `✅ ${rowYearMap.size} permohonan berjaya ${actionWord}. / ${rowYearMap.size} request(s) successfully ${actionWord}.`;
+
+    // Deselect all and refresh
+    setTimeout(() => {
+      document.getElementById("bulkActionModal").style.display = "none";
+      document.querySelectorAll(".pay-row-chk").forEach(chk => chk.checked = false);
+      const selectAll = document.getElementById("selectAllPending");
+      if (selectAll) selectAll.checked = false;
+      updateBulkBar();
+      loadPaymentRequests();
+    }, 1500);
+
+  } catch(e) {
+    console.error(e);
+    status.style.color   = "#E05555";
+    status.textContent   = "Ralat semasa memproses. / Error during processing.";
+  }
+
+  btn.disabled    = false;
+  btn.textContent = bulkMode === "approve" ? "✅ Luluskan Semua / Approve All" : "❌ Tolak Semua / Reject All";
 });

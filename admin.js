@@ -2446,17 +2446,6 @@ document.addEventListener("DOMContentLoaded", () => {
   bindSectionDEvents();
 });
 
-pledgeAgree.addEventListener("change", () => {
-  saveSectionDDraft();
-  const label = document.getElementById("pledgeAgreeLabel");
-  if (pledgeAgree.checked) {
-    label.style.borderColor = "var(--marigold)";
-    label.style.boxShadow = "";
-  } else {
-    label.style.borderColor = "";
-    label.style.boxShadow = "";
-  }
-});
 
 // ── Init Section C ──
 document.addEventListener("DOMContentLoaded", () => {

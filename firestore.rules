@@ -40,6 +40,15 @@ service cloud.firestore {
       allow delete: if isSignedIn();
     }
 
+    // Audit logs (written on every registration/edit save, by member or admin;
+    // only admins should ever be able to read the log; logs are immutable once created)
+    match /auditLogs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if true;
+      allow update: if false;
+      allow delete: if isSignedIn();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

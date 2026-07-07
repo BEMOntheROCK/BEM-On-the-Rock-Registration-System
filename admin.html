@@ -11,6 +11,7 @@
 </head>
 <body class="admin-body">
 
+  <!-- ═══ LOGIN OVERLAY ═══ -->
   <div class="login-overlay" id="loginOverlay">
     <div class="login-card">
       <div class="login-logo">
@@ -44,10 +45,13 @@
     </div>
   </div>
 
+  <!-- ═══ ADMIN PAGE ═══ -->
   <div class="admin-page" id="adminPage" style="display:none;">
 
+    <!-- ═══ ADMIN DASHBOARD LAYOUT ═══ -->
     <div class="dashboard-wrapper">
       
+      <!-- Sidebar Navigation -->
       <aside class="dashboard-sidebar" id="dashboardSidebar">
         <div class="sidebar-header">
           <img src="Images/logo.jpg" alt="BEM On The Rock" class="sidebar-logo"/>
@@ -81,8 +85,10 @@
         </div>
       </aside>
 
+      <!-- Main Content Area -->
       <main class="dashboard-main">
         
+        <!-- Mobile Header (Hidden on Desktop) -->
         <header class="mobile-header admin-mobile-only">
           <div style="display:flex; align-items:center; gap: 0.8rem;">
             <img src="Images/logo.jpg" alt="Logo" style="width:32px; height:32px; border-radius:50%;"/>
@@ -91,16 +97,14 @@
           <button id="btnBurgerMenu" class="btn btn-secondary" onclick="document.getElementById('dashboardSidebar').classList.toggle('open')">☰ Menu</button>
         </header>
 
+        <!-- Table Section -->
         <div class="admin-content-card">
           <div class="admin-topbar">
             <h2 class="admin-section-title" style="margin:0;">Senarai Pendaftaran <span>/ Registration List</span></h2>
-            
-            <div class="admin-search-bar" style="margin:0; flex: 1; max-width: 400px;">
-              <input type="text" id="adminSearch" class="form-input admin-search-input" placeholder="🔍 Cari nama, No. KP, atau ID" />
-            </div>
           </div>
 
-          <div class="admin-controls">
+          <!-- Controls & Filters -->
+          <div class="admin-controls" style="margin-bottom: 1rem;">
             <div class="admin-sort-group">
               <label class="admin-control-label">Susun / Sort:</label>
               <select id="sortBy" class="form-input form-select admin-select">
@@ -118,14 +122,21 @@
                 <option value="desc">Menurun / Descending</option>
               </select>
             </div>
-            <div class="admin-sort-group">
-              <label class="admin-control-label" style="visibility:hidden;">_</label>
-              <button class="btn btn-secondary form-input form-select admin-select" id="btnToggleSelect">
-                ☑ Pilih Berbilang / Multi-Select
-              </button>
-            </div>
+          </div>
+          
+          <!-- Search Bar -->
+          <div class="admin-search-bar" style="margin-bottom: 1rem; width: 100%;">
+            <input type="text" id="adminSearch" class="form-input admin-search-input" style="max-width: 100%;" placeholder="🔍 Cari nama, No. KP, atau ID" />
           </div>
 
+          <!-- Multi-Select Toggle -->
+          <div style="margin-bottom: 1.5rem;">
+            <button class="btn btn-secondary form-input form-select admin-select" id="btnToggleSelect" style="text-align: left; cursor: pointer;">
+              ☑ Pilih Berbilang / Multi-Select
+            </button>
+          </div>
+
+          <!-- Bulk Action Bar (hidden until multi-select active) -->
           <div id="bulkActionBar" style="display:none;align-items:center;gap:0.75rem;flex-wrap:wrap;padding:0.8rem 1rem;background:rgba(255,140,0,0.07);border:1px solid rgba(255,140,0,0.25);border-radius:var(--radius);margin-bottom:0.8rem;">
             <span id="bulkSelectedCount" style="font-family:var(--font-display);font-size:0.82rem;letter-spacing:0.05em;color:var(--marigold-bright);min-width:120px;">0 dipilih / selected</span>
             <button class="btn btn-secondary" id="btnSelectAll" style="font-size:0.78rem;padding:0.4rem 0.9rem;">✔ Pilih Semua</button>
@@ -135,7 +146,8 @@
             <button class="btn btn-secondary" id="btnCancelSelect" style="font-size:0.78rem;padding:0.4rem 0.9rem;">✖ Batal</button>
           </div>
 
-          <div class="admin-table-wrap shadow-scroll-hint">
+          <!-- Registrations Table -->
+          <div class="admin-table-wrap">
             <table class="admin-table" id="adminTable">
               <thead>
                 <tr>
@@ -156,12 +168,19 @@
             </div>
           </div>
 
-        </div><footer class="site-footer">
+        </div><!-- /admin-content-card -->
+
+        <footer class="site-footer">
           <p>&copy; <span id="adminFooterYear"></span> BEM On The Rock. Hak Cipta Terpelihara / All Rights Reserved.</p>
         </footer>
 
       </main>
-    </div></div><div class="modal-overlay" id="adminPaymentModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;">
+    </div><!-- /dashboard-wrapper -->
+  </div><!-- /admin-page -->
+
+  <!-- ═══ MODALS KEEP BELOW DASHBOARD STRUCTURE ═══ -->
+  <!-- PAYMENT MODAL -->
+  <div class="modal-overlay" id="adminPaymentModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;">
     <div class="modal-card" style="max-width:620px;max-height:90vh;display:flex;flex-direction:column;">
       <div class="modal-header">
         <h3 class="modal-title">💳 Bayaran / Payment — <span id="adminPayModalName"></span></h3>
@@ -169,6 +188,7 @@
       </div>
       <div class="modal-body" style="overflow-y:auto;flex:1;padding:1.2rem 1.5rem;">
 
+        <!-- Pending fees -->
         <div style="font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.05em;color:var(--marigold);margin-bottom:0.8rem;">📋 BAYARAN TERTUNGGAK / PENDING FEES</div>
         <div id="adminPayPendingWrap">
           <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border-card);margin-bottom:1rem;">
@@ -188,6 +208,7 @@
           ✅ Tiada bayaran tertunggak. / No pending fees.
         </div>
 
+        <!-- Mark as paid controls -->
         <div id="adminPayMarkWrap" style="display:none;margin-bottom:1.2rem;">
           <div style="font-family:var(--font-display);font-size:0.78rem;letter-spacing:0.04em;color:var(--text-muted);margin-bottom:0.5rem;">Kaedah Bayaran / Payment Method:</div>
           <div style="display:flex;gap:0.5rem;">
@@ -207,12 +228,14 @@
 
         <div id="adminPayStatus" style="font-size:0.85rem;min-height:1rem;margin-bottom:1rem;"></div>
 
+        <!-- Separator -->
         <div style="display:flex;align-items:center;gap:0.8rem;margin:1rem 0;">
           <div style="flex:1;height:1px;background:var(--border-card);"></div>
           <span style="font-family:var(--font-display);font-size:0.73rem;letter-spacing:0.05em;color:var(--text-muted);white-space:nowrap;">REKOD PEMBAYARAN / PAYMENT HISTORY</span>
           <div style="flex:1;height:1px;background:var(--border-card);"></div>
         </div>
 
+        <!-- Payment history -->
         <div id="adminPayHistoryWrap">
           <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border-card);">
             <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
@@ -231,6 +254,7 @@
           Tiada rekod pembayaran. / No payment history.
         </div>
 
+        <!-- Pending requests from user -->
         <div id="adminPayRequestsWrap" style="margin-top:1.2rem;display:none;">
           <div style="display:flex;align-items:center;gap:0.8rem;margin:0.5rem 0 0.8rem;">
             <div style="flex:1;height:1px;background:var(--border-card);"></div>
@@ -247,6 +271,7 @@
     </div>
   </div>
 
+  <!-- VIEW MODAL -->
   <div class="modal-overlay" id="viewModal" style="display:none;">
     <div class="modal-card modal-card--lg">
       <div class="modal-header">
@@ -261,6 +286,7 @@
     </div>
   </div>
 
+  <!-- DELETE CONFIRM MODAL -->
   <div class="modal-overlay" id="deleteModal" style="display:none;">
     <div class="modal-card modal-card--sm">
       <div class="modal-header">
@@ -280,6 +306,7 @@
     </div>
   </div>
 
+  <!-- ACTIVATE MODAL -->
   <div class="modal-overlay" id="activateModal" style="display:none;">
     <div class="modal-card modal-card--sm">
       <div class="modal-header">
@@ -305,6 +332,7 @@
     </div>
   </div>
 
+  <!-- DEACTIVATE MODAL -->
   <div class="modal-overlay" id="deactivateModal" style="display:none;">
     <div class="modal-card modal-card--sm">
       <div class="modal-header">
@@ -323,6 +351,7 @@
     </div>
   </div>
 
+  <!-- MEMBERSHIP CARD MODAL -->
   <div class="modal-overlay" id="membershipCardModal" style="display:none;">
     <div class="modal-card" style="max-width:600px;">
       <div class="modal-header">
@@ -331,20 +360,25 @@
       </div>
       <div class="modal-body" style="display:flex;flex-direction:column;align-items:center;gap:1.5rem;padding:2rem 1.5rem;">
 
+        <!-- Card preview — same structure as member-facing page -->
         <div id="adminMembershipCard" style="width:480px; height:286px;background:linear-gradient(135deg,#0a0500 0%,#1a0e00 40%,#0a0a0a 100%);border:2px solid #FF8C00; border-radius:16px; position:relative;overflow:hidden; box-shadow:0 12px 40px rgba(255,140,0,0.3);flex-shrink:0;">
           <div style="position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#CC7000,#FF8C00,#FFA333,#FF8C00,#CC7000);"></div>
           <div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#CC7000,#FF8C00,#FFA333,#FF8C00,#CC7000);"></div>
           <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,140,0,0.12) 0%,transparent 55%),radial-gradient(ellipse at 20% 80%,rgba(255,140,0,0.07) 0%,transparent 45%);pointer-events:none;"></div>
 
+          <!-- Title -->
           <div style="position:absolute;top:14px;left:0;right:0;padding:0 14px 0 100px;display:flex;flex-direction:column;align-items:center;gap:2px;">
             <div style="font-family:'Cinzel',serif;font-size:0.72rem;font-weight:700;letter-spacing:0.12em;color:#FFA333;text-transform:uppercase;text-align:center;text-shadow:0 0 12px rgba(255,140,0,0.5);line-height:1.2;">BEM On The Rock<br/>Member Card</div>
             <div style="font-family:'Cinzel',serif;font-size:0.55rem;letter-spacing:0.08em;color:#C0C0C0;font-style:italic;">Kad Keanggotaan Gereja</div>
           </div>
 
+          <!-- Logo -->
           <img src="Images/logo.jpg" style="position:absolute;top:10px;right:14px;width:40px;height:40px;object-fit:contain;opacity:0.9;" alt="Logo"/>
 
+          <!-- Photo area -->
           <div id="mcPhotoArea" style="position:absolute;top:10px;left:14px;width:68px;height:85px;border-radius:6px;border:2px solid #FF8C00;background:#1a1a1a;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:1.8rem;color:#555;"></div>
 
+          <!-- Info -->
           <div style="position:absolute;top:104px;left:14px;right:14px;">
             <div id="mcName" style="font-family:'Cinzel',serif;font-size:0.95rem;font-weight:700;color:#FFF8E7;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 14px;">
@@ -359,6 +393,7 @@
             </div>
           </div>
 
+          <!-- Validity -->
           <div style="position:absolute;bottom:12px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-end;">
             <div style="display:flex;flex-direction:column;gap:1px;">
               <span style="font-family:'Cinzel',serif;font-size:0.46rem;letter-spacing:0.1em;color:#FF8C00;text-transform:uppercase;">Sah Dari / Valid From</span>
@@ -372,6 +407,7 @@
           </div>
         </div>
 
+        <!-- Download buttons -->
         <div style="display:flex;gap:0.85rem;flex-wrap:wrap;justify-content:center;">
           <button class="mc-dl-btn mc-dl-btn--png" id="adminBtnDLPNG">🖼 Muat Turun PNG</button>
           <button class="mc-dl-btn mc-dl-btn--pdf" id="adminBtnDLPDF">📄 Muat Turun PDF</button>
@@ -383,6 +419,7 @@
     </div>
   </div>
 
+  <!-- BULK ACTION CONFIRM MODAL -->
   <div class="modal-overlay" id="bulkConfirmModal" style="display:none;">
     <div class="modal-card modal-card--sm">
       <div class="modal-header">
@@ -398,6 +435,7 @@
     </div>
   </div>
 
+  <!-- ACTION MODAL (replaces dropdown) -->
   <div class="modal-overlay" id="actionModal" style="display:none;">
     <div class="modal-card modal-card--sm">
       <div class="modal-header">
@@ -418,6 +456,7 @@
     </div>
   </div>
 
+  <!-- UNPAID FEES WARNING MODAL -->
   <div class="modal-overlay" id="unpaidWarningModal" style="display:none;">
     <div class="modal-card modal-card--sm">
       <div class="modal-header">
@@ -440,6 +479,7 @@
     </div>
   </div>
 
+  <!-- Firebase CDN -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>

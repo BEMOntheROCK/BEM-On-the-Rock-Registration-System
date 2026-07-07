@@ -242,7 +242,6 @@
 
 .admin-search-input {
   width: 100%;
-  max-width: 480px;
   font-size: 0.97rem;
   padding: 0.6rem 1rem;
 }
@@ -278,23 +277,6 @@
   -webkit-overflow-scrolling: touch; 
   border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
-}
-
-/* Scroll Hint & Sticky Columns */
-.shadow-scroll-hint {
-  position: relative;
-}
-.shadow-scroll-hint::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 25px;
-  background: linear-gradient(to right, transparent, rgba(0,0,0,0.4));
-  pointer-events: none;
-  border-top-right-radius: var(--radius-lg);
-  border-bottom-right-radius: var(--radius-lg);
 }
 
 .sticky-col {

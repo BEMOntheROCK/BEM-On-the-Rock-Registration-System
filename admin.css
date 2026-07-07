@@ -85,6 +85,7 @@
   background-position: center top;
   background-attachment: fixed;
   background-repeat: no-repeat;
+  overflow-x: hidden; /* prevent horizontal scroll from overflowing content */
 }
 .admin-page { min-height: 100vh; display: flex; flex-direction: column; }
 
@@ -94,6 +95,7 @@
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
   width: 100%;
+  overflow-x: hidden;
 }
 
 /* ── Top Bar ── */

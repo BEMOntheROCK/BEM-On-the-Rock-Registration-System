@@ -99,6 +99,7 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   line-height: 1.6;
+  overflow-x: hidden; /* prevent horizontal scroll site-wide */
   /* Background image — no overlay, always visible */
   background-color: #141414;
   background-image: url('Images/BEM_On_the_Rock_Building_Image.png');
@@ -1608,16 +1609,41 @@ input[type="date"].form-input::-webkit-calendar-picker-indicator {
 
 /* ═══ RESPONSIVE ═══ */
 @media (max-width: 640px) {
+  .site-header {
+    padding: 0.9rem 0.75rem;
+    overflow: hidden;
+  }
+
   .header-inner {
-    flex-wrap: wrap;
-    justify-content: center;
-    text-align: center;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 0.6rem;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .logo-wrap { flex-shrink: 0; }
-  .logo-wrap-right { margin-left: 0; }
-  .header-text { width: 100%; order: 3; }
-  .logo-img { width: 65px; height: 65px; }
+  .logo-wrap-right { display: none; } /* hide right logo on mobile to free space */
+  .header-text {
+    flex: 1;
+    min-width: 0; /* allow text to shrink */
+    text-align: left;
+  }
+  .logo-img { width: 48px; height: 48px; }
+
+  .church-name {
+    font-size: clamp(0.9rem, 4vw, 1.2rem);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .church-subtitle {
+    font-size: clamp(0.6rem, 2.5vw, 0.75rem);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   .step-nav { padding: 0.9rem 0.5rem; }
   .step { min-width: 50px; }

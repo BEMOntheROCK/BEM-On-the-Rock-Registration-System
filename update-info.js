@@ -942,6 +942,38 @@ document.getElementById("btnSaveChanges").addEventListener("click", async () => 
     };
     if(newPhotoDataURL) payload.photoURL=newPhotoDataURL;
     await db.collection("registrations").doc(memberDocId).update(payload);
+    // ── Write audit log ──
+    const auditChanges = [];
+    const oldA2 = memberData.sectionA || {};
+    Object.keys(FIELD_LABELS).forEach(key => {
+      const before = String(oldA2[key] || "").trim();
+      const after  = String(newA[key]  || "").trim();
+      if (before !== after) auditChanges.push({ section:"A — Peribadi", field:FIELD_LABELS[key], before:before||"—", after:after||"—" });
+    });
+    const oldSvcs2 = (memberData.sectionB||{}).services||{};
+    SERVICE_LIST.forEach((label, idx) => {
+      const oldRow = getServiceRowData(oldSvcs2, idx+1);
+      const newRow = getServiceRowData(newServices, idx+1);
+      if (oldRow.have !== newRow.have) auditChanges.push({ section:"B — Pelayanan", field:`${label} (Terlibat)`, before:oldRow.have?"Ya":"Tidak", after:newRow.have?"Ya":"Tidak" });
+      if (oldRow.want !== newRow.want) auditChanges.push({ section:"B — Pelayanan", field:`${label} (Ingin Sertai)`, before:oldRow.want?"Ya":"Tidak", after:newRow.want?"Ya":"Tidak" });
+    });
+    const gMap2 = {male:"Lelaki",female:"Perempuan"};
+    const oldKids2 = (memberData.sectionC?.children||[]).filter(k=>k.name?.trim()&&k.gender);
+    if (JSON.stringify(oldKids2.map(k=>({n:k.name,g:k.gender}))) !== JSON.stringify(newChildren.map(k=>({n:k.name,g:k.gender})))) {
+      const fmt2 = kids => kids.length ? kids.map(k=>`${k.name} (${gMap2[k.gender]||"—"})`).join(", ") : "Tiada";
+      auditChanges.push({ section:"C — Kanak-kanak", field:"Senarai Anak", before:fmt2(oldKids2), after:fmt2(newChildren) });
+    }
+    if (newPhotoDataURL) auditChanges.push({ section:"A — Peribadi", field:"Gambar / Photo", before:"(gambar lama)", after:"(gambar baru)" });
+    if (auditChanges.length > 0) {
+      await db.collection("auditLogs").add({
+        memberId:   memberDocId,
+        memberName: (newA.fullName || memberData.name || "—").toUpperCase(),
+        memberUID:  memberData.uniqueID || "—",
+        source:     "member",
+        changes:    auditChanges,
+        timestamp:  firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
     document.getElementById("changesModal").style.display="none";
     document.getElementById("screen-edit").style.display="none";
     document.getElementById("screen-success").style.display="block";

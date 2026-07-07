@@ -1083,6 +1083,18 @@ function showEditDiffModal(changes, newA, newSvcs, newKids, newE) {
         payload.photoURL = photoDataURL;
       }
       await db.collection("registrations").doc(EDIT_DOC_ID).update(payload);
+      // ── Write audit log ──
+      if (changes.length > 0) {
+        const source = new URLSearchParams(window.location.search).get("from") === "admin" ? "admin" : "member";
+        await db.collection("auditLogs").add({
+          memberId:   EDIT_DOC_ID,
+          memberName: (newA.fullName || editOriginalData?.name || "—").toUpperCase(),
+          memberUID:  editOriginalData?.uniqueID || "—",
+          source,
+          changes,
+          timestamp:  firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      }
       // Clear drafts
       ["bem_otr_draft_sectionA","bem_otr_draft_sectionB","bem_otr_draft_sectionC"]
         .forEach(k => localStorage.removeItem(k));

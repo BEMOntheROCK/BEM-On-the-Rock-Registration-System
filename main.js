@@ -376,9 +376,36 @@ function generateUniqueID(fullName, idType, icNo, yearJoining, foreignID) {
   return `${initials}-${last4}-${yr}`;
 }
 
-// ═══════════════════════════════════════════════
-// 1h. BEHALF MODE — conditional rendering
-// ═══════════════════════════════════════════════
+async function resolveUniqueUID(candidateUID, excludeDocId) {
+  const snap = await db.collection("registrations")
+    .where("uniqueID", "==", candidateUID).get();
+  const conflict = snap.docs.find(d => d.id !== excludeDocId);
+  if (!conflict) return candidateUID;
+  for (let i = 2; i <= 99; i++) {
+    const candidate = `${candidateUID}-${i}`;
+    const s2 = await db.collection("registrations").where("uniqueID", "==", candidate).get();
+    if (s2.empty) return candidate;
+  }
+  return candidateUID + "-X";
+}
+
+async function updateUIDReferencesAcrossCollections(oldUID, newUID) {
+  const batch = db.batch();
+  const regSnap = await db.collection("registrations")
+    .where("sectionC.syncedFromPartnerUID", "==", oldUID).get();
+  regSnap.docs.forEach(d =>
+    batch.update(d.ref, { "sectionC.syncedFromPartnerUID": newUID })
+  );
+  const affSnap = await db.collection("affiliatedMembers")
+    .where("uniqueID", "==", oldUID).get();
+  affSnap.docs.forEach(d => batch.update(d.ref, { uniqueID: newUID }));
+  const auditSnap = await db.collection("auditLogs")
+    .where("memberUID", "==", oldUID).get();
+  auditSnap.docs.forEach(d => batch.update(d.ref, { memberUID: newUID }));
+  await batch.commit();
+}
+
+
 const IS_BEHALF_MODE     = new URLSearchParams(window.location.search).get("mode") === "behalf";
 const IS_AFFILIATED_MODE = new URLSearchParams(window.location.search).get("mode") === "affiliated";
 const IS_EDIT_MODE       = new URLSearchParams(window.location.search).get("mode") === "edit";
@@ -1012,11 +1039,33 @@ async function submitEditMode() {
     if (before !== after) changes.push({ section:"E — Pengakuan Iman", field:E_FIELD_LABELS[key], before:before||"—", after:after||"—" });
   });
 
+  // ── UID change detection ──
+  const oldInitials = (oldA.fullName||"").trim().split(/\s+/).filter(Boolean).map(n=>n[0].toUpperCase()).join("");
+  const newInitials = (newA.fullName||"").trim().split(/\s+/).filter(Boolean).map(n=>n[0].toUpperCase()).join("");
+  const oldIC4raw   = (oldA.icNo||oldA.foreignID||"").replace(/-/g,"").replace(/\s+/g,"");
+  const newIC4raw   = (newA.icNo||newA.foreignID||"").replace(/-/g,"").replace(/\s+/g,"");
+  const oldLast4    = oldIC4raw.length>=4 ? oldIC4raw.slice(-4) : oldIC4raw.padStart(4,"0");
+  const newLast4    = newIC4raw.length>=4 ? newIC4raw.slice(-4) : newIC4raw.padStart(4,"0");
+  const oldYr       = String(oldA.yearJoining||"").slice(-2);
+  const newYr       = String(newA.yearJoining||"").slice(-2);
+  const uidWillChange = oldInitials!==newInitials || oldLast4!==newLast4 || oldYr!==newYr;
+
+  let pendingNewUID = null;
+  if (uidWillChange) {
+    pendingNewUID = generateUniqueID(newA.fullName, newA.idType || editOriginalData?.idType, newA.icNo, newA.yearJoining, newA.foreignID);
+    changes.unshift({
+      section: "ID Ahli / Member ID",
+      field:   "ID Unik / Unique ID",
+      before:  editOriginalData?.uniqueID || "—",
+      after:   pendingNewUID + " ⏳ (akan disahkan / pending check)",
+    });
+  }
+
   // Show diff modal
-  showEditDiffModal(changes, newA, newB, newChildren, newE);
+  showEditDiffModal(changes, newA, newB, newChildren, newE, pendingNewUID);
 }
 
-function showEditDiffModal(changes, newA, newB, newChildren, newE) {
+function showEditDiffModal(changes, newA, newB, newChildren, newE, pendingNewUID = null) {
   // Create modal if not present
   let modal = document.getElementById("editDiffModal");
   if (!modal) {
@@ -1090,26 +1139,41 @@ function showEditDiffModal(changes, newA, newB, newChildren, newE) {
         manualCity:          firebase.firestore.FieldValue.delete(),
         lastUpdated:         firebase.firestore.FieldValue.serverTimestamp(),
       };
-      
+
       if (photoDataURL && photoDataURL !== editOriginalData?.photoURL) {
         payload.photoURL = photoDataURL;
       }
-      
+
+      // ── Resolve and apply new UID if needed ──
+      let finalNewUID = null;
+      const oldUID = editOriginalData?.uniqueID || null;
+      if (pendingNewUID) {
+        finalNewUID = await resolveUniqueUID(pendingNewUID, EDIT_DOC_ID);
+        payload.uniqueID = finalNewUID;
+        const uidChange = changes.find(c => c.field === "ID Unik / Unique ID");
+        if (uidChange) uidChange.after = finalNewUID;
+      }
+
       await db.collection("registrations").doc(EDIT_DOC_ID).update(payload);
-      
+
       // ── Write audit log ──
       if (changes.length > 0) {
         const source = new URLSearchParams(window.location.search).get("from") === "admin" ? "admin" : "member";
         await db.collection("auditLogs").add({
           memberId:   EDIT_DOC_ID,
           memberName: (newA.fullName || editOriginalData?.name || "—").toUpperCase(),
-          memberUID:  editOriginalData?.uniqueID || "—",
+          memberUID:  finalNewUID || editOriginalData?.uniqueID || "—",
           source,
           changes,
           timestamp:  firebase.firestore.FieldValue.serverTimestamp(),
         });
       }
-      
+
+      // ── Update UID references across collections ──
+      if (finalNewUID && oldUID && finalNewUID !== oldUID) {
+        await updateUIDReferencesAcrossCollections(oldUID, finalNewUID);
+      }
+
       // Clear drafts
       ["bem_otr_draft_sectionA","bem_otr_draft_sectionB","bem_otr_draft_sectionC"]
         .forEach(k => localStorage.removeItem(k));

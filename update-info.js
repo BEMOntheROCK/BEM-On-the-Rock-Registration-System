@@ -870,8 +870,58 @@ function collectEdits() {
 }
 
 // ══════════════════════════════════════════════
-// CHANGES MODAL
+// UID GENERATION (mirrors main.js logic)
 // ══════════════════════════════════════════════
+function generateUniqueID(fullName, idType, icNo, yearJoining, foreignID) {
+  const names    = (fullName || "").trim().split(/\s+/).filter(Boolean);
+  const initials = names.map(n => n[0].toUpperCase()).join("");
+  const yr       = String(yearJoining || "").slice(-2);
+  if (idType === "Passport") {
+    const passportNorm = String(foreignID || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const first4 = passportNorm.slice(0, 4).padEnd(4, "0");
+    return `${initials}-${first4}-${yr}`;
+  }
+  const ic = (icNo || "").replace(/-/g, "");
+  const idSource = ic.length >= 4 ? ic : (foreignID || "").replace(/\s+/g, "");
+  const last4    = idSource.length >= 4 ? idSource.slice(-4) : idSource.padStart(4, "0");
+  return `${initials}-${last4}-${yr}`;
+}
+
+async function resolveUniqueUID(candidateUID, excludeDocId) {
+  // Check if candidateUID is already taken by another member
+  const snap = await db.collection("registrations")
+    .where("uniqueID", "==", candidateUID).get();
+  const conflict = snap.docs.find(d => d.id !== excludeDocId);
+  if (!conflict) return candidateUID;
+  // Append incrementing number until unique
+  for (let i = 2; i <= 99; i++) {
+    const candidate = `${candidateUID}-${i}`;
+    const s2 = await db.collection("registrations").where("uniqueID", "==", candidate).get();
+    if (s2.empty) return candidate;
+  }
+  return candidateUID + "-X";
+}
+
+async function updateUIDReferencesAcrossCollections(oldUID, newUID) {
+  const batch = db.batch();
+  // registrations — syncedFromPartnerUID, registeredMemberUID references
+  const regSnap = await db.collection("registrations")
+    .where("sectionC.syncedFromPartnerUID", "==", oldUID).get();
+  regSnap.docs.forEach(d =>
+    batch.update(d.ref, { "sectionC.syncedFromPartnerUID": newUID })
+  );
+  // affiliatedMembers
+  const affSnap = await db.collection("affiliatedMembers")
+    .where("uniqueID", "==", oldUID).get();
+  affSnap.docs.forEach(d => batch.update(d.ref, { uniqueID: newUID }));
+  // auditLogs
+  const auditSnap = await db.collection("auditLogs")
+    .where("memberUID", "==", oldUID).get();
+  auditSnap.docs.forEach(d => batch.update(d.ref, { memberUID: newUID }));
+  await batch.commit();
+}
+
+
 function showChangesModal() {
   const { newA, newServices, newChildren } = collectEdits();
   const oldA = memberData.sectionA||{};
@@ -901,6 +951,33 @@ function showChangesModal() {
   }
 
   if(newPhotoDataURL) rows.push({section:"A — Peribadi",field:"Gambar / Photo",before:"(gambar lama)",after:"(gambar baru)"});
+
+  // ── UID change detection ──
+  const oldInitials = (oldA.fullName||"").trim().split(/\s+/).filter(Boolean).map(n=>n[0].toUpperCase()).join("");
+  const newInitials = (newA.fullName||"").trim().split(/\s+/).filter(Boolean).map(n=>n[0].toUpperCase()).join("");
+  const oldIC4      = (oldA.icNo||oldA.foreignID||"").replace(/-/g,"").replace(/\s+/g,"");
+  const newIC4      = (newA.icNo||newA.foreignID||"").replace(/-/g,"").replace(/\s+/g,"");
+  const oldLast4    = oldIC4.length>=4 ? oldIC4.slice(-4) : oldIC4.padStart(4,"0");
+  const newLast4    = newIC4.length>=4 ? newIC4.slice(-4) : newIC4.padStart(4,"0");
+  const oldYr       = String(oldA.yearJoining||"").slice(-2);
+  const newYr       = String(newA.yearJoining||"").slice(-2);
+  const uidWillChange = oldInitials!==newInitials || oldLast4!==newLast4 || oldYr!==newYr;
+
+  if (uidWillChange) {
+    const candidateUID = generateUniqueID(newA.fullName, newA.idType, newA.icNo, newA.yearJoining, newA.foreignID);
+    window._pendingNewUID = candidateUID;
+    window._pendingOldUID = memberData.uniqueID;
+    // Insert UID change row at top of rows
+    rows.unshift({
+      section: "ID Ahli / Member ID",
+      field:   "ID Unik / Unique ID",
+      before:  memberData.uniqueID || "—",
+      after:   candidateUID + " ⏳ (akan disahkan / pending check)",
+    });
+  } else {
+    window._pendingNewUID = null;
+    window._pendingOldUID = null;
+  }
 
   const tbody=document.getElementById("changesTableBody");
   const noMsg=document.getElementById("noChangesMsg");
@@ -941,7 +1018,17 @@ document.getElementById("btnSaveChanges").addEventListener("click", async () => 
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
     };
     if(newPhotoDataURL) payload.photoURL=newPhotoDataURL;
+
+    // ── Resolve and apply new UID if needed ──
+    let finalNewUID = null;
+    if (window._pendingNewUID) {
+      finalNewUID = await resolveUniqueUID(window._pendingNewUID, memberDocId);
+      payload.uniqueID = finalNewUID;
+      payload.name     = newA.fullName;
+    }
+
     await db.collection("registrations").doc(memberDocId).update(payload);
+
     // ── Write audit log ──
     const auditChanges = [];
     const oldA2 = memberData.sectionA || {};
@@ -964,16 +1051,23 @@ document.getElementById("btnSaveChanges").addEventListener("click", async () => 
       auditChanges.push({ section:"C — Kanak-kanak", field:"Senarai Anak", before:fmt2(oldKids2), after:fmt2(newChildren) });
     }
     if (newPhotoDataURL) auditChanges.push({ section:"A — Peribadi", field:"Gambar / Photo", before:"(gambar lama)", after:"(gambar baru)" });
+    if (finalNewUID) auditChanges.push({ section:"ID Ahli / Member ID", field:"ID Unik / Unique ID", before:window._pendingOldUID||"—", after:finalNewUID });
     if (auditChanges.length > 0) {
       await db.collection("auditLogs").add({
         memberId:   memberDocId,
         memberName: (newA.fullName || memberData.name || "—").toUpperCase(),
-        memberUID:  memberData.uniqueID || "—",
+        memberUID:  finalNewUID || memberData.uniqueID || "—",
         source:     "member",
         changes:    auditChanges,
         timestamp:  firebase.firestore.FieldValue.serverTimestamp(),
       });
     }
+
+    // ── Update UID references across collections ──
+    if (finalNewUID && window._pendingOldUID && finalNewUID !== window._pendingOldUID) {
+      await updateUIDReferencesAcrossCollections(window._pendingOldUID, finalNewUID);
+    }
+
     document.getElementById("changesModal").style.display="none";
     document.getElementById("screen-edit").style.display="none";
     document.getElementById("screen-success").style.display="block";

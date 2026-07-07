@@ -869,56 +869,61 @@ const EDIT_FIELD_LABELS = {
 };
 
 function collectCurrentFormData() {
-  // In edit mode, saveDraft() is disabled so localStorage is always empty.
-  // Read directly from the live DOM instead.
   const oldA = editOriginalData?.sectionA || {};
-
   const getVal = (id) => document.getElementById(id)?.value?.trim() || "";
   const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value || "";
   const idType = getVal("idType") || oldA.idType || "IC";
 
+  // Remove the || oldA fallbacks so if a user clears a field, it stays empty.
   const newA = {
-    fullName:       (getVal("fullName") || oldA.fullName || "").toUpperCase(),
+    fullName:       getVal("fullName").toUpperCase(),
     idType,
-    icNo:           idType === "IC"
-                      ? (getVal("icNo") || "").replace(/-/g,"") || oldA.icNo || ""
-                      : "",
-    gender:         getRadio("gender")          || oldA.gender          || "",
-    dob:            getVal("dob")               || oldA.dob             || "",
-    race:           getVal("race")              || oldA.race            || "",
-    phoneNumber:    getVal("phoneNumber")        || oldA.phoneNumber     || "",
-    occupation:     getVal("occupation")         || oldA.occupation      || "",
-    maritalStatus:  getVal("maritalStatus")      || oldA.maritalStatus   || "",
-    partnerName:    (getVal("partnerName")       || oldA.partnerName     || "").toUpperCase(),
-    latePartnerName:(getVal("latePartnerName")   || oldA.latePartnerName || "").toUpperCase(),
-    baptismStatus:  getRadio("baptismStatus")   || oldA.baptismStatus   || "",
-    baptismYear:    getVal("baptismYear")        || oldA.baptismYear     || "",
+    icNo:           idType === "IC" ? getVal("icNo").replace(/-/g,"") : "",
+    gender:         getRadio("gender"),
+    dob:            getVal("dob"),
+    race:           getVal("race"),
+    phoneNumber:    getVal("phoneNumber"),
+    occupation:     getVal("occupation"),
+    maritalStatus:  getVal("maritalStatus"),
+    partnerName:    getVal("partnerName").toUpperCase(),
+    latePartnerName:getVal("latePartnerName").toUpperCase(),
+    baptismStatus:  getRadio("baptismStatus"),
+    baptismYear:    getVal("baptismYear"),
     citizenship:    idType === "IC" ? "citizen" : "nonCitizen",
-    countryOfOrigin:idType === "IC" ? "" : (getVal("countryOfOrigin")   || oldA.countryOfOrigin || ""),
+    countryOfOrigin:idType === "IC" ? "" : getVal("countryOfOrigin"),
     foreignID:      idType === "IC"
                       ? ""
                       : (idType === "MyTentera"
-                          ? (getVal("icNo") ? formatMyTentera(getVal("icNo")) : oldA.foreignID || "")
-                          : (getVal("icNo") ? formatPassport(getVal("icNo")) : oldA.foreignID || "")),
-    originalChurch: getVal("originalChurch")     || oldA.originalChurch  || "",
-    yearJoining:    getVal("yearJoining")        || oldA.yearJoining     || "",
-    memberRole:     getRadio("memberRole")       || oldA.memberRole      || "",
-    komselCode:     (getVal("komselCode")        || oldA.komselCode      || "").toUpperCase(),
-    currentAddress: document.getElementById("currentAddress")?.value?.trim() || oldA.currentAddress || "",
+                          ? (getVal("icNo") ? formatMyTentera(getVal("icNo")) : "")
+                          : (getVal("icNo") ? formatPassport(getVal("icNo")) : "")),
+    originalChurch: getVal("originalChurch"),
+    yearJoining:    getVal("yearJoining"),
+    memberRole:     getRadio("memberRole"),
+    komselCode:     getVal("komselCode").toUpperCase(),
+    currentAddress: getVal("currentAddress"),
   };
 
   // Section B — read from live checkboxes using index-based IDs
-  const newServices = JSON.parse(JSON.stringify((editOriginalData?.sectionB || {}).services || {}));
+  const newServices = {};
   SERVICES.forEach((_, i) => {
     const num     = i + 1;
     const haveEl  = document.getElementById(`svc-have-${num}`);
     const wantEl  = document.getElementById(`svc-want-${num}`);
-    if (!haveEl && !wantEl) return;
     const key = `svc_${num}`;
-    if (!newServices[key]) newServices[key] = {};
-    if (haveEl) newServices[key].current = haveEl.checked;
-    if (wantEl) newServices[key].join    = wantEl.checked;
+    
+    newServices[key] = {
+      current: haveEl ? haveEl.checked : false,
+      join:    wantEl ? wantEl.checked : false
+    };
   });
+
+  // Capture the missing "Others" fields
+  const newB = {
+    services: newServices,
+    othersChecked: document.getElementById("othersCheck")?.checked || false,
+    othersServiceName: getVal("othersServiceName"),
+    othersInvolvement: getRadio("othersInvolvement")
+  };
 
   // Section C — read from live child cards
   const newChildren = [];
@@ -932,21 +937,20 @@ function collectCurrentFormData() {
     if (name && gender) newChildren.push({ name, gender, myKid, age });
   });
 
-  // Section E — read from live confession fields
-  const oldE = editOriginalData?.sectionE || {};
+  // Section E
   const newE = {
-    komsel: document.getElementById("confessionKomsel")?.value || oldE.komsel || "",
-    since:  document.getElementById("confessionSince")?.value  || oldE.since  || "",
-    leader: document.getElementById("confessionLeader")?.value || oldE.leader || "",
-    name:   document.getElementById("confessionName")?.value   || oldE.name   || "",
-    date:   document.getElementById("confessionDate")?.value   || oldE.date   || "",
+    komsel: getVal("confessionKomsel"),
+    since:  getVal("confessionSince"),
+    leader: getVal("confessionLeader"),
+    name:   getVal("confessionName"),
+    date:   getVal("confessionDate"),
   };
 
-  return { newA, newServices, newChildren, newE };
+  return { newA, newB, newChildren, newE };
 }
 
 async function submitEditMode() {
-  const { newA, newServices, newChildren, newE } = collectCurrentFormData();
+  const { newA, newB, newChildren, newE } = collectCurrentFormData();
   const oldA = editOriginalData?.sectionA || {};
   const oldB = editOriginalData?.sectionB || {};
   const oldC = editOriginalData?.sectionC || {};
@@ -960,26 +964,33 @@ async function submitEditMode() {
     if (before !== after) changes.push({ section:"A — Peribadi", field:EDIT_FIELD_LABELS[key], before:before||"—", after:after||"—" });
   });
 
-  // Services diff
-  const SERVICE_NAMES_EDIT = ["worship","prayer","multimedia","hospitality","children","youth",
-    "evangelism","transport","music","ushering","sound","cleaning","finance","pastoral",
-    "security","photography","decoration","it","catering","counselling","administration","drama","others"];
-  const oldSvcs = oldB.services || {};
-  const newSvcs = newServices;
-  SERVICE_NAMES_EDIT.forEach(key => {
-    const oc = !!(oldSvcs[key]?.current), nc = !!(newSvcs[key]?.current);
-    const oj = !!(oldSvcs[key]?.join),    nj = !!(newSvcs[key]?.join);
-    if (oc !== nc) changes.push({ section:"B — Pelayanan", field:`${key} (Terlibat)`, before:oc?"Ya":"Tidak", after:nc?"Ya":"Tidak" });
-    if (oj !== nj) changes.push({ section:"B — Pelayanan", field:`${key} (Ingin Sertai)`, before:oj?"Ya":"Tidak", after:nj?"Ya":"Tidak" });
+  // Services diff (Fixed to use real indices)
+  SERVICES.forEach((label, i) => {
+    const key = `svc_${i + 1}`;
+    const oc = !!(oldB.services?.[key]?.current), nc = !!(newB.services?.[key]?.current);
+    const oj = !!(oldB.services?.[key]?.join),    nj = !!(newB.services?.[key]?.join);
+    
+    if (oc !== nc) changes.push({ section:"B — Pelayanan", field:`${label} (Terlibat)`, before:oc?"Ya":"Tidak", after:nc?"Ya":"Tidak" });
+    if (oj !== nj) changes.push({ section:"B — Pelayanan", field:`${label} (Ingin Sertai)`, before:oj?"Ya":"Tidak", after:nj?"Ya":"Tidak" });
   });
+
+  // Others diff
+  if (!!oldB.othersChecked !== !!newB.othersChecked) {
+      changes.push({ section:"B — Pelayanan", field:"Lain-lain (Checked)", before:oldB.othersChecked?"Ya":"Tidak", after:newB.othersChecked?"Ya":"Tidak" });
+  }
+  if ((oldB.othersServiceName||"") !== newB.othersServiceName) {
+      changes.push({ section:"B — Pelayanan", field:"Nama Pelayanan Lain", before:oldB.othersServiceName||"—", after:newB.othersServiceName||"—" });
+  }
+  if ((oldB.othersInvolvement||"") !== newB.othersInvolvement) {
+      changes.push({ section:"B — Pelayanan", field:"Penglibatan Lain", before:oldB.othersInvolvement||"—", after:newB.othersInvolvement||"—" });
+  }
 
   // Children diff
   const gMap = { male:"Lelaki", female:"Perempuan" };
   const oldKids = (oldC.children||[]).filter(k=>k.name?.trim()&&k.gender);
-  const newKids = newChildren;
-  if (JSON.stringify(oldKids.map(k=>({n:k.name,g:k.gender}))) !== JSON.stringify(newKids.map(k=>({n:k.name,g:k.gender})))) {
+  if (JSON.stringify(oldKids.map(k=>({n:k.name,g:k.gender}))) !== JSON.stringify(newChildren.map(k=>({n:k.name,g:k.gender})))) {
     const fmt = kids => kids.length ? kids.map(k=>`${k.name} (${gMap[k.gender]||"—"})`).join(", ") : "Tiada";
-    changes.push({ section:"C — Kanak-kanak", field:"Senarai Anak", before:fmt(oldKids), after:fmt(newKids) });
+    changes.push({ section:"C — Kanak-kanak", field:"Senarai Anak", before:fmt(oldKids), after:fmt(newChildren) });
   }
 
   // Photo change
@@ -1002,10 +1013,10 @@ async function submitEditMode() {
   });
 
   // Show diff modal
-  showEditDiffModal(changes, newA, newSvcs, newKids, newE);
+  showEditDiffModal(changes, newA, newB, newChildren, newE);
 }
 
-function showEditDiffModal(changes, newA, newSvcs, newKids, newE) {
+function showEditDiffModal(changes, newA, newB, newChildren, newE) {
   // Create modal if not present
   let modal = document.getElementById("editDiffModal");
   if (!modal) {
@@ -1073,16 +1084,19 @@ function showEditDiffModal(changes, newA, newSvcs, newKids, newE) {
       const payload = {
         name:                (newA.fullName||"").toUpperCase(),
         sectionA:            { ...(editOriginalData?.sectionA||{}), ...newA },
-        "sectionB.services": newSvcs,
-        "sectionC.children": newKids,
+        sectionB:            { ...(editOriginalData?.sectionB||{}), ...newB },
+        "sectionC.children": newChildren,
         sectionE:            { ...(editOriginalData?.sectionE||{}), ...newE },
         manualCity:          firebase.firestore.FieldValue.delete(),
         lastUpdated:         firebase.firestore.FieldValue.serverTimestamp(),
       };
+      
       if (photoDataURL && photoDataURL !== editOriginalData?.photoURL) {
         payload.photoURL = photoDataURL;
       }
+      
       await db.collection("registrations").doc(EDIT_DOC_ID).update(payload);
+      
       // ── Write audit log ──
       if (changes.length > 0) {
         const source = new URLSearchParams(window.location.search).get("from") === "admin" ? "admin" : "member";
@@ -1095,10 +1109,12 @@ function showEditDiffModal(changes, newA, newSvcs, newKids, newE) {
           timestamp:  firebase.firestore.FieldValue.serverTimestamp(),
         });
       }
+      
       // Clear drafts
       ["bem_otr_draft_sectionA","bem_otr_draft_sectionB","bem_otr_draft_sectionC"]
         .forEach(k => localStorage.removeItem(k));
       modal.style.display = "none";
+      
       // Show success
       document.querySelectorAll(".form-section").forEach(s => s.style.display="none");
       document.querySelector(".step-nav")?.style && (document.querySelector(".step-nav").style.display="none");
@@ -1113,7 +1129,7 @@ function showEditDiffModal(changes, newA, newSvcs, newKids, newE) {
         if (titleEn) titleEn.textContent = "Successfully Updated Your Information!";
         if (msg)     msg.textContent     = "";
         if (msgEn)   msgEn.textContent   = "";
-        // Remove payment reminder
+        
         const payReminder = successDiv.querySelector("div[style*='rgba(255,140,0']");
         if (payReminder) payReminder.remove();
       }
@@ -2119,7 +2135,6 @@ function createChildCard(num, data = {}) {
     </div>
 
     <div class="form-grid">
-      <!-- Full Name -->
       <div class="form-group full-width">
         <label class="form-label" for="childName-${num}">
           Nama Penuh Anak <span class="label-en">/ Child's Full Name</span>
@@ -2130,7 +2145,6 @@ function createChildCard(num, data = {}) {
           value="${data.name || ''}"/>
       </div>
 
-      <!-- Gender -->
       <div class="form-group">
         <label class="form-label">Jantina <span class="label-en">/ Gender</span></label>
         <div class="checkbox-group">
@@ -2145,7 +2159,6 @@ function createChildCard(num, data = {}) {
         </div>
       </div>
 
-      <!-- Age -->
       <div class="form-group">
         <label class="form-label" for="childAge-${num}">
           Umur Anak <span class="label-en">/ Child's Age</span>
@@ -2161,7 +2174,6 @@ function createChildCard(num, data = {}) {
         <span class="error-msg" id="err-childAge-${num}"></span>
       </div>
 
-      <!-- MyKid -->
       <div class="form-group">
         <label class="form-label" for="childMyKid-${num}">
           MyKid <span class="label-en">/ MyKid No.</span>

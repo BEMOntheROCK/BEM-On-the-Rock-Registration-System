@@ -2247,15 +2247,23 @@ function addChild(data = {}) {
 }
 
 function bindSectionCEvents() {
-  document.getElementById("btnAddChild").addEventListener("click", () => {
-    addChild();
-  });
+  const btnAddChild = document.getElementById("btnAddChild");
+  if (btnAddChild) {
+    btnAddChild.addEventListener("click", () => {
+      addChild();
+    });
+  }
 
-  document.getElementById("btnBackC").addEventListener("click", () => {
-    navigateTo("b");
-  });
+  const btnBackC = document.getElementById("btnBackC");
+  if (btnBackC) {
+    btnBackC.addEventListener("click", () => {
+      navigateTo("b");
+    });
+  }
 
-  document.getElementById("btnNextC").addEventListener("click", () => {
+  const btnNextC = document.getElementById("btnNextC");
+  if (!btnNextC) return;
+  btnNextC.addEventListener("click", () => {
     saveSectionCDraft();
 
     // ── Check for partially filled child cards ──
@@ -2816,9 +2824,9 @@ function loadSectionEDraft() {
   if (!raw) return;
   try {
     const data = JSON.parse(raw);
-    if (data.since)  document.getElementById("confessionSince").value  = data.since;
-    if (data.leader) document.getElementById("confessionLeader").value = data.leader;
-    if (data.date)   document.getElementById("confessionDate").value   = data.date;
+    if (data.since)  { const el = document.getElementById("confessionSince");  if (el) el.value = data.since; }
+    if (data.leader) { const el = document.getElementById("confessionLeader"); if (el) el.value = data.leader; }
+    if (data.date)   { const el = document.getElementById("confessionDate");   if (el) el.value = data.date; }
   } catch (e) {
     console.warn("Could not load Section E draft:", e);
   }

@@ -49,7 +49,11 @@
   <div class="admin-page" id="adminPage" style="display:none;">
 
     <!-- ═══ ADMIN DASHBOARD LAYOUT ═══ -->
-    <div class="dashboard-wrapper">
+    <!-- Sidebar backdrop — mobile only, closes sidebar when tapped outside -->
+  <div id="sidebarBackdrop" style="display:none;position:fixed;inset:0;z-index:99;
+    background:rgba(0,0,0,0.45);" onclick="closeSidebar()"></div>
+
+  <div class="dashboard-wrapper">
       
       <!-- Sidebar Navigation -->
       <aside class="dashboard-sidebar" id="dashboardSidebar">
@@ -94,7 +98,7 @@
             <img src="Images/logo.jpg" alt="Logo" style="width:32px; height:32px; border-radius:50%;"/>
             <h1 style="font-size:1.1rem; color:var(--marigold-bright); margin:0;">Admin</h1>
           </div>
-          <button id="btnBurgerMenu" class="btn btn-secondary" onclick="document.getElementById('dashboardSidebar').classList.toggle('open')">☰ Menu</button>
+          <button id="btnBurgerMenu" class="btn btn-secondary" onclick="toggleSidebar()">☰ Menu</button>
         </header>
 
         <!-- Table Section -->
@@ -491,5 +495,31 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="membership-card.js"></script>
   <script src="admin.js"></script>
+  <script>
+    function openSidebar() {
+      document.getElementById("dashboardSidebar").classList.add("open");
+      const backdrop = document.getElementById("sidebarBackdrop");
+      backdrop.style.display = "block";
+    }
+    function closeSidebar() {
+      document.getElementById("dashboardSidebar").classList.remove("open");
+      const backdrop = document.getElementById("sidebarBackdrop");
+      backdrop.style.display = "none";
+    }
+    function toggleSidebar() {
+      const sidebar = document.getElementById("dashboardSidebar");
+      if (sidebar.classList.contains("open")) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    }
+    // Close sidebar when any nav link is clicked on mobile
+    document.querySelectorAll(".nav-item").forEach(item => {
+      item.addEventListener("click", () => {
+        if (window.innerWidth <= 900) closeSidebar();
+      });
+    });
+  </script>
 </body>
 </html>

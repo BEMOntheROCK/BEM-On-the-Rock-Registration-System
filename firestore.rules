@@ -41,11 +41,11 @@ service cloud.firestore {
     }
 
     // Audit logs (written on every registration/edit save, by member or admin;
-    // only admins should ever be able to read the log; logs are immutable once created)
+    // only admins should ever be able to read the log)
     match /auditLogs/{logId} {
       allow read: if isSignedIn();
       allow create: if true;
-      allow update: if false;
+      allow update: if true;   // needed for UID reference updates after name/IC/year change
       allow delete: if isSignedIn();
     }
 

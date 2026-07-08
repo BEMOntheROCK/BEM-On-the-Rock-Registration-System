@@ -49,11 +49,11 @@
   <div class="admin-page" id="adminPage" style="display:none;">
 
     <!-- ═══ ADMIN DASHBOARD LAYOUT ═══ -->
-    <!-- Sidebar backdrop — mobile only, closes sidebar when tapped outside -->
+  <!-- Sidebar backdrop — mobile only -->
   <div id="sidebarBackdrop" style="display:none;position:fixed;inset:0;z-index:99;
     background:rgba(0,0,0,0.45);" onclick="closeSidebar()"></div>
 
-  <div class="dashboard-wrapper">
+    <div class="dashboard-wrapper">
       
       <!-- Sidebar Navigation -->
       <aside class="dashboard-sidebar" id="dashboardSidebar">
@@ -98,7 +98,7 @@
             <img src="Images/logo.jpg" alt="Logo" style="width:32px; height:32px; border-radius:50%;"/>
             <h1 style="font-size:1.1rem; color:var(--marigold-bright); margin:0;">Admin</h1>
           </div>
-          <button id="btnBurgerMenu" class="btn btn-secondary" onclick="toggleSidebar()">☰ Menu</button>
+          <button id="btnBurgerMenu" class="btn btn-secondary" onclick="document.getElementById('dashboardSidebar').classList.toggle('open')">☰ Menu</button>
         </header>
 
         <!-- Table Section -->
@@ -159,8 +159,7 @@
                   <th class="col-photo sticky-col">Gambar<br/><em class="th-en">Photo</em></th>
                   <th class="col-nameID sticky-col">Nama &amp; ID<br/><em class="th-en">Name &amp; ID</em></th>
                   <th>No. KP<br/><em class="th-en">IC Num.</em></th>
-                  <th>Komsel<br/><em class="th-en">Cell Group</em></th>
-                  <th>Tarikh Mengisi Borang<br/><em class="th-en">Date Form Filled</em></th>
+                  <th id="dynColHeader">Komsel<br/><em class="th-en">Cell Group</em></th>
                   <th class="col-memberstatus">Status Keanggotaan<br/><em class="th-en">Membership Status</em></th>
                   <th class="col-action">Tindakan<br/><em class="th-en">Action</em></th>
                 </tr>
@@ -495,31 +494,84 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="membership-card.js"></script>
   <script src="admin.js"></script>
+
+  <!-- Scroll-to-top FAB -->
+  <button id="scrollTopFab"
+    style="display:none;position:fixed;bottom:2rem;right:2rem;z-index:300;
+      width:46px;height:46px;border-radius:50%;border:none;cursor:pointer;
+      background:var(--marigold);color:#000;font-size:1.3rem;font-weight:900;
+      box-shadow:0 0 0 3px rgba(0,0,0,0.6),0 4px 16px rgba(255,140,0,0.45);
+      align-items:center;justify-content:center;">↑</button>
+
   <script>
+    // ── Sidebar open/close ──
     function openSidebar() {
       document.getElementById("dashboardSidebar").classList.add("open");
       const backdrop = document.getElementById("sidebarBackdrop");
-      backdrop.style.display = "block";
+      if (backdrop) backdrop.style.display = "block";
     }
     function closeSidebar() {
       document.getElementById("dashboardSidebar").classList.remove("open");
       const backdrop = document.getElementById("sidebarBackdrop");
-      backdrop.style.display = "none";
+      if (backdrop) backdrop.style.display = "none";
     }
     function toggleSidebar() {
       const sidebar = document.getElementById("dashboardSidebar");
-      if (sidebar.classList.contains("open")) {
-        closeSidebar();
-      } else {
-        openSidebar();
-      }
+      if (sidebar.classList.contains("open")) closeSidebar();
+      else openSidebar();
     }
-    // Close sidebar when any nav link is clicked on mobile
     document.querySelectorAll(".nav-item").forEach(item => {
       item.addEventListener("click", () => {
         if (window.innerWidth <= 900) closeSidebar();
       });
     });
+
+    // ── Scroll-to-top FAB ──
+    const mainArea = document.querySelector('.dashboard-main');
+    const fab      = document.getElementById('scrollTopFab');
+    if (mainArea && fab) {
+      fab.style.display = 'none';
+      mainArea.addEventListener('scroll', () => {
+        fab.style.display = mainArea.scrollTop > 300 ? 'flex' : 'none';
+      });
+      fab.addEventListener('click', () => {
+        mainArea.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    // ── Drag-to-scroll on admin table wrap ──
+    const tableWrap = document.querySelector('.admin-table-wrap');
+    if (tableWrap) {
+      let isDown = false, startX, scrollLeft;
+      tableWrap.style.cursor = 'grab';
+      tableWrap.addEventListener('mousedown', e => {
+        isDown = true;
+        tableWrap.style.cursor = 'grabbing';
+        startX     = e.pageX - tableWrap.offsetLeft;
+        scrollLeft = tableWrap.scrollLeft;
+      });
+      tableWrap.addEventListener('mouseleave', () => { isDown = false; tableWrap.style.cursor = 'grab'; });
+      tableWrap.addEventListener('mouseup',    () => { isDown = false; tableWrap.style.cursor = 'grab'; });
+      tableWrap.addEventListener('mousemove',  e => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x    = e.pageX - tableWrap.offsetLeft;
+        const walk = (x - startX) * 1.5;
+        tableWrap.scrollLeft = scrollLeft - walk;
+      });
+    }
+
+    // ── Dynamic column header ──
+    function updateDynColHeader() {
+      const sortBy = document.getElementById('sortBy')?.value || 'date';
+      const dynTh  = document.getElementById('dynColHeader');
+      if (!dynTh) return;
+      dynTh.innerHTML = sortBy === 'date'
+        ? 'Tarikh Mengisi<br/><em class="th-en">Date Filled</em>'
+        : 'Komsel<br/><em class="th-en">Cell Group</em>';
+    }
+    document.getElementById('sortBy')?.addEventListener('change', updateDynColHeader);
+    updateDynColHeader();
   </script>
 </body>
 </html>

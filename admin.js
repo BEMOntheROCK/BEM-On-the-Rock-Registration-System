@@ -304,8 +304,7 @@ function renderTable() {
       <td>${reg.sectionA?.citizenship === "nonCitizen"
         ? (reg.sectionA?.foreignID || "—")
         : (reg.icNo || "—")}</td>
-      <td>${normaliseAdminKomsel(reg.sectionA?.komselCode)}</td>
-      <td>${formatDate(reg.submittedAt || reg.dateApplied)}</td>
+      <td>${currentSort.by === 'date' ? formatDate(reg.submittedAt || reg.dateApplied) : normaliseAdminKomsel(reg.sectionA?.komselCode)}</td>
       <td class="col-memberstatus">${statusHTML}</td>
       <td class="action-cell">
         <button class="btn-action-dots" data-id="${reg.id}">•••</button>

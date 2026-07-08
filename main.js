@@ -1169,9 +1169,15 @@ function showEditDiffModal(changes, newA, newB, newChildren, newE, pendingNewUID
         });
       }
 
-      // ── Update UID references across collections ──
+      // ── Update UID references across collections (admin only — requires auth) ──
       if (finalNewUID && oldUID && finalNewUID !== oldUID) {
-        await updateUIDReferencesAcrossCollections(oldUID, finalNewUID);
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          await updateUIDReferencesAcrossCollections(oldUID, finalNewUID);
+        }
+        // If not signed in (member flow), skip cross-collection update.
+        // The member's own registration doc already has the new UID.
+        // An admin can re-trigger this by editing the record from the admin panel.
       }
 
       // Clear drafts

@@ -579,3 +579,179 @@ document.getElementById("btnBulkConfirm")?.addEventListener("click", async () =>
   btn.disabled    = false;
   btn.textContent = bulkMode === "approve" ? "✅ Luluskan Semua / Approve All" : "❌ Tolak Semua / Reject All";
 });
+// ══════════════════════════════════════════════
+// EXPORT PDF
+// ══════════════════════════════════════════════
+document.getElementById("btnOpenExportPDF")?.addEventListener("click", () => {
+  document.getElementById("exportPDFStatusMsg").textContent = "";
+  document.getElementById("exportPDFModal").style.display = "flex";
+});
+document.getElementById("closeExportPDFModal")?.addEventListener("click",    () => document.getElementById("exportPDFModal").style.display = "none");
+document.getElementById("closeExportPDFModalBtn")?.addEventListener("click", () => document.getElementById("exportPDFModal").style.display = "none");
+
+document.getElementById("btnConfirmExportPDF")?.addEventListener("click", () => {
+  const btn    = document.getElementById("btnConfirmExportPDF");
+  const status = document.getElementById("exportPDFStatusMsg");
+  const filter = document.getElementById("exportPDFStatus").value;
+
+  const rows = allPaymentRows.filter(r => filter === "all" || r.request.status === filter);
+
+  if (!rows.length) {
+    status.style.color = "#E05555";
+    status.textContent = "Tiada rekod untuk dieksport. / No records to export.";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Menjana... / Generating...";
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc    = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const PAGE_W = 297, PAGE_H = 210, MARGIN = 12;
+    const CW     = PAGE_W - MARGIN * 2;
+
+    const BLACK  = [0, 0, 0];
+    const MUTED  = [110, 110, 110];
+    const BORDER = [180, 180, 180];
+
+    const STATUS_LABELS = {
+      pending:   "Menunggu Pengesahan / Pending Confirmation",
+      confirmed: "Disahkan / Confirmed",
+      rejected:  "Ditolak / Rejected",
+      all:       "Semua Status / All Status",
+    };
+
+    // Columns: No. | Nama Ahli | ID Unik | Kaedah | Tahun | Jumlah | Tarikh Dihantar | Status
+    const COLS   = [10, 55, 28, 30, 22, 22, 38, 45];
+    const HEAD_H = 9;
+    const ROW_H  = 8;
+
+    let y = MARGIN;
+    const now = new Date();
+
+    function drawFooter() {
+      const p = doc.getNumberOfPages();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...MUTED);
+      doc.setDrawColor(...MUTED);
+      doc.setLineWidth(0.3);
+      doc.line(MARGIN, PAGE_H - 10, PAGE_W - MARGIN, PAGE_H - 10);
+      doc.text("BEM On The Rock — Pengurusan Bayaran / Payment Management", MARGIN, PAGE_H - 5);
+      doc.text(String(p), PAGE_W - MARGIN, PAGE_H - 5, { align: "right" });
+    }
+
+    function drawTableHeader() {
+      const headers = ["Bil.\nNo.", "Nama Ahli\nMember Name", "ID Unik\nUnique ID", "Kaedah\nMethod",
+        "Tahun\nYear(s)", "Jumlah\nAmount", "Tarikh Dihantar\nSubmitted", "Status"];
+      doc.setFillColor(210, 210, 210);
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.3);
+      doc.rect(MARGIN, y, CW, HEAD_H, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...BLACK);
+      let x = MARGIN;
+      headers.forEach((h, i) => {
+        const lines = h.split("\n");
+        doc.text(lines[0], x + 2, y + 3.5);
+        doc.text(lines[1], x + 2, y + 7);
+        if (i < headers.length - 1) doc.line(x + COLS[i], y, x + COLS[i], y + HEAD_H);
+        x += COLS[i];
+      });
+      y += HEAD_H;
+    }
+
+    function checkPage() {
+      if (y + ROW_H > PAGE_H - 14) {
+        drawFooter();
+        doc.addPage();
+        y = MARGIN + 6;
+        drawTableHeader();
+      }
+    }
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...MUTED);
+    doc.text("BEM On The Rock  |  Sistem Keanggotaan / Membership System", MARGIN, y);
+    y += 6;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(...BLACK);
+    doc.text("Senarai Pengurusan Bayaran", MARGIN, y);
+    y += 6;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...MUTED);
+    doc.text(`Payment Management List — ${STATUS_LABELS[filter]}`, MARGIN, y);
+    y += 4;
+    doc.setDrawColor(...BLACK);
+    doc.setLineWidth(0.5);
+    doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text(
+      `Dijana pada / Generated on: ${now.toLocaleDateString("ms-MY", { day:"2-digit", month:"long", year:"numeric" })}, ${now.toLocaleTimeString("ms-MY", { hour:"2-digit", minute:"2-digit" })}`,
+      MARGIN, y
+    );
+    y += 8;
+
+    drawTableHeader();
+
+    rows.forEach((row, i) => {
+      checkPage();
+      const req    = row.request;
+      const method = req.method === "cash" ? "Tunai / Cash" : "Pindahan Bank / Transfer";
+      const years  = (req.years || []).join(", ");
+      const amount = `RM ${(req.amount || 0).toFixed(2)}`;
+      const statusText = req.status === "pending"   ? "Menunggu / Pending"
+                        : req.status === "confirmed" ? "Disahkan / Confirmed"
+                        : "Ditolak / Rejected";
+
+      doc.setFillColor(i % 2 === 0 ? 255 : 245, i % 2 === 0 ? 255 : 245, i % 2 === 0 ? 255 : 245);
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.2);
+      doc.rect(MARGIN, y, CW, ROW_H, "FD");
+      let x = MARGIN;
+      [0,1,2,3,4,5,6].forEach(ci => { doc.line(x + COLS[ci], y, x + COLS[ci], y + ROW_H); x += COLS[ci]; });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...BLACK);
+      x = MARGIN;
+      const cells = [String(i+1), row.memberName, row.memberUID, method, years, amount, formatDate(req.submittedAt), statusText];
+      cells.forEach((val, ci) => {
+        doc.text(String(val), x + 2, y + 5.3, { maxWidth: COLS[ci] - 3 });
+        x += COLS[ci];
+      });
+      y += ROW_H;
+    });
+
+    y += 6;
+    if (y + 8 > PAGE_H - 14) { drawFooter(); doc.addPage(); y = MARGIN + 6; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...BLACK);
+    doc.text(`Jumlah Rekod / Total Records: ${rows.length}`, MARGIN, y);
+
+    drawFooter();
+
+    const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}`;
+    doc.save(`BEM_OTR_Payment_${filter}_${dateStr}.pdf`);
+
+    document.getElementById("exportPDFModal").style.display = "none";
+
+  } catch(e) {
+    console.error(e);
+    status.style.color = "#E05555";
+    status.textContent = "Ralat semasa menjana PDF. / Error generating PDF.";
+  }
+
+  btn.disabled = false;
+  btn.textContent = "📄 Eksport / Export";
+});

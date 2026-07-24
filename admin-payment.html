@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="admin.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="admin-body">
 
@@ -31,6 +32,10 @@
           <h2 class="admin-section-title">💳 Pengurusan Bayaran <span>/ Payment Management</span></h2>
         </div>
         <div class="admin-topbar-right">
+          <button class="btn btn-secondary" id="btnOpenExportPDF"
+            style="background:rgba(224,85,85,0.1);border-color:rgba(224,85,85,0.35);color:#E05555;">
+            📄 Eksport PDF / Export PDF
+          </button>
           <a href="admin.html" class="btn btn-secondary" style="text-decoration:none;">
             &larr; Kembali ke Admin / Back to Admin
           </a>
@@ -38,8 +43,7 @@
       </div>
 
       <!-- Summary cards -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;"
-        class="payment-summary-grid">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
         <div style="background:rgba(255,140,0,0.08);border:1px solid rgba(255,140,0,0.2);
           border-radius:var(--radius);padding:1rem;text-align:center;">
           <div style="font-family:var(--font-display);font-size:2rem;font-weight:700;
@@ -144,25 +148,23 @@
   <!-- Bulk Action Sticky Bar -->
   <div id="bulkActionBar" style="display:none;position:fixed;bottom:0;left:0;right:0;
     z-index:400;background:var(--bg-card);border-top:2px solid var(--marigold-dim);
-    backdrop-filter:blur(8px);padding:0.75rem 1rem;
+    backdrop-filter:blur(8px);padding:0.9rem 2rem;
     box-shadow:0 -4px 20px rgba(0,0,0,0.4);">
-    <div style="max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:0.6rem;">
-      <div style="font-family:var(--font-display);font-size:0.85rem;color:var(--marigold);text-align:center;">
+    <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;
+      justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+      <div style="font-family:var(--font-display);font-size:0.88rem;color:var(--marigold);">
         <span id="bulkSelectedCount">0</span> dipilih / selected
       </div>
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;">
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
         <button class="btn" id="btnBulkReject"
-          style="background:rgba(224,85,85,0.15);border:1px solid #E05555;color:#E05555;
-            font-size:0.8rem;flex:1;min-width:120px;max-width:200px;">
-          ❌ Tolak / Reject
+          style="background:rgba(224,85,85,0.15);border:1px solid #E05555;color:#E05555;font-size:0.85rem;">
+          ❌ Tolak Semua Dipilih / Reject All Selected
         </button>
-        <button class="btn btn-primary" id="btnBulkApprove"
-          style="font-size:0.8rem;flex:1;min-width:120px;max-width:200px;">
-          ✅ Luluskan / Approve
+        <button class="btn btn-primary" id="btnBulkApprove" style="font-size:0.85rem;">
+          ✅ Luluskan Semua Dipilih / Approve All Selected
         </button>
-        <button class="btn btn-secondary" id="btnBulkCancel"
-          style="font-size:0.8rem;flex:1;min-width:80px;max-width:120px;">
-          Batal
+        <button class="btn btn-secondary" id="btnBulkCancel" style="font-size:0.85rem;">
+          Batal / Cancel
         </button>
       </div>
     </div>
@@ -170,7 +172,7 @@
 
   <!-- Bulk Action Modal -->
   <div class="modal-overlay" id="bulkActionModal" style="display:none;">
-    <div class="modal-card" style="max-width:600px;max-height:90vh;width:calc(100% - 2rem);display:flex;flex-direction:column;">
+    <div class="modal-card" style="max-width:600px;max-height:85vh;display:flex;flex-direction:column;">
       <div class="modal-header">
         <h3 class="modal-title" id="bulkActionModalTitle">Tindakan Berganda / Bulk Action</h3>
         <button class="modal-close" id="closeBulkActionModal">&times;</button>
@@ -184,6 +186,33 @@
       <div class="modal-footer" style="justify-content:flex-end;gap:0.5rem;">
         <button class="btn btn-secondary" id="closeBulkActionModalBtn">Batal / Cancel</button>
         <button class="btn" id="btnBulkConfirm" style="font-size:0.9rem;">✅ Sahkan / Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export PDF Modal -->
+  <div class="modal-overlay" id="exportPDFModal" style="display:none;">
+    <div class="modal-card modal-card--sm">
+      <div class="modal-header">
+        <h3 class="modal-title">📄 Eksport PDF / Export PDF</h3>
+        <button class="modal-close" id="closeExportPDFModal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:1.2rem 1.5rem;">
+        <label style="font-family:var(--font-display);font-size:0.82rem;
+          color:var(--text-muted);display:block;margin-bottom:0.5rem;">
+          Pilih status untuk dieksport / Select status to export:
+        </label>
+        <select id="exportPDFStatus" class="form-input form-select" style="width:100%;margin-bottom:1rem;">
+          <option value="pending">⏳ Menunggu / Pending</option>
+          <option value="confirmed">✅ Disahkan / Confirmed</option>
+          <option value="rejected">❌ Ditolak / Rejected</option>
+          <option value="all">📋 Semua / All</option>
+        </select>
+        <div id="exportPDFStatusMsg" style="font-size:0.85rem;min-height:1rem;"></div>
+      </div>
+      <div class="modal-footer" style="justify-content:flex-end;">
+        <button class="btn btn-secondary" id="closeExportPDFModalBtn">Batal / Cancel</button>
+        <button class="btn btn-primary" id="btnConfirmExportPDF">📄 Eksport / Export</button>
       </div>
     </div>
   </div>

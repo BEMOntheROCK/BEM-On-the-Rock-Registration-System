@@ -102,19 +102,23 @@ function calculatePendingFees(reg) {
   const currentYear  = new Date().getFullYear();
   const approvedAt   = reg.approvedAt?.toDate ? reg.approvedAt.toDate() : null;
   const paidYears    = reg.paidYears || [];
-  const rejectedYears = (reg.paymentRequests || [])
-    .filter(r => r.status === "rejected")
-    .flatMap(r => r.years || []);
+  const rejectedReqs = (reg.paymentRequests || []).filter(r => r.status === "rejected");
+  const rejectedYears = rejectedReqs.flatMap(r => r.years || []);
 
   const startYear = approvedAt ? approvedAt.getFullYear() : currentYear;
   const fees = [];
   for (let y = startYear; y <= currentYear; y++) {
     if (!paidYears.includes(y)) {
+      const matchingReject = rejectedReqs
+        .slice()
+        .reverse()
+        .find(r => (r.years || []).includes(y));
       fees.push({
         year:     y,
         label:    `${y} Yuran Tahunan / Annual Fee`,
         amount:   ANNUAL_FEE,
         rejected: rejectedYears.includes(y),
+        rejectionReason: matchingReject?.rejectionReason || "",
       });
     }
   }
@@ -164,8 +168,9 @@ function populatePaymentScreen() {
       if (i % 2 !== 0) tr.style.background = "rgba(255,255,255,0.02)";
       const rejectedBanner = fee.rejected ? `
         <div style="margin-top:0.4rem;font-size:0.78rem;color:#E05555;line-height:1.5;">
-          ⚠️ Kami tidak dapat pastikan sekiranya anda benar-benar sudah membayar. /
-          We couldn't verify if you actually paid.<br/>
+          ⚠️ Permohonan bayaran anda telah ditolak. / Your payment request was rejected.<br/>
+          ${fee.rejectionReason ? `
+          <strong>Sebab / Reason:</strong> ${fee.rejectionReason}<br/>` : ""}
           <em style="color:var(--text-muted);">Jika anda berpendapat bahawa ini adalah salah, sila maklumkan
           kepada mana-mana staf gereja. / If you think this is false, please inform any of the church staff.</em>
         </div>` : "";

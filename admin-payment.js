@@ -129,7 +129,22 @@ function renderTable(rows) {
              🗑️
            </button>
          </div>`
-      : `<span style="font-size:0.78rem;color:var(--text-muted);">${formatDate(req.confirmedAt || req.rejectedAt)}</span>`;
+      : `<div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
+           <button class="pay-details-btn"
+             style="background:rgba(100,160,255,0.1);border:1px solid rgba(100,160,255,0.3);
+             border-radius:var(--radius);padding:0.3rem 0.7rem;cursor:pointer;
+             color:#6495ED;font-family:var(--font-display);font-size:0.72rem;"
+             data-idx="${allPaymentRows.indexOf(row)}">
+             📄 Butiran
+           </button>
+           <button class="pay-delete-btn"
+             style="background:rgba(224,85,85,0.1);border:1px solid #E05555;
+             border-radius:var(--radius);padding:0.3rem 0.7rem;cursor:pointer;
+             color:#E05555;font-family:var(--font-display);font-size:0.75rem;"
+             data-idx="${allPaymentRows.indexOf(row)}">
+             🗑️
+           </button>
+         </div>`;
 
     const checkboxCell = req.status === "pending"
       ? `<td style="text-align:center;">
@@ -159,6 +174,14 @@ function renderTable(rows) {
     btn.addEventListener("click", () => {
       const row = allPaymentRows[parseInt(btn.dataset.idx)];
       openActionModal(row);
+    });
+  });
+
+  // Wire details buttons (confirmed/rejected)
+  document.querySelectorAll(".pay-details-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const row = allPaymentRows[parseInt(btn.dataset.idx)];
+      openDetailsModal(row);
     });
   });
 
@@ -215,6 +238,8 @@ function openActionModal(row) {
     </label>`).join("");
 
   document.getElementById("payActionStatus").textContent = "";
+  document.getElementById("rejectReasonWrap").style.display = "none";
+  document.getElementById("rejectReasonInput").value = "";
   document.getElementById("payActionModal").style.display = "flex";
 }
 
@@ -302,6 +327,26 @@ document.getElementById("btnRejectPayment")?.addEventListener("click", async () 
     return;
   }
 
+  const reasonWrap = document.getElementById("rejectReasonWrap");
+  const reasonInput = document.getElementById("rejectReasonInput");
+
+  // First click — reveal the reason field, don't submit yet
+  if (reasonWrap.style.display === "none") {
+    reasonWrap.style.display = "block";
+    document.getElementById("payActionStatus").style.color = "var(--marigold)";
+    document.getElementById("payActionStatus").textContent = "Sila nyatakan sebab penolakan di bawah, kemudian tekan Tolak sekali lagi. / Please state the reason below, then click Reject again.";
+    reasonInput.focus();
+    return;
+  }
+
+  const reason = reasonInput.value.trim();
+  if (!reason) {
+    document.getElementById("payActionStatus").style.color = "#E05555";
+    document.getElementById("payActionStatus").textContent = "Sila nyatakan sebab penolakan. / Please state a reason for rejection.";
+    reasonInput.focus();
+    return;
+  }
+
   const btn = document.getElementById("btnRejectPayment");
   btn.disabled = true; btn.textContent = "Menolak...";
 
@@ -313,14 +358,15 @@ document.getElementById("btnRejectPayment")?.addEventListener("click", async () 
 
     const updatedReqs = reqs.map(r =>
       r.id === currentAction.request.id
-        ? { ...r, status:"rejected", rejectedAt, rejectedYears: selectedYears }
+        ? { ...r, status:"rejected", rejectedAt, rejectedYears: selectedYears, rejectionReason: reason }
         : r
     );
 
     await docRef.update({ paymentRequests: updatedReqs });
 
-    currentAction.request.status      = "rejected";
-    currentAction.request.rejectedAt  = rejectedAt;
+    currentAction.request.status          = "rejected";
+    currentAction.request.rejectedAt      = rejectedAt;
+    currentAction.request.rejectionReason = reason;
 
     document.getElementById("payActionStatus").style.color = "#E05555";
     document.getElementById("payActionStatus").textContent =
@@ -480,6 +526,27 @@ function openBulkModal() {
   }).join("");
 
   document.getElementById("bulkActionStatus").textContent = "";
+
+  // Shared rejection reason field for bulk reject
+  let reasonWrap = document.getElementById("bulkRejectReasonWrap");
+  if (!reasonWrap) {
+    reasonWrap = document.createElement("div");
+    reasonWrap.id = "bulkRejectReasonWrap";
+    reasonWrap.style.marginTop = "1rem";
+    reasonWrap.innerHTML = `
+      <label style="font-family:var(--font-display);font-size:0.82rem;color:#E05555;
+        display:block;margin-bottom:0.5rem;">
+        Sebab Penolakan (dikenakan pada semua rekod dipilih) / Reason for Rejection (applied to all selected) <span style="color:#E05555;">*</span>
+      </label>
+      <textarea id="bulkRejectReasonInput" class="form-input" rows="3"
+        placeholder="cth/e.g. Resit tidak jelas / Jumlah tidak sepadan..."
+        style="width:100%;resize:vertical;"></textarea>`;
+    document.getElementById("bulkActionStatus").insertAdjacentElement("beforebegin", reasonWrap);
+  }
+  reasonWrap.style.display = isApprove ? "none" : "block";
+  const bulkReasonInputEl = document.getElementById("bulkRejectReasonInput");
+  if (bulkReasonInputEl) bulkReasonInputEl.value = "";
+
   document.getElementById("bulkActionModal").style.display = "flex";
 }
 
@@ -510,6 +577,21 @@ document.getElementById("btnBulkConfirm")?.addEventListener("click", async () =>
       btn.disabled = false;
       btn.textContent = bulkMode === "approve" ? "✅ Luluskan Semua / Approve All" : "❌ Tolak Semua / Reject All";
       return;
+    }
+
+    // Require rejection reason for bulk reject
+    let bulkReason = "";
+    if (bulkMode === "reject") {
+      const reasonInput = document.getElementById("bulkRejectReasonInput");
+      bulkReason = (reasonInput?.value || "").trim();
+      if (!bulkReason) {
+        status.style.color   = "#E05555";
+        status.textContent   = "Sila nyatakan sebab penolakan. / Please state a reason for rejection.";
+        btn.disabled = false;
+        btn.textContent = "❌ Tolak Semua / Reject All";
+        reasonInput?.focus();
+        return;
+      }
     }
 
     const now = new Date().toISOString();
@@ -546,7 +628,7 @@ document.getElementById("btnBulkConfirm")?.addEventListener("click", async () =>
         } else {
           const updatedReqs = reqs.map(r =>
             r.id === row.request.id
-              ? { ...r, status:"rejected", rejectedAt:now, rejectedYears:selectedYears }
+              ? { ...r, status:"rejected", rejectedAt:now, rejectedYears:selectedYears, rejectionReason:bulkReason }
               : r
           );
           await docRef.update({ paymentRequests: updatedReqs });
@@ -667,8 +749,8 @@ document.getElementById("btnConfirmExportPDF")?.addEventListener("click", () => 
       y += HEAD_H;
     }
 
-    function checkPage() {
-      if (y + ROW_H > PAGE_H - 14) {
+    function checkPage(neededH = ROW_H) {
+      if (y + neededH > PAGE_H - 14) {
         drawFooter();
         doc.addPage();
         y = MARGIN + 6;
@@ -708,8 +790,17 @@ document.getElementById("btnConfirmExportPDF")?.addEventListener("click", () => 
     drawTableHeader();
 
     rows.forEach((row, i) => {
-      checkPage();
       const req    = row.request;
+      const isRejected = req.status === "rejected" && req.rejectionReason;
+      let reasonLines = [];
+      if (isRejected) {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(7);
+        reasonLines = doc.splitTextToSize(`Sebab / Reason: ${req.rejectionReason}`, CW - 6);
+      }
+      const extraH = isRejected ? reasonLines.length * 3.2 + 2 : 0;
+
+      checkPage(ROW_H + extraH);
       const method = req.method === "cash" ? "Tunai / Cash" : "Pindahan Bank / Transfer";
       const years  = (req.years || []).join(", ");
       const amount = `RM ${(req.amount || 0).toFixed(2)}`;
@@ -720,7 +811,7 @@ document.getElementById("btnConfirmExportPDF")?.addEventListener("click", () => 
       doc.setFillColor(i % 2 === 0 ? 255 : 245, i % 2 === 0 ? 255 : 245, i % 2 === 0 ? 255 : 245);
       doc.setDrawColor(...BORDER);
       doc.setLineWidth(0.2);
-      doc.rect(MARGIN, y, CW, ROW_H, "FD");
+      doc.rect(MARGIN, y, CW, ROW_H + extraH, "FD");
       let x = MARGIN;
       [0,1,2,3,4,5,6].forEach(ci => { doc.line(x + COLS[ci], y, x + COLS[ci], y + ROW_H); x += COLS[ci]; });
 
@@ -733,7 +824,17 @@ document.getElementById("btnConfirmExportPDF")?.addEventListener("click", () => 
         doc.text(String(val), x + 2, y + 5.3, { maxWidth: COLS[ci] - 3 });
         x += COLS[ci];
       });
-      y += ROW_H;
+
+      if (isRejected) {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(7);
+        doc.setTextColor(200, 60, 60);
+        reasonLines.forEach((line, li) => {
+          doc.text(line, MARGIN + 3, y + ROW_H + 3 + li * 3.2);
+        });
+      }
+
+      y += ROW_H + extraH;
     });
 
     y += 6;
@@ -758,4 +859,126 @@ document.getElementById("btnConfirmExportPDF")?.addEventListener("click", () => 
 
   btn.disabled = false;
   btn.textContent = "📄 Eksport / Export";
+});
+
+// ══════════════════════════════════════════════
+// DETAILS MODAL (confirmed / rejected rows)
+// ══════════════════════════════════════════════
+let currentDetailsRow = null;
+
+function openDetailsModal(row) {
+  currentDetailsRow = row;
+  const req = row.request;
+
+  document.getElementById("detailsMemberName").textContent = row.memberName;
+  document.getElementById("detailsMemberUID").textContent  = row.memberUID;
+  document.getElementById("detailsPayMethod").textContent  =
+    req.method === "cash" ? "💵 Tunai / Cash Payment" : "🏦 Pindahan Bank / Bank Transfer";
+  document.getElementById("detailsYears").textContent = (req.years || []).join(", ");
+
+  const statusLine = document.getElementById("detailsStatusLine");
+  const reasonWrap = document.getElementById("detailsReasonWrap");
+  const reasonText = document.getElementById("detailsReasonText");
+
+  if (req.status === "confirmed") {
+    statusLine.innerHTML = `<span style="color:#4CAF7D;">✅ Disahkan pada ${formatDate(req.confirmedAt)} / Confirmed on ${formatDate(req.confirmedAt)}</span>`;
+    reasonWrap.style.display = "none";
+  } else if (req.status === "rejected") {
+    statusLine.innerHTML = `<span style="color:#E05555;">❌ Ditolak pada ${formatDate(req.rejectedAt)} / Rejected on ${formatDate(req.rejectedAt)}</span>`;
+    reasonWrap.style.display = "block";
+    reasonText.textContent = req.rejectionReason || "Tiada sebab dinyatakan. / No reason stated.";
+  }
+
+  document.getElementById("payDetailsModal").style.display = "flex";
+}
+
+document.getElementById("closePayDetailsModal")?.addEventListener("click",    () => document.getElementById("payDetailsModal").style.display = "none");
+document.getElementById("closePayDetailsModalBtn")?.addEventListener("click", () => document.getElementById("payDetailsModal").style.display = "none");
+
+document.getElementById("btnDetailsRevert")?.addEventListener("click", () => {
+  if (!currentDetailsRow) return;
+  document.getElementById("payDetailsModal").style.display = "none";
+  openRevertModal(currentDetailsRow);
+});
+
+// ══════════════════════════════════════════════
+// REVERT TO PENDING
+// ══════════════════════════════════════════════
+let pendingRevert = null;
+
+function openRevertModal(row) {
+  pendingRevert = row;
+  document.getElementById("revertMemberName").textContent = row.memberName;
+  document.getElementById("revertMemberUID").textContent  = row.memberUID;
+  document.getElementById("revertYears").textContent      = (row.request.years || []).join(", ");
+  document.getElementById("revertStatus").textContent     = "";
+  document.getElementById("payRevertModal").style.display = "flex";
+}
+
+document.getElementById("closePayRevertModal")?.addEventListener("click",    () => document.getElementById("payRevertModal").style.display = "none");
+document.getElementById("closePayRevertModalBtn")?.addEventListener("click", () => document.getElementById("payRevertModal").style.display = "none");
+
+document.getElementById("btnConfirmRevert")?.addEventListener("click", async () => {
+  if (!pendingRevert) return;
+  const btn    = document.getElementById("btnConfirmRevert");
+  const status = document.getElementById("revertStatus");
+  btn.disabled = true;
+  btn.textContent = "Memproses... / Processing...";
+
+  try {
+    const docRef = db.collection("registrations").doc(pendingRevert.docId);
+    const snap   = await docRef.get();
+    const data   = snap.data();
+    const reqs   = data.paymentRequests || [];
+    const req    = pendingRevert.request;
+
+    // Revert the request itself back to pending, stripping confirm/reject fields
+    const updatedReqs = reqs.map(r => {
+      if (r.id !== req.id) return r;
+      const { status, confirmedAt, confirmedYears, rejectedAt, rejectedYears, rejectionReason, ...rest } = r;
+      return { ...rest, status: "pending" };
+    });
+
+    const updatePayload = { paymentRequests: updatedReqs };
+
+    // If it was confirmed, roll back paidYears and paymentHistory for the affected years
+    if (req.status === "confirmed") {
+      const yearsToRevert = req.confirmedYears || req.years || [];
+      const paidYears      = data.paidYears || [];
+      const paymentHistory = data.paymentHistory || [];
+
+      updatePayload.paidYears = paidYears.filter(y => !yearsToRevert.includes(y));
+      // Remove matching history entries (same year + method, most recent match)
+      const newHistory = [...paymentHistory];
+      yearsToRevert.forEach(y => {
+        const idx = newHistory.findIndex(h => h.year === y && h.method === req.method);
+        if (idx !== -1) newHistory.splice(idx, 1);
+      });
+      updatePayload.paymentHistory = newHistory;
+    }
+
+    await docRef.update(updatePayload);
+
+    // Update in-memory
+    req.status = "pending";
+    delete req.confirmedAt; delete req.confirmedYears;
+    delete req.rejectedAt;  delete req.rejectedYears; delete req.rejectionReason;
+
+    status.style.color   = "#3B9EE8";
+    status.textContent   = "✅ Status dikembalikan ke Menunggu. / Status reverted to Pending.";
+
+    setTimeout(() => {
+      document.getElementById("payRevertModal").style.display = "none";
+      pendingRevert = null;
+      loadPaymentRequests();
+    }, 1200);
+
+  } catch(e) {
+    console.error(e);
+    status.style.color = "#E05555";
+    status.textContent = "Ralat semasa mengembalikan status. / Error while reverting status.";
+  }
+
+  btn.disabled = false;
+  btn.textContent = "↺ Kembalikan / Revert";
 });

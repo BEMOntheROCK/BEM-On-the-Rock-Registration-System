@@ -655,8 +655,12 @@ document.getElementById("btnConfirmExportPDF")?.addEventListener("click", () => 
       let x = MARGIN;
       headers.forEach((h, i) => {
         const lines = h.split("\n");
-        doc.text(lines[0], x + 2, y + 3.5);
-        doc.text(lines[1], x + 2, y + 7);
+        if (lines.length > 1) {
+          doc.text(lines[0], x + 2, y + 3.5);
+          doc.text(lines[1], x + 2, y + 7);
+        } else {
+          doc.text(lines[0], x + 2, y + 5.5);
+        }
         if (i < headers.length - 1) doc.line(x + COLS[i], y, x + COLS[i], y + HEAD_H);
         x += COLS[i];
       });

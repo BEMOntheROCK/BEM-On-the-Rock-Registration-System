@@ -1032,3 +1032,5 @@ document.getElementById("btnConfirmRevert")?.addEventListener("click", async () 
   btn.disabled = false;
   btn.textContent = "↺ Kembalikan / Revert";
 });
+// ── Sidebar logout (added when sidebar nav was introduced across admin pages) ──
+document.getElementById("btnLogout")?.addEventListener("click", () => auth.signOut());

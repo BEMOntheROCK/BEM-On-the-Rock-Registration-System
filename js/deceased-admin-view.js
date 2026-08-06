@@ -148,3 +148,5 @@ function openDetailModal(rec) {
 
 document.getElementById("closeDetailModal")?.addEventListener("click",    () => document.getElementById("detailModal").style.display="none");
 document.getElementById("closeDetailModalBtn")?.addEventListener("click", () => document.getElementById("detailModal").style.display="none");
+// ── Sidebar logout (added when sidebar nav was introduced across admin pages) ──
+document.getElementById("btnLogout")?.addEventListener("click", () => auth.signOut());

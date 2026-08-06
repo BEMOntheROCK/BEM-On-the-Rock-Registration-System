@@ -10,6 +10,60 @@ const ANNUAL_FEE  = 10;
 let memberDocId   = null;
 let memberData    = null;
 let pendingFees   = [];
+let receiptBase64 = null; // compressed receipt image (data URL), required for bank transfer
+
+// ── Compress an image file down to a target size (default 600KB) ──
+// Iteratively reduces JPEG quality, then dimensions, until under the target.
+function compressReceiptImage(file, targetBytes = 600 * 1024) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read-failed"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("image-failed"));
+      img.onload = () => {
+        let width  = img.width;
+        let height = img.height;
+        const maxDim = 1600; // cap initial dimension for large photos
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width  = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+
+        const canvas = document.createElement("canvas");
+        const ctx    = canvas.getContext("2d");
+
+        function render(w, h) {
+          canvas.width  = w;
+          canvas.height = h;
+          ctx.drawImage(img, 0, 0, w, h);
+        }
+
+        function tryQuality(quality, w, h, attemptsLeft) {
+          render(w, h);
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          const approxBytes = Math.round((dataUrl.length - dataUrl.indexOf(",") - 1) * 0.75);
+
+          if (approxBytes <= targetBytes || attemptsLeft <= 0) {
+            resolve({ dataUrl, bytes: approxBytes });
+            return;
+          }
+          if (quality > 0.4) {
+            tryQuality(quality - 0.1, w, h, attemptsLeft - 1);
+          } else {
+            // Quality floor reached — shrink dimensions instead
+            tryQuality(0.7, Math.round(w * 0.8), Math.round(h * 0.8), attemptsLeft - 1);
+          }
+        }
+
+        tryQuality(0.85, width, height, 12);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 // ── Screen navigation ──
 function showScreen(id) {
@@ -284,9 +338,53 @@ document.getElementById("btnConfirmCash").addEventListener("click", async () => 
 document.getElementById("btnPayTransfer").addEventListener("click", () => {
   document.getElementById("transferNotice").textContent = "";
   document.getElementById("transferPendingNotice").style.display = "none";
+  resetReceiptState();
   showScreen("screen-transfer");
 });
 document.getElementById("btnBackFromTransfer").addEventListener("click", () => showScreen("screen-payment"));
+
+function resetReceiptState() {
+  receiptBase64 = null;
+  document.getElementById("transferReceiptInput").value = "";
+  document.getElementById("receiptPreviewWrap").style.display = "none";
+  document.getElementById("receiptCompressStatus").textContent = "";
+  document.getElementById("err-transferReceipt").textContent = "";
+  document.getElementById("btnConfirmTransfer").disabled = true;
+}
+
+document.getElementById("transferReceiptInput").addEventListener("change", async function() {
+  const file      = this.files[0];
+  const statusEl  = document.getElementById("receiptCompressStatus");
+  const errEl     = document.getElementById("err-transferReceipt");
+  const confirmBtn = document.getElementById("btnConfirmTransfer");
+  errEl.textContent = "";
+  receiptBase64 = null;
+  confirmBtn.disabled = true;
+  document.getElementById("receiptPreviewWrap").style.display = "none";
+
+  if (!file) { statusEl.textContent = ""; return; }
+
+  if (!file.type.startsWith("image/")) {
+    errEl.textContent = "Sila muat naik fail imej sahaja. / Please upload an image file only.";
+    this.value = "";
+    return;
+  }
+
+  statusEl.textContent = `Memampatkan imej... / Compressing image... (${(file.size/1024/1024).toFixed(1)} MB)`;
+  try {
+    const { dataUrl, bytes } = await compressReceiptImage(file, 600 * 1024);
+    receiptBase64 = dataUrl;
+    statusEl.textContent = `✅ Resit sedia (${(bytes/1024).toFixed(0)} KB). / Receipt ready (${(bytes/1024).toFixed(0)} KB).`;
+    document.getElementById("receiptPreviewImg").src = dataUrl;
+    document.getElementById("receiptPreviewWrap").style.display = "block";
+    confirmBtn.disabled = false;
+  } catch (e) {
+    console.error(e);
+    statusEl.textContent = "";
+    errEl.textContent = "Gagal memproses imej. Sila cuba semula. / Failed to process image. Please try again.";
+    this.value = "";
+  }
+});
 
 // Copy account number
 document.getElementById("btnCopyAcc").addEventListener("click", () => {
@@ -302,6 +400,14 @@ document.getElementById("btnConfirmTransfer").addEventListener("click", async ()
   const btn     = document.getElementById("btnConfirmTransfer");
   const notice  = document.getElementById("transferNotice");
   const pending = document.getElementById("transferPendingNotice");
+  const errEl   = document.getElementById("err-transferReceipt");
+
+  if (!receiptBase64) {
+    errEl.textContent = "Sila muat naik resit pembayaran anda terlebih dahulu. / Please upload your payment receipt first.";
+    return;
+  }
+  errEl.textContent = "";
+
   btn.disabled  = true;
   btn.textContent = "Menghantar... / Submitting...";
   notice.textContent = "";
@@ -323,12 +429,13 @@ document.getElementById("btnConfirmTransfer").addEventListener("click", async ()
     }
 
     const req = {
-      id:          db.collection("_").doc().id,
-      method:      "transfer",
-      status:      "pending",
+      id:            db.collection("_").doc().id,
+      method:        "transfer",
+      status:        "pending",
       years,
-      amount:      pendingFees.reduce((s,f) => s+f.amount, 0),
-      submittedAt: new Date().toISOString(),
+      amount:        pendingFees.reduce((s,f) => s+f.amount, 0),
+      submittedAt:   new Date().toISOString(),
+      receiptBase64, // compressed receipt image (~600KB target), required for bank transfer
     };
     await db.collection("registrations").doc(memberDocId).update({
       paymentRequests: [...existing, req],
@@ -337,6 +444,9 @@ document.getElementById("btnConfirmTransfer").addEventListener("click", async ()
     pending.style.display = "block";
     notice.style.color    = "#4CAF7D";
     notice.textContent    = "✅ Permohonan dihantar. Sila tunggu pengesahan pentadbir. / Request submitted. Please await admin confirmation.";
+    resetReceiptState();
+    btn.textContent = "✅ Saya Sudah Membuat Pindahan / I Have Transferred";
+    return; // keep confirm button disabled until a new receipt is attached
   } catch(e) {
     console.error(e);
     notice.style.color    = "#E05555";

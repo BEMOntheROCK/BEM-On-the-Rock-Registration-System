@@ -154,6 +154,19 @@ function renderTable(rows) {
          </td>`
       : `<td></td>`;
 
+    const receiptCell = (req.method === "transfer" && req.receiptBase64)
+      ? `<td style="text-align:center;">
+           <button class="pay-receipt-btn"
+             style="background:rgba(76,175,125,0.1);border:1px solid rgba(76,175,125,0.35);
+             border-radius:var(--radius);padding:0.3rem 0.6rem;cursor:pointer;
+             color:#4CAF7D;font-family:var(--font-display);font-size:0.72rem;"
+             data-idx="${allPaymentRows.indexOf(row)}"
+             title="Muat turun resit / Download receipt">
+             ⬇️ Resit
+           </button>
+         </td>`
+      : `<td style="text-align:center;color:var(--text-muted);font-size:0.8rem;">—</td>`;
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       ${checkboxCell}
@@ -165,8 +178,17 @@ function renderTable(rows) {
       <td style="text-align:right;font-weight:700;color:var(--marigold-bright);">${amount}</td>
       <td style="font-size:0.82rem;">${formatDate(req.submittedAt)}</td>
       <td style="text-align:center;">${statusBadge}</td>
+      ${receiptCell}
       <td class="col-action">${actionBtn}</td>`;
     tbody.appendChild(tr);
+  });
+
+  // Wire receipt download buttons
+  document.querySelectorAll(".pay-receipt-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const row = allPaymentRows[parseInt(btn.dataset.idx)];
+      downloadReceipt(row);
+    });
   });
 
   // Wire action buttons
@@ -211,6 +233,20 @@ function renderTable(rows) {
   }
 }
 
+// ── Download a member's payment receipt ──
+function downloadReceipt(row) {
+  const req = row.request;
+  if (!req.receiptBase64) return;
+  const a = document.createElement("a");
+  a.href = req.receiptBase64;
+  const safeName = (row.memberUID || row.memberName || "receipt").replace(/[^a-zA-Z0-9-_]/g, "_");
+  const years = (req.years || []).join("-") || "receipt";
+  a.download = `Resit-${safeName}-${years}.jpg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 // ── Action modal ──
 function openActionModal(row) {
   currentAction = row;
@@ -223,6 +259,20 @@ function openActionModal(row) {
   document.getElementById("modalPayMethod").textContent  =
     req.method === "cash" ? "💵 Tunai / Cash Payment"
     : "🏦 Pindahan Bank / Bank Transfer";
+
+  // Receipt download link (transfer only)
+  const existingReceiptBtn = document.getElementById("modalReceiptBtn");
+  if (existingReceiptBtn) existingReceiptBtn.remove();
+  if (req.method === "transfer" && req.receiptBase64) {
+    const receiptBtn = document.createElement("button");
+    receiptBtn.id = "modalReceiptBtn";
+    receiptBtn.className = "btn btn-secondary";
+    receiptBtn.type = "button";
+    receiptBtn.style.marginTop = "0.6rem";
+    receiptBtn.textContent = "⬇️ Muat Turun Resit / Download Receipt";
+    receiptBtn.addEventListener("click", () => downloadReceipt(row));
+    document.getElementById("modalPayMethod").insertAdjacentElement("afterend", receiptBtn);
+  }
 
   // Year checkboxes
   const years = req.years || [];

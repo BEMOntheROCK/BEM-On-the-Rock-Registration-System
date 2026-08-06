@@ -5,7 +5,7 @@
   <link rel="icon" type="image/png" href="Images/bemotr_favicon.png"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>BEM On The Rock — Bayaran Yuran</title>
-  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="css/style.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet"/>
 </head>
 <body>
@@ -271,6 +271,24 @@
         </div>
       </div>
 
+      <!-- Receipt upload -->
+      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-card);
+        border-radius:var(--radius-lg);padding:1.2rem 1.5rem;margin-bottom:1.5rem;">
+        <div style="font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.06em;
+          color:var(--marigold);margin-bottom:0.6rem;">🧾 RESIT PEMBAYARAN / PAYMENT RECEIPT <span class="required">*</span></div>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 0.8rem;line-height:1.5;">
+          Sila muat naik tangkapan skrin atau gambar resit pindahan anda.<br/>
+          <em style="font-size:0.8rem;">Please upload a screenshot or photo of your transfer receipt.</em>
+        </p>
+        <input type="file" id="transferReceiptInput" accept="image/*" class="form-input"/>
+        <div id="receiptCompressStatus" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;"></div>
+        <div id="receiptPreviewWrap" style="display:none;margin-top:0.8rem;">
+          <img id="receiptPreviewImg" style="max-width:180px;max-height:180px;border-radius:var(--radius);
+            border:1.5px solid var(--marigold-dim);object-fit:cover;" alt="Receipt preview"/>
+        </div>
+        <span class="error-msg" id="err-transferReceipt"></span>
+      </div>
+
       <div id="transferPendingNotice" style="display:none;margin-bottom:1rem;
         background:rgba(76,175,125,0.1);border:1px solid rgba(76,175,125,0.3);
         border-radius:var(--radius);padding:0.9rem 1.2rem;font-size:0.9rem;
@@ -281,7 +299,7 @@
 
       <div class="form-actions form-actions--end" style="gap:0.75rem;">
         <button class="btn btn-secondary" id="btnBackFromTransfer">&larr; Kembali / Back</button>
-        <button class="btn btn-primary"   id="btnConfirmTransfer">
+        <button class="btn btn-primary"   id="btnConfirmTransfer" disabled>
           ✅ Saya Sudah Membuat Pindahan / I Have Transferred
         </button>
       </div>
@@ -296,8 +314,8 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js"></script>
-  <script src="theme.js"></script>
-  <script src="payment.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/payment.js"></script>
 </body>
 </html>

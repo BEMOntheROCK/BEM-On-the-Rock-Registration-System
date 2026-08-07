@@ -6,14 +6,16 @@
 
 document.getElementById("payFooterYear").textContent = new Date().getFullYear();
 
-const ANNUAL_FEE  = 10;
-let memberDocId   = null;
-let memberData    = null;
-let pendingFees   = [];
-let receiptBase64 = null; // compressed receipt image (data URL), required for bank transfer
+const ANNUAL_FEE   = 10;
+let memberDocId    = null;
+let memberData      = null;
+let pendingFees     = [];
+let receiptBlob     = null; // compressed receipt image (Blob), required for bank transfer
+let receiptPreviewURL = null; // local object URL for the thumbnail preview only
 
 // ── Compress an image file down to a target size (default 600KB) ──
 // Iteratively reduces JPEG quality, then dimensions, until under the target.
+// Resolves with a Blob (for upload to Storage) rather than a data URL.
 function compressReceiptImage(file, targetBytes = 600 * 1024) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -42,19 +44,19 @@ function compressReceiptImage(file, targetBytes = 600 * 1024) {
 
         function tryQuality(quality, w, h, attemptsLeft) {
           render(w, h);
-          const dataUrl = canvas.toDataURL("image/jpeg", quality);
-          const approxBytes = Math.round((dataUrl.length - dataUrl.indexOf(",") - 1) * 0.75);
-
-          if (approxBytes <= targetBytes || attemptsLeft <= 0) {
-            resolve({ dataUrl, bytes: approxBytes });
-            return;
-          }
-          if (quality > 0.4) {
-            tryQuality(quality - 0.1, w, h, attemptsLeft - 1);
-          } else {
-            // Quality floor reached — shrink dimensions instead
-            tryQuality(0.7, Math.round(w * 0.8), Math.round(h * 0.8), attemptsLeft - 1);
-          }
+          canvas.toBlob(blob => {
+            if (!blob) { reject(new Error("compression-failed")); return; }
+            if (blob.size <= targetBytes || attemptsLeft <= 0) {
+              resolve(blob);
+              return;
+            }
+            if (quality > 0.4) {
+              tryQuality(quality - 0.1, w, h, attemptsLeft - 1);
+            } else {
+              // Quality floor reached — shrink dimensions instead
+              tryQuality(0.7, Math.round(w * 0.8), Math.round(h * 0.8), attemptsLeft - 1);
+            }
+          }, "image/jpeg", quality);
         }
 
         tryQuality(0.85, width, height, 12);
@@ -344,7 +346,8 @@ document.getElementById("btnPayTransfer").addEventListener("click", () => {
 document.getElementById("btnBackFromTransfer").addEventListener("click", () => showScreen("screen-payment"));
 
 function resetReceiptState() {
-  receiptBase64 = null;
+  receiptBlob = null;
+  if (receiptPreviewURL) { URL.revokeObjectURL(receiptPreviewURL); receiptPreviewURL = null; }
   document.getElementById("transferReceiptInput").value = "";
   document.getElementById("receiptPreviewWrap").style.display = "none";
   document.getElementById("receiptCompressStatus").textContent = "";
@@ -358,7 +361,8 @@ document.getElementById("transferReceiptInput").addEventListener("change", async
   const errEl     = document.getElementById("err-transferReceipt");
   const confirmBtn = document.getElementById("btnConfirmTransfer");
   errEl.textContent = "";
-  receiptBase64 = null;
+  receiptBlob = null;
+  if (receiptPreviewURL) { URL.revokeObjectURL(receiptPreviewURL); receiptPreviewURL = null; }
   confirmBtn.disabled = true;
   document.getElementById("receiptPreviewWrap").style.display = "none";
 
@@ -372,10 +376,11 @@ document.getElementById("transferReceiptInput").addEventListener("change", async
 
   statusEl.textContent = `Memampatkan imej... / Compressing image... (${(file.size/1024/1024).toFixed(1)} MB)`;
   try {
-    const { dataUrl, bytes } = await compressReceiptImage(file, 600 * 1024);
-    receiptBase64 = dataUrl;
-    statusEl.textContent = `✅ Resit sedia (${(bytes/1024).toFixed(0)} KB). / Receipt ready (${(bytes/1024).toFixed(0)} KB).`;
-    document.getElementById("receiptPreviewImg").src = dataUrl;
+    const blob = await compressReceiptImage(file, 600 * 1024);
+    receiptBlob = blob;
+    receiptPreviewURL = URL.createObjectURL(blob);
+    statusEl.textContent = `✅ Resit sedia (${(blob.size/1024).toFixed(0)} KB). / Receipt ready (${(blob.size/1024).toFixed(0)} KB).`;
+    document.getElementById("receiptPreviewImg").src = receiptPreviewURL;
     document.getElementById("receiptPreviewWrap").style.display = "block";
     confirmBtn.disabled = false;
   } catch (e) {
@@ -402,7 +407,7 @@ document.getElementById("btnConfirmTransfer").addEventListener("click", async ()
   const pending = document.getElementById("transferPendingNotice");
   const errEl   = document.getElementById("err-transferReceipt");
 
-  if (!receiptBase64) {
+  if (!receiptBlob) {
     errEl.textContent = "Sila muat naik resit pembayaran anda terlebih dahulu. / Please upload your payment receipt first.";
     return;
   }
@@ -428,14 +433,27 @@ document.getElementById("btnConfirmTransfer").addEventListener("click", async ()
       return;
     }
 
+    const reqId = db.collection("_").doc().id;
+
+    // Upload the compressed receipt to Firebase Storage (not Firestore —
+    // keeps the registration document well under the 1MB Firestore limit).
+    // We store the Storage PATH here, not a getDownloadURL() result — that
+    // URL carries an access token that bypasses Storage rules once it
+    // exists, and this document is publicly readable in Firestore, so
+    // persisting the URL here would defeat the admin-only read rule.
+    // admin-payment.js generates a fresh download URL on demand instead.
+    statusUploadNotice(notice, "Memuat naik resit... / Uploading receipt...");
+    const receiptPath = `receipts/${memberDocId}/${reqId}.jpg`;
+    await storage.ref().child(receiptPath).put(receiptBlob, { contentType: "image/jpeg" });
+
     const req = {
-      id:            db.collection("_").doc().id,
-      method:        "transfer",
-      status:        "pending",
+      id:          reqId,
+      method:      "transfer",
+      status:      "pending",
       years,
-      amount:        pendingFees.reduce((s,f) => s+f.amount, 0),
-      submittedAt:   new Date().toISOString(),
-      receiptBase64, // compressed receipt image (~600KB target), required for bank transfer
+      amount:      pendingFees.reduce((s,f) => s+f.amount, 0),
+      submittedAt: new Date().toISOString(),
+      receiptPath, // Storage path only — admin generates the download URL on demand
     };
     await db.collection("registrations").doc(memberDocId).update({
       paymentRequests: [...existing, req],
@@ -455,3 +473,8 @@ document.getElementById("btnConfirmTransfer").addEventListener("click", async ()
   btn.disabled    = false;
   btn.textContent = "✅ Saya Sudah Membuat Pindahan / I Have Transferred";
 });
+
+function statusUploadNotice(el, text) {
+  el.style.color   = "var(--text-muted)";
+  el.textContent   = text;
+}

@@ -154,7 +154,7 @@ function renderTable(rows) {
          </td>`
       : `<td></td>`;
 
-    const receiptCell = (req.method === "transfer" && req.receiptBase64)
+    const receiptCell = (req.method === "transfer" && req.receiptPath)
       ? `<td style="text-align:center;">
            <button class="pay-receipt-btn"
              style="background:rgba(76,175,125,0.1);border:1px solid rgba(76,175,125,0.35);
@@ -187,7 +187,7 @@ function renderTable(rows) {
   document.querySelectorAll(".pay-receipt-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const row = allPaymentRows[parseInt(btn.dataset.idx)];
-      downloadReceipt(row);
+      downloadReceipt(row, btn);
     });
   });
 
@@ -234,17 +234,40 @@ function renderTable(rows) {
 }
 
 // ── Download a member's payment receipt ──
-function downloadReceipt(row) {
+// Generates a fresh Storage download URL on demand (rather than storing one
+// in Firestore) so access stays gated by the admin-only Storage rule.
+async function downloadReceipt(row, triggerBtn) {
   const req = row.request;
-  if (!req.receiptBase64) return;
-  const a = document.createElement("a");
-  a.href = req.receiptBase64;
-  const safeName = (row.memberUID || row.memberName || "receipt").replace(/[^a-zA-Z0-9-_]/g, "_");
-  const years = (req.years || []).join("-") || "receipt";
-  a.download = `Resit-${safeName}-${years}.jpg`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  if (!req.receiptPath) return;
+
+  const originalLabel = triggerBtn ? triggerBtn.innerHTML : null;
+  if (triggerBtn) {
+    triggerBtn.disabled = true;
+    triggerBtn.innerHTML = "⏳ ...";
+  }
+
+  try {
+    const url = await storage.ref(req.receiptPath).getDownloadURL();
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank"; // Storage URLs are cross-origin, so `download` alone
+                          // isn't honored by the browser — open in a new tab
+                          // and let the admin save it from there.
+    const safeName = (row.memberUID || row.memberName || "receipt").replace(/[^a-zA-Z0-9-_]/g, "_");
+    const years = (req.years || []).join("-") || "receipt";
+    a.download = `Resit-${safeName}-${years}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (e) {
+    console.error(e);
+    alert("Gagal memuat turun resit. / Failed to download receipt.");
+  }
+
+  if (triggerBtn) {
+    triggerBtn.disabled = false;
+    triggerBtn.innerHTML = originalLabel;
+  }
 }
 
 // ── Action modal ──
@@ -263,14 +286,14 @@ function openActionModal(row) {
   // Receipt download link (transfer only)
   const existingReceiptBtn = document.getElementById("modalReceiptBtn");
   if (existingReceiptBtn) existingReceiptBtn.remove();
-  if (req.method === "transfer" && req.receiptBase64) {
+  if (req.method === "transfer" && req.receiptPath) {
     const receiptBtn = document.createElement("button");
     receiptBtn.id = "modalReceiptBtn";
     receiptBtn.className = "btn btn-secondary";
     receiptBtn.type = "button";
     receiptBtn.style.marginTop = "0.6rem";
     receiptBtn.textContent = "⬇️ Muat Turun Resit / Download Receipt";
-    receiptBtn.addEventListener("click", () => downloadReceipt(row));
+    receiptBtn.addEventListener("click", () => downloadReceipt(row, receiptBtn));
     document.getElementById("modalPayMethod").insertAdjacentElement("afterend", receiptBtn);
   }
 
@@ -1032,3 +1055,5 @@ document.getElementById("btnConfirmRevert")?.addEventListener("click", async () 
   btn.disabled = false;
   btn.textContent = "↺ Kembalikan / Revert";
 });
+// ── Sidebar logout (added when sidebar nav was introduced across admin pages) ──
+document.getElementById("btnLogout")?.addEventListener("click", () => auth.signOut());

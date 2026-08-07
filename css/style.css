@@ -5,6 +5,23 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap');
 
+/* ── Brand fonts for "BEM On The Rock" header text ── */
+@font-face {
+  font-family: "Britannic Bold";
+  src: url('../fonts/britanic-bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Forte";
+  src: url('../fonts/forte.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ── Shared brand colours (same in both modes) ── */
 :root {
   --marigold:       #FF8C00;

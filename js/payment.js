@@ -12,6 +12,8 @@ let memberData      = null;
 let pendingFees     = [];
 let receiptBlob     = null; // compressed receipt image (Blob), required for bank transfer
 let receiptPreviewURL = null; // local object URL for the thumbnail preview only
+let cashReceiptBlob       = null; // compressed proof-of-payment image (Blob), required for cash
+let cashReceiptPreviewURL = null; // local object URL for the cash thumbnail preview only
 
 // ── Compress an image file down to a target size (default 600KB) ──
 // Iteratively reduces JPEG quality, then dimensions, until under the target.
@@ -284,14 +286,69 @@ document.getElementById("btnBackPayment").addEventListener("click", () => showSc
 document.getElementById("btnPayCash").addEventListener("click", () => {
   document.getElementById("cashNotice").textContent = "";
   document.getElementById("cashPendingNotice").style.display = "none";
+  resetCashReceiptState();
   showScreen("screen-cash");
 });
 document.getElementById("btnBackFromCash").addEventListener("click", () => showScreen("screen-payment"));
+
+function resetCashReceiptState() {
+  cashReceiptBlob = null;
+  if (cashReceiptPreviewURL) { URL.revokeObjectURL(cashReceiptPreviewURL); cashReceiptPreviewURL = null; }
+  document.getElementById("cashReceiptInput").value = "";
+  document.getElementById("cashReceiptPreviewWrap").style.display = "none";
+  document.getElementById("cashReceiptCompressStatus").textContent = "";
+  document.getElementById("err-cashReceipt").textContent = "";
+  document.getElementById("btnConfirmCash").disabled = true;
+}
+
+document.getElementById("cashReceiptInput").addEventListener("change", async function() {
+  const file      = this.files[0];
+  const statusEl  = document.getElementById("cashReceiptCompressStatus");
+  const errEl     = document.getElementById("err-cashReceipt");
+  const confirmBtn = document.getElementById("btnConfirmCash");
+  errEl.textContent = "";
+  cashReceiptBlob = null;
+  if (cashReceiptPreviewURL) { URL.revokeObjectURL(cashReceiptPreviewURL); cashReceiptPreviewURL = null; }
+  confirmBtn.disabled = true;
+  document.getElementById("cashReceiptPreviewWrap").style.display = "none";
+
+  if (!file) { statusEl.textContent = ""; return; }
+
+  if (!file.type.startsWith("image/")) {
+    errEl.textContent = "Sila muat naik fail imej sahaja. / Please upload an image file only.";
+    this.value = "";
+    return;
+  }
+
+  statusEl.textContent = `Memampatkan imej... / Compressing image... (${(file.size/1024/1024).toFixed(1)} MB)`;
+  try {
+    const blob = await compressReceiptImage(file, 600 * 1024);
+    cashReceiptBlob = blob;
+    cashReceiptPreviewURL = URL.createObjectURL(blob);
+    statusEl.textContent = `✅ Gambar sedia (${(blob.size/1024).toFixed(0)} KB). / Photo ready (${(blob.size/1024).toFixed(0)} KB).`;
+    document.getElementById("cashReceiptPreviewImg").src = cashReceiptPreviewURL;
+    document.getElementById("cashReceiptPreviewWrap").style.display = "block";
+    confirmBtn.disabled = false;
+  } catch (e) {
+    console.error(e);
+    statusEl.textContent = "";
+    errEl.textContent = "Gagal memproses imej. Sila cuba semula. / Failed to process image. Please try again.";
+    this.value = "";
+  }
+});
 
 document.getElementById("btnConfirmCash").addEventListener("click", async () => {
   const btn     = document.getElementById("btnConfirmCash");
   const notice  = document.getElementById("cashNotice");
   const pending = document.getElementById("cashPendingNotice");
+  const errEl   = document.getElementById("err-cashReceipt");
+
+  if (!cashReceiptBlob) {
+    errEl.textContent = "Sila muat naik gambar bukti bayaran anda terlebih dahulu. / Please upload a photo of your proof of payment first.";
+    return;
+  }
+  errEl.textContent = "";
+
   btn.disabled  = true;
   btn.textContent = "Menghantar... / Submitting...";
   notice.textContent = "";
@@ -312,13 +369,25 @@ document.getElementById("btnConfirmCash").addEventListener("click", async () => 
       return;
     }
 
+    const reqId = db.collection("_").doc().id;
+
+    // Upload the compressed proof-of-payment photo to Firebase Storage —
+    // same pattern as the bank transfer receipt. We store the Storage
+    // PATH (not a getDownloadURL() result) since this document is
+    // publicly readable in Firestore; admin generates the download URL
+    // on demand instead, so access stays gated by the admin-only rule.
+    statusUploadNotice(notice, "Memuat naik gambar... / Uploading photo...");
+    const receiptPath = `receipts/${memberDocId}/${reqId}.jpg`;
+    await storage.ref().child(receiptPath).put(cashReceiptBlob, { contentType: "image/jpeg" });
+
     const req = {
-      id:        db.collection("_").doc().id,
-      method:    "cash",
-      status:    "pending",
+      id:          reqId,
+      method:      "cash",
+      status:      "pending",
       years,
-      amount:    pendingFees.reduce((s,f) => s+f.amount, 0),
+      amount:      pendingFees.reduce((s,f) => s+f.amount, 0),
       submittedAt: new Date().toISOString(),
+      receiptPath, // Storage path — proof-of-payment photo lives in Storage, not Firestore
     };
     await db.collection("registrations").doc(memberDocId).update({
       paymentRequests: [...existing, req],
@@ -327,6 +396,9 @@ document.getElementById("btnConfirmCash").addEventListener("click", async () => 
     pending.style.display = "block";
     notice.style.color    = "#4CAF7D";
     notice.textContent    = "✅ Permohonan dihantar. Sila tunggu pengesahan pentadbir. / Request submitted. Please await admin confirmation.";
+    resetCashReceiptState();
+    btn.textContent = "✅ Saya Sudah Membayar / I Have Paid";
+    return; // keep confirm button disabled until a new photo is attached
   } catch(e) {
     console.error(e);
     notice.style.color    = "#E05555";

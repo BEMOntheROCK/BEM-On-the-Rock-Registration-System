@@ -154,7 +154,7 @@ function renderTable(rows) {
          </td>`
       : `<td></td>`;
 
-    const receiptCell = (req.method === "transfer" && req.receiptPath)
+    const receiptCell = req.receiptPath
       ? `<td style="text-align:center;">
            <button class="pay-receipt-btn"
              style="background:rgba(76,175,125,0.1);border:1px solid rgba(76,175,125,0.35);
@@ -286,7 +286,7 @@ function openActionModal(row) {
   // Receipt download link (transfer only)
   const existingReceiptBtn = document.getElementById("modalReceiptBtn");
   if (existingReceiptBtn) existingReceiptBtn.remove();
-  if (req.method === "transfer" && req.receiptPath) {
+  if (req.receiptPath) {
     const receiptBtn = document.createElement("button");
     receiptBtn.id = "modalReceiptBtn";
     receiptBtn.className = "btn btn-secondary";

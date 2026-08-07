@@ -183,6 +183,24 @@
           to notify the admin that you have paid.</em>
         </p>
       </div>
+      <!-- Photo proof of cash payment -->
+      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-card);
+        border-radius:var(--radius-lg);padding:1.2rem 1.5rem;margin-bottom:1.5rem;">
+        <div style="font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.06em;
+          color:var(--marigold);margin-bottom:0.6rem;">📷 BUKTI BAYARAN / PROOF OF PAYMENT <span class="required">*</span></div>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 0.8rem;line-height:1.5;">
+          Sila ambil atau muat naik gambar resit tunai anda.<br/>
+          <em style="font-size:0.8rem;">Please take or upload a photo of your cash receipt slip.</em>
+        </p>
+        <input type="file" id="cashReceiptInput" accept="image/*" class="form-input"/>
+        <div id="cashReceiptCompressStatus" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;"></div>
+        <div id="cashReceiptPreviewWrap" style="display:none;margin-top:0.8rem;">
+          <img id="cashReceiptPreviewImg" style="max-width:180px;max-height:180px;border-radius:var(--radius);
+            border:1.5px solid var(--marigold-dim);object-fit:cover;" alt="Receipt preview"/>
+        </div>
+        <span class="error-msg" id="err-cashReceipt"></span>
+      </div>
+
       <div id="cashPendingNotice" style="display:none;margin-bottom:1rem;
         background:rgba(76,175,125,0.1);border:1px solid rgba(76,175,125,0.3);
         border-radius:var(--radius);padding:0.9rem 1.2rem;font-size:0.9rem;
@@ -192,7 +210,7 @@
       </div>
       <div class="form-actions form-actions--end" style="gap:0.75rem;">
         <button class="btn btn-secondary" id="btnBackFromCash">&larr; Kembali / Back</button>
-        <button class="btn btn-primary"   id="btnConfirmCash">✅ Saya Sudah Membayar / I Have Paid</button>
+        <button class="btn btn-primary"   id="btnConfirmCash" disabled>✅ Saya Sudah Membayar / I Have Paid</button>
       </div>
       <div class="draft-notice" id="cashNotice" style="margin-top:0.8rem;"></div>
     </section>

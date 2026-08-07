@@ -10,18 +10,47 @@
 </head>
 <body class="admin-body">
 
-  <header class="site-header">
-    <div class="header-inner">
-      <div class="logo-wrap"><img src="Images/logo.jpg" alt="BEM On The Rock" class="logo-img"/></div>
-      <div class="header-text">
-        <h1 class="church-name"><span class="church-name-bem">BEM</span> <span class="church-name-rock">On the ROCK</span></h1>
-        <p class="church-subtitle">Log Audit / Audit Log</p>
-      </div>
-      <div class="logo-wrap logo-wrap-right"><img src="Images/logo_bem_sib.png" alt="B.E.M" class="logo-img logo-bem"/></div>
-    </div>
-  </header>
+  <div id="sidebarBackdrop" style="display:none;position:fixed;inset:0;z-index:99;
+    background:rgba(0,0,0,0.45);" onclick="closeSidebar()"></div>
 
-  <main class="admin-main">
+  <div class="dashboard-wrapper">
+
+    <aside class="dashboard-sidebar" id="dashboardSidebar">
+      <div class="sidebar-header">
+        <img src="Images/logo.jpg" alt="BEM On The Rock" class="sidebar-logo"/>
+        <div>
+          <h1 class="sidebar-title">BEM <span style="color: var(--marigold);">On the ROCK</span></h1>
+          <p class="sidebar-subtitle">Laman Admin</p>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">PENGURUSAN / MANAGEMENT</div>
+        <a href="admin.html" class="nav-item">📋 Senarai Pendaftaran</a>
+        <a href="affiliated-admin-view.html" class="nav-item">🤲 Jemaat Bersekutu</a>
+        <a href="deceased-admin-view.html" class="nav-item">🕊️ Rekod Kematian</a>
+        <a href="admin-payment.html" class="nav-item">💳 Bayaran</a>
+
+        <div class="nav-section-title">LAPORAN / REPORTS</div>
+        <a href="stats.html" class="nav-item">📊 Statistik</a>
+        <a href="audit-log.html" class="nav-item active">🔍 Log Audit</a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="btnLogout" class="nav-item nav-btn danger-btn">🔴 Log Keluar</button>
+      </div>
+    </aside>
+
+    <main class="dashboard-main">
+
+      <header class="mobile-header admin-mobile-only">
+        <div style="display:flex; align-items:center; gap: 0.8rem;">
+          <img src="Images/logo.jpg" alt="Logo" style="width:32px; height:32px; border-radius:50%;"/>
+          <h1 style="font-size:1.1rem; color:var(--marigold-bright); margin:0;">Admin</h1>
+        </div>
+        <button id="btnBurgerMenu" class="btn btn-secondary" onclick="document.getElementById('dashboardSidebar').classList.toggle('open')">☰ Menu</button>
+      </header>
+
     <div class="admin-content-card">
 
       <!-- Top bar -->
@@ -29,11 +58,7 @@
         <div class="admin-topbar-left">
           <h2 class="admin-section-title">🔍 Log Audit <span>/ Audit Log</span></h2>
         </div>
-        <div class="admin-topbar-right">
-          <a href="admin.html" class="btn btn-secondary" style="text-decoration:none;">
-            &larr; Kembali ke Admin / Back to Admin
-          </a>
-        </div>
+        <div class="admin-topbar-right"></div>
       </div>
 
       <!-- Info banner -->
@@ -121,6 +146,7 @@
 
     </div>
   </main>
+  </div><!-- /dashboard-wrapper -->
 
   <!-- Changes Detail Modal -->
   <div class="modal-overlay" id="auditDetailModal" style="display:none;">
@@ -188,5 +214,29 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/audit-log.js"></script>
+
+  <script>
+    // ── Sidebar open/close (shared across admin pages) ──
+    function openSidebar() {
+      document.getElementById("dashboardSidebar").classList.add("open");
+      const backdrop = document.getElementById("sidebarBackdrop");
+      if (backdrop) backdrop.style.display = "block";
+    }
+    function closeSidebar() {
+      document.getElementById("dashboardSidebar").classList.remove("open");
+      const backdrop = document.getElementById("sidebarBackdrop");
+      if (backdrop) backdrop.style.display = "none";
+    }
+    function toggleSidebar() {
+      const sidebar = document.getElementById("dashboardSidebar");
+      if (sidebar.classList.contains("open")) closeSidebar();
+      else openSidebar();
+    }
+    document.querySelectorAll(".nav-item").forEach(item => {
+      item.addEventListener("click", () => {
+        if (window.innerWidth <= 900) closeSidebar();
+      });
+    });
+  </script>
 </body>
 </html>

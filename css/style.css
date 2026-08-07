@@ -1921,6 +1921,12 @@ input[type="date"].form-input::-webkit-calendar-picker-indicator {
   color: var(--marigold-bright);
 }
 
+.nav-item.active {
+  background: rgba(255, 140, 0, 0.14);
+  color: var(--marigold-bright);
+  box-shadow: inset 3px 0 0 var(--marigold);
+}
+
 .danger-btn:hover {
   background: rgba(224, 85, 85, 0.15);
   color: #E05555;

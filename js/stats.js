@@ -2978,3 +2978,5 @@ function exportChildrenPDF() {
     if (btn) { btn.disabled = false; btn.textContent = "📄 Eksport Senarai Kanak-kanak / Export Children List"; }
   }
 }
+// ── Sidebar logout (added when sidebar nav was introduced across admin pages) ──
+document.getElementById("btnLogout")?.addEventListener("click", () => auth.signOut());

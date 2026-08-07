@@ -161,3 +161,5 @@ document.getElementById("closeAuditDetailModal")?.addEventListener("click",
   () => document.getElementById("auditDetailModal").style.display = "none");
 document.getElementById("closeAuditDetailModalBtn")?.addEventListener("click",
   () => document.getElementById("auditDetailModal").style.display = "none");
+// ── Sidebar logout (added when sidebar nav was introduced across admin pages) ──
+document.getElementById("btnLogout")?.addEventListener("click", () => auth.signOut());

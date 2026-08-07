@@ -138,3 +138,5 @@ document.getElementById("affBtnDelete").addEventListener("click", async () => {
   currentAff = null;
   applyFilters();
 });
+// ── Sidebar logout (added when sidebar nav was introduced across admin pages) ──
+document.getElementById("btnLogout")?.addEventListener("click", () => auth.signOut());

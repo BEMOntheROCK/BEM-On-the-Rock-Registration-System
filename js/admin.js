@@ -56,6 +56,12 @@ const maritalMap = {
   divorced:"Bercerai / Divorced", widowed:"Balu/Duda / Widowed"
 };
 const baptismMap = { baptised:"Sudah Dibaptis / Baptised", notBaptised:"Belum Dibaptis / Not Yet Baptised" };
+const roleMap = {
+  pastoral:     "Pastoral / Pastoral",
+  zoneLeader:   "Ketua Zon / Zone Leader",
+  komselLeader: "Ketua Komsel / Cell Group Leader",
+  komselMember: "Ahli Komsel / Cell Group Member",
+};
 
 // ── Normalise komsel code (auto-prepend Z if missing) ──
 function normaliseAdminKomsel(val) {
@@ -1093,6 +1099,7 @@ function buildViewHTML(reg) {
       ${vRow("Pekerjaan / Occupation", a.occupation || "Tiada Maklumat / No Information")}
       ${vRow("Gereja Asal / Original Church", a.originalChurch || "Tiada Maklumat / No Information")}
       ${vRow("Tahun Menyertai / Year Joined", a.yearJoining)}
+      ${vRow("Jawatan Dalam Komsel / Position within Cell Group", roleMap[a.memberRole] || a.memberRole || "—")}
       ${vRow("Kod Komsel / Cell Group Code", a.komselCode)}
       ${vRow("Alamat Terkini / Current Address", a.currentAddress)}
     </div>

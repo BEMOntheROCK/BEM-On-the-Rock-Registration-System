@@ -1479,3 +1479,171 @@ async function exportMemberListPDF() {
   btn.disabled = false;
   btn.textContent = "📄 Senarai Ahli PDF / Member List PDF";
 }
+
+// ══════════════════════════════════════════════
+// CELL GROUP LEADERS PDF EXPORT
+// ══════════════════════════════════════════════
+document.getElementById("btnExportCellLeadersPDF")?.addEventListener("click", exportCellLeadersPDF);
+
+async function exportCellLeadersPDF() {
+  const btn = document.getElementById("btnExportCellLeadersPDF");
+  btn.disabled = true;
+  btn.textContent = "⏳ Menjana PDF...";
+
+  const { jsPDF } = window.jspdf;
+  const doc     = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const PAGE_W  = 210, PAGE_H = 297, MARGIN = 14;
+  let y = MARGIN;
+
+  const BLACK  = [0, 0, 0];
+  const MUTED  = [100, 100, 100];
+  const BORDER = [0, 0, 0];
+
+  // Column widths: Bil | Kod Komsel | Ketua Komsel | No. Telefon
+  const COLS   = [12, 34, 90, 46];
+  const tableW = COLS.reduce((a,b) => a+b, 0);
+  const HEAD_H = 8, LINE_H = 5, ROW_PAD = 3;
+
+  function drawFooter() {
+    const p = doc.getNumberOfPages();
+    doc.setDrawColor(...MUTED);
+    doc.setLineWidth(0.3);
+    doc.line(MARGIN, PAGE_H - 11, PAGE_W - MARGIN, PAGE_H - 11);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.text("BEM On The Rock — Senarai Ketua Komsel / Cell Group Leaders List", MARGIN, PAGE_H - 6);
+    doc.text(String(p), PAGE_W - MARGIN, PAGE_H - 6, { align:"right" });
+  }
+
+  function drawTableHeader() {
+    doc.setFillColor(220, 220, 220);
+    doc.rect(MARGIN, y, tableW, HEAD_H, "F");
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.rect(MARGIN, y, tableW, HEAD_H, "S");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...BLACK);
+    const headers = ["Bil.", "Kod Komsel", "Ketua Komsel / Cell Leader", "No. Telefon / Phone"];
+    let x = MARGIN;
+    headers.forEach((h, i) => {
+      doc.text(h, x + 2, y + 5.5);
+      if (i < headers.length - 1) doc.line(x + COLS[i], y, x + COLS[i], y + HEAD_H);
+      x += COLS[i];
+    });
+    y += HEAD_H;
+  }
+
+  function checkPage(rowH) {
+    if (y + rowH > PAGE_H - 14) {
+      drawFooter();
+      doc.addPage();
+      y = MARGIN + 4;
+      drawTableHeader();
+    }
+  }
+
+  // ── Cover header ──
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(...BLACK);
+  doc.text("BEM ON THE ROCK", PAGE_W / 2, y + 6, { align:"center" });
+  y += 10;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...MUTED);
+  doc.text("Senarai Ketua Komsel / Cell Group Leaders List", PAGE_W / 2, y, { align:"center" });
+  y += 5;
+
+  const now = new Date();
+  doc.setFontSize(8);
+  doc.text(`Dijana pada / Generated on: ${now.toLocaleDateString("en-GB")} ${now.toLocaleTimeString("en-GB", {hour:"2-digit",minute:"2-digit"})}`, PAGE_W / 2, y, { align:"center" });
+  y += 4;
+
+  doc.setDrawColor(...BLACK);
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+  y += 6;
+
+  // ── Group ALL registrations (regardless of status) by normalised cell code ──
+  const groups = {}; // normalisedKomsel -> { members: [...] }
+  registrations.forEach(reg => {
+    const raw = reg.sectionA?.komselCode || "";
+    if (!raw.trim()) return; // skip registrations with no cell code at all
+    const komsel = normaliseAdminKomsel(raw);
+    if (!groups[komsel]) groups[komsel] = [];
+    groups[komsel].push(reg);
+  });
+
+  const cellCodes = Object.keys(groups).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric:true, sensitivity:"base" })
+  );
+
+  // ── Draw header row ──
+  drawTableHeader();
+
+  cellCodes.forEach((komsel, i) => {
+    const members = groups[komsel];
+    const leaders = members.filter(reg => reg.sectionA?.memberRole === "komselLeader");
+
+    const leaderLines = leaders.length
+      ? leaders.map(reg => (reg.sectionA?.fullName || reg.name || "—").toUpperCase())
+      : ["-"];
+    const phoneLines = leaders.length
+      ? leaders.map(reg => reg.sectionA?.phoneNumber || "—")
+      : ["-"];
+
+    const rowH = Math.max(leaderLines.length * LINE_H + ROW_PAD, LINE_H + ROW_PAD);
+    checkPage(rowH);
+
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.2);
+    doc.rect(MARGIN, y, tableW, rowH, "S");
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...BLACK);
+
+    let x = MARGIN;
+    // Bil.
+    doc.text(String(i + 1), x + 2, y + LINE_H, { maxWidth: COLS[0] - 3 });
+    doc.line(x + COLS[0], y, x + COLS[0], y + rowH);
+    x += COLS[0];
+    // Kod Komsel
+    doc.text(komsel, x + 2, y + LINE_H, { maxWidth: COLS[1] - 3 });
+    doc.line(x + COLS[1], y, x + COLS[1], y + rowH);
+    x += COLS[1];
+    // Ketua Komsel (one or more, stacked)
+    leaderLines.forEach((line, li) => {
+      doc.text(line, x + 2, y + LINE_H + li * LINE_H, { maxWidth: COLS[2] - 3 });
+    });
+    doc.line(x + COLS[2], y, x + COLS[2], y + rowH);
+    x += COLS[2];
+    // No. Telefon (aligned with each leader line)
+    phoneLines.forEach((line, li) => {
+      doc.text(line, x + 2, y + LINE_H + li * LINE_H, { maxWidth: COLS[3] - 3 });
+    });
+
+    y += rowH;
+  });
+
+  // ── Total row ──
+  if (y + 8 > PAGE_H - 14) {
+    drawFooter(); doc.addPage(); y = MARGIN + 4;
+  }
+  y += 3;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...BLACK);
+  doc.text(`Jumlah Kumpulan Komsel / Total Cell Groups: ${cellCodes.length}`, MARGIN, y);
+
+  drawFooter();
+
+  const filename = `BEM_OTR_CellLeaders_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}.pdf`;
+  doc.save(filename);
+
+  btn.disabled = false;
+  btn.textContent = "📄 Senarai Ketua Komsel PDF";
+}

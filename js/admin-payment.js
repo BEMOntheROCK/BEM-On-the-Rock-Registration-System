@@ -154,41 +154,22 @@ function renderTable(rows) {
          </td>`
       : `<td></td>`;
 
-    const receiptCell = req.receiptPath
-      ? `<td style="text-align:center;">
-           <button class="pay-receipt-btn"
-             style="background:rgba(76,175,125,0.1);border:1px solid rgba(76,175,125,0.35);
-             border-radius:var(--radius);padding:0.3rem 0.6rem;cursor:pointer;
-             color:#4CAF7D;font-family:var(--font-display);font-size:0.72rem;"
-             data-idx="${allPaymentRows.indexOf(row)}"
-             title="Muat turun resit / Download receipt">
-             ⬇️ Resit
-           </button>
-         </td>`
-      : `<td style="text-align:center;color:var(--text-muted);font-size:0.8rem;">—</td>`;
-
     const tr = document.createElement("tr");
     tr.innerHTML = `
       ${checkboxCell}
       <td class="col-num">${i+1}</td>
-      <td style="font-weight:700;">${row.memberName}</td>
-      <td style="color:var(--marigold);font-family:var(--font-display);font-size:0.82rem;">${row.memberUID}</td>
+      <td>
+        <div style="font-weight:700;">${row.memberName}</div>
+        <div style="color:var(--marigold);font-family:var(--font-display);font-size:0.78rem;">${row.memberUID}</div>
+      </td>
       <td>${method}</td>
-      <td>${years}</td>
-      <td style="text-align:right;font-weight:700;color:var(--marigold-bright);">${amount}</td>
-      <td style="font-size:0.82rem;">${formatDate(req.submittedAt)}</td>
+      <td>
+        <div style="font-weight:700;color:var(--text-primary);">${years}</div>
+        <div style="color:var(--marigold-bright);font-size:0.85rem;">${amount}</div>
+      </td>
       <td style="text-align:center;">${statusBadge}</td>
-      ${receiptCell}
       <td class="col-action">${actionBtn}</td>`;
     tbody.appendChild(tr);
-  });
-
-  // Wire receipt download buttons
-  document.querySelectorAll(".pay-receipt-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const row = allPaymentRows[parseInt(btn.dataset.idx)];
-      downloadReceipt(row, btn);
-    });
   });
 
   // Wire action buttons
@@ -282,8 +263,9 @@ function openActionModal(row) {
   document.getElementById("modalPayMethod").textContent  =
     req.method === "cash" ? "💵 Tunai / Cash Payment"
     : "🏦 Pindahan Bank / Bank Transfer";
+  document.getElementById("modalSubmittedAt").textContent = formatDate(req.submittedAt);
 
-  // Receipt download link (transfer only)
+  // Receipt download link (shown whenever a receipt/photo was attached)
   const existingReceiptBtn = document.getElementById("modalReceiptBtn");
   if (existingReceiptBtn) existingReceiptBtn.remove();
   if (req.receiptPath) {
@@ -294,7 +276,7 @@ function openActionModal(row) {
     receiptBtn.style.marginTop = "0.6rem";
     receiptBtn.textContent = "⬇️ Muat Turun Resit / Download Receipt";
     receiptBtn.addEventListener("click", () => downloadReceipt(row, receiptBtn));
-    document.getElementById("modalPayMethod").insertAdjacentElement("afterend", receiptBtn);
+    document.getElementById("modalSubmittedAt").parentElement.insertAdjacentElement("afterend", receiptBtn);
   }
 
   // Year checkboxes
@@ -948,6 +930,21 @@ function openDetailsModal(row) {
   document.getElementById("detailsPayMethod").textContent  =
     req.method === "cash" ? "💵 Tunai / Cash Payment" : "🏦 Pindahan Bank / Bank Transfer";
   document.getElementById("detailsYears").textContent = (req.years || []).join(", ");
+  document.getElementById("detailsAmount").textContent = `RM ${(req.amount || 0).toFixed(2)}`;
+  document.getElementById("detailsSubmittedAt").textContent = formatDate(req.submittedAt);
+
+  // Receipt download link (shown whenever a receipt/photo was attached)
+  const receiptSlot = document.getElementById("detailsReceiptSlot");
+  receiptSlot.innerHTML = "";
+  if (req.receiptPath) {
+    const receiptBtn = document.createElement("button");
+    receiptBtn.className = "btn btn-secondary";
+    receiptBtn.type = "button";
+    receiptBtn.style.marginTop = "0.4rem";
+    receiptBtn.textContent = "⬇️ Muat Turun Resit / Download Receipt";
+    receiptBtn.addEventListener("click", () => downloadReceipt(row, receiptBtn));
+    receiptSlot.appendChild(receiptBtn);
+  }
 
   const statusLine = document.getElementById("detailsStatusLine");
   const reasonWrap = document.getElementById("detailsReasonWrap");

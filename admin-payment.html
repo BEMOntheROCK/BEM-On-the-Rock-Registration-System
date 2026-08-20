@@ -150,14 +150,10 @@
                   title="Pilih semua / Select all pending"/>
               </th>
               <th class="col-num">Bil.<br/><em class="th-en">No.</em></th>
-              <th>Nama Ahli<br/><em class="th-en">Member Name</em></th>
-              <th>ID Unik<br/><em class="th-en">Unique ID</em></th>
+              <th>Ahli<br/><em class="th-en">Member</em></th>
               <th>Kaedah<br/><em class="th-en">Method</em></th>
-              <th>Tahun<br/><em class="th-en">Year(s)</em></th>
-              <th style="text-align:right;">Jumlah<br/><em class="th-en">Amount</em></th>
-              <th>Tarikh Dihantar<br/><em class="th-en">Submitted</em></th>
+              <th>Tahun &amp; Jumlah<br/><em class="th-en">Year(s) &amp; Amount</em></th>
               <th style="text-align:center;">Status</th>
-              <th style="text-align:center;">Resit<br/><em class="th-en">Receipt</em></th>
               <th class="col-action">Tindakan<br/><em class="th-en">Action</em></th>
             </tr>
           </thead>
@@ -257,8 +253,15 @@
           <div style="font-weight:700;font-size:0.95rem;" id="detailsMemberName"></div>
           <div style="font-size:0.82rem;color:var(--marigold);font-family:var(--font-display);" id="detailsMemberUID"></div>
           <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.3rem;" id="detailsPayMethod"></div>
+          <div id="detailsReceiptSlot"></div>
           <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.2rem;">
             Tahun / Year(s): <span id="detailsYears" style="font-weight:700;color:var(--text-primary);"></span>
+          </div>
+          <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.2rem;">
+            Jumlah / Amount: <span id="detailsAmount" style="font-weight:700;color:var(--text-primary);"></span>
+          </div>
+          <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.2rem;">
+            Tarikh Dihantar / Submitted: <span id="detailsSubmittedAt" style="font-weight:700;color:var(--text-primary);"></span>
           </div>
           <div style="font-size:0.85rem;margin-top:0.4rem;" id="detailsStatusLine"></div>
         </div>
@@ -367,6 +370,9 @@
             id="modalMemberUID"></div>
           <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.3rem;"
             id="modalPayMethod"></div>
+          <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.2rem;">
+            Tarikh Dihantar / Submitted: <span id="modalSubmittedAt" style="font-weight:700;color:var(--text-primary);"></span>
+          </div>
         </div>
 
         <!-- Year selection -->

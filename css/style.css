@@ -1944,6 +1944,37 @@ input[type="date"].form-input::-webkit-calendar-picker-indicator {
   box-shadow: inset 3px 0 0 var(--marigold);
 }
 
+/* ── Payment status filter tabs (admin-payment.html) ── */
+.pay-filter-btn {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pay-filter-btn:hover {
+  background: rgba(255,140,0,0.1);
+  border-color: var(--marigold-dim);
+  color: var(--text-primary);
+}
+
+.pay-filter-btn.active {
+  background: rgba(255,140,0,0.16);
+  border-color: var(--marigold);
+  color: var(--marigold-bright);
+}
+
+[data-theme="light"] .pay-filter-btn {
+  background: rgba(255,252,248,0.95);
+  color: var(--text-muted);
+}
+
 .danger-btn:hover {
   background: rgba(224, 85, 85, 0.15);
   color: #E05555;

@@ -1467,6 +1467,9 @@ function bindEvents() {
         }
 
         if (from === "c") {
+          // TEMP: Section C child-info validation disabled — see bindSectionCEvents() for matching change.
+          // Original check (name present but age/gender missing blocks progression) commented out below.
+          /*
           const partialChildren = [];
           document.querySelectorAll(".child-card").forEach((card, idx) => {
             const num    = card.dataset.childNum || (idx + 1);
@@ -1485,6 +1488,7 @@ function bindEvents() {
             setTimeout(() => showPartialChildModal(partialChildren), 350);
             return;
           }
+          */
         }
 
         if (from === "d") {
@@ -2340,7 +2344,9 @@ function bindSectionCEvents() {
   document.getElementById("btnNextC").addEventListener("click", () => {
     saveSectionCDraft();
 
-    // ── Check for partially filled child cards ──
+    // TEMP: Section C child-info validation disabled — see step-navigator gate for matching change.
+    // Original check (name present but age/gender missing blocks progression) commented out below.
+    /*
     const partialChildren = [];
     document.querySelectorAll(".child-card").forEach((card, idx) => {
       const num    = card.dataset.childNum || (idx + 1);
@@ -2360,6 +2366,7 @@ function bindSectionCEvents() {
       showPartialChildModal(partialChildren);
       return;
     }
+    */
 
     navigateTo("d");
   });

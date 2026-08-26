@@ -325,9 +325,14 @@ document.getElementById("btnMergeConfirm")?.addEventListener("click", async () =
   const output  = document.getElementById("mergeRaceOutput").value.trim().toUpperCase();
   const statusEl = document.getElementById("mergeRaceStatus");
 
-  if (mergeRaceSelected.size < 2) {
+  if (mergeRaceSelected.size < 1) {
     statusEl.style.color = "#E05555";
-    statusEl.textContent = "Sila pilih sekurang-kurangnya 2 bangsa. / Please select at least 2 races.";
+    statusEl.textContent = "Sila pilih sekurang-kurangnya 1 bangsa. / Please select at least 1 race.";
+    return;
+  }
+  if (mergeRaceSelected.size === 1 && Array.from(mergeRaceSelected)[0] === output) {
+    statusEl.style.color = "#E05555";
+    statusEl.textContent = "Nama output sama seperti nama asal. Tiada perubahan dibuat. / Output name is the same as the original — nothing to change.";
     return;
   }
   if (!output) {

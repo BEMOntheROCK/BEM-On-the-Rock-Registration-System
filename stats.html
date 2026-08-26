@@ -34,6 +34,7 @@
         <a href="admin.html" class="nav-item">📋 Senarai Pendaftaran</a>
         <a href="affiliated-admin-view.html" class="nav-item">🤲 Jemaat Bersekutu</a>
         <a href="deceased-admin-view.html" class="nav-item">🕊️ Rekod Kematian</a>
+        <a href="transferred-admin-view.html" class="nav-item">↗️ Ahli Berpindah</a>
         <a href="admin-payment.html" class="nav-item">💳 Bayaran</a>
 
         <div class="nav-section-title">LAPORAN / REPORTS</div>
@@ -146,7 +147,7 @@
         <div class="stats-section-header">
           <h3 class="stats-section-title">🌏 Statistik Bangsa / Race Statistics</h3>
           <button class="btn btn-secondary" id="btnMergeRace" style="white-space:nowrap;font-size:0.82rem;">
-            🔀 Gabung Bangsa / Merge Race
+            🔀 Gabung / Namakan Semula
           </button>
         </div>
         <div class="stats-table-wrap">
@@ -324,13 +325,13 @@
   <div class="modal-overlay" id="mergeRaceModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;">
     <div class="modal-card" style="max-width:680px;max-height:90vh;display:flex;flex-direction:column;">
       <div class="modal-header">
-        <h3 class="modal-title">🔀 Gabung Bangsa / Merge Race</h3>
+        <h3 class="modal-title">🔀 Gabung / Namakan Semula Bangsa <span style="font-weight:400;font-size:0.75em;">/ Merge or Rename Race</span></h3>
         <button class="modal-close" id="closeMergeModal">&times;</button>
       </div>
       <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border-card);">
         <p style="font-size:0.88rem;color:var(--text-muted);margin:0;line-height:1.6;">
-          Pilih bangsa yang ingin digabungkan, kemudian masukkan nama output.<br/>
-          <em>Select races to merge, then enter the output name.</em>
+          Pilih satu bangsa untuk menamakan semula, atau dua atau lebih untuk digabungkan, kemudian masukkan nama output.<br/>
+          <em>Select one race to rename it, or two or more to merge them, then enter the output name.</em>
         </p>
       </div>
       <!-- Search -->
@@ -354,7 +355,7 @@
             0 dipilih / selected
           </span>
           <button class="btn btn-secondary" id="btnMergeClearSel">Nyahpilih / Clear</button>
-          <button class="btn btn-primary" id="btnMergeConfirm">✅ Gabung / Merge</button>
+          <button class="btn btn-primary" id="btnMergeConfirm">✅ Sahkan / Confirm</button>
         </div>
         <div id="mergeRaceStatus" style="font-size:0.85rem;min-height:1.2rem;"></div>
       </div>

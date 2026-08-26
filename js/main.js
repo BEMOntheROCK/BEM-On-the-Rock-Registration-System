@@ -841,6 +841,21 @@ function populateFormWithData(data) {
     if (wantEl && svcs[key]?.join)    wantEl.checked = true;
   });
 
+  // ── Section B — "Others" field (was missing: caused edits to wipe existing data) ──
+  if (b.othersChecked) {
+    const othersCheck = document.getElementById("othersCheck");
+    if (othersCheck) {
+      othersCheck.checked = true;
+      document.getElementById("othersFields")?.classList.add("visible");
+    }
+    const othersName = document.getElementById("othersServiceName");
+    if (othersName && b.othersServiceName) othersName.value = b.othersServiceName;
+    if (b.othersInvolvement) {
+      const radio = document.querySelector(`input[name="othersInvolvement"][value="${b.othersInvolvement}"]`);
+      if (radio) radio.checked = true;
+    }
+  }
+
   // ── Section C — Children ──
   // Store in a module-level variable; Section C will read this when it renders
   // (can't use localStorage in edit mode since it gets cleared)
